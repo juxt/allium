@@ -291,6 +291,12 @@ when: CandidateSelectsSlot(invitation, slot)
 when: InterviewerSubmitsFeedback(interviewer, interview, recommendation, notes)
 ```
 
+**Optional parameters** in triggers use the `?` suffix:
+```
+when: InterviewerReportsNoInterview(interviewer, interview, reason, details?)
+```
+Optional parameters may be absent when the trigger fires. Use `parameter = null` in rules to check for absence.
+
 **State transition** - entity changed state:
 ```
 when: interview: Interview.status becomes scheduled
