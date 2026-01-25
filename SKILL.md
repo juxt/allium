@@ -29,6 +29,20 @@ The name comes from the botanical family containing onions, garlic, and shallots
 
 ---
 
+## How to Use These Guides
+
+This skill includes four documents. Which one you need depends on what you're trying to do.
+
+**If the user is describing a feature or product behaviour they want to build**, start with [ELICITATION.md](./ELICITATION.md). This guide covers how to extract a specification through conversation: finding the right abstraction level, identifying entities and rules, surfacing implicit decisions and recognising when behaviour should be captured in a library spec rather than written from scratch. The elicitation process typically moves through phases, from scoping the domain to the happy path, then edge cases, then refinement.
+
+**If the user has existing code and wants to extract a specification from it**, start with [REVERSE_ENGINEERING.md](./REVERSE_ENGINEERING.md). This guide covers how to read implementation code and produce an Allium specification that captures the behaviour without the implementation details. It includes worked examples in Python, TypeScript and Java, along with techniques for identifying implicit state machines and scattered business logic, and for distinguishing essential behaviour from implementation accident.
+
+**If you're writing a specification and need examples of common patterns**, consult [PATTERNS.md](./PATTERNS.md). This document provides complete worked examples for authentication, role-based access control, invitations, soft delete, notification preferences, usage limits, comments with mentions, and integration with library specs such as OAuth and payment processing.
+
+**If you need the language syntax reference**, continue reading this document. The Language Reference section below covers file structure, entities, rules, triggers, expressions and validation rules.
+
+---
+
 ## Language Reference
 
 ### File Structure
@@ -709,16 +723,6 @@ The checker should warn (but not error) on:
 - Unused entities or fields
 - Rules that can never fire (preconditions always false)
 - Temporal rules without guards against re-firing
-
----
-
-## Related Guides
-
-| Guide | Purpose |
-|-------|---------|
-| [ELICITATION.md](./ELICITATION.md) | Building specs through conversation, finding the right abstraction level |
-| [REVERSE_ENGINEERING.md](./REVERSE_ENGINEERING.md) | Extracting specs from existing codebases |
-| [PATTERNS.md](./PATTERNS.md) | Reusable patterns for common scenarios |
 
 ---
 
