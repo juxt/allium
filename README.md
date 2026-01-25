@@ -23,15 +23,16 @@ rule UserRequestsPasswordReset {
     requires: email = user.email
     requires: user.status = active
 
-    ensures: ResetToken.created(
-        user: user,
-        expires_at: now + config.reset_token_lifetime
-    )
-    ensures: Email.sent(
-        to: user.email,
-        template: password_reset,
-        data: { token }
-    )
+    ensures:
+        let token = ResetToken.created(
+            user: user,
+            expires_at: now + config.reset_token_lifetime
+        )
+        Email.sent(
+            to: user.email,
+            template: password_reset,
+            data: { token }
+        )
 }
 ```
 
@@ -61,3 +62,7 @@ The repository contains four documents:
 ## The Name
 
 Allium is the botanical family containing onions, garlic, leeks and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention, followed by Lettuce and Spinach for other language ecosystems. The phonetic echo of "LLM" is intentional, reflecting where we expect these specifications to be most useful. And as with its namesake, working with Allium occasionally produces tears, usually when you discover what was hiding in your requirements all along.
+
+---
+
+Copyright JUXT Ltd 2026
