@@ -1,6 +1,6 @@
 ---
 name: allium
-description: Allium product specification language for capturing domain requirements
+description: Allium behavioural specification language for capturing domain requirements
 auto_trigger:
   - file_patterns: ["**/*.allium"]
   - keywords: ["allium", "allium spec", "allium specification", ".allium file"]
@@ -10,13 +10,13 @@ auto_trigger:
 
 ## Overview
 
-Allium is a formal language for capturing product requirements at the domain level. It sits between informal feature descriptions and implementation, providing a precise way to specify what a product does without prescribing how it's built.
+Allium is a formal language for capturing software behaviour at the domain level. It sits between informal feature descriptions and implementation, providing a precise way to specify what software does without prescribing how it's built.
 
-The name comes from the botanical family containing onions, garlic, and shallots - layered, flavourful, and fundamental to good cooking. Like its namesake, Allium adds essential flavour to the product development process.
+The name comes from the botanical family containing onions, garlic, and shallots - layered, flavourful, and fundamental to good cooking. Like its namesake, Allium adds essential flavour to the development process.
 
 **Key principles:**
 - Describes observable behaviour, not implementation
-- Captures domain logic that product owners care about
+- Captures domain logic that matters at the behavioural level
 - Generates integration and end-to-end tests (not unit tests)
 - Forces ambiguities into the open before implementation
 - Implementation-agnostic: the same spec could be implemented in any language
@@ -25,7 +25,7 @@ The name comes from the botanical family containing onions, garlic, and shallots
 - Programming language or framework choices
 - Database schemas or storage mechanisms
 - API designs or UI layouts
-- Internal algorithms (unless they're product-level concerns)
+- Internal algorithms (unless they're domain-level concerns)
 
 ---
 
@@ -33,7 +33,7 @@ The name comes from the botanical family containing onions, garlic, and shallots
 
 This skill includes four documents. Which one you need depends on what you're trying to do.
 
-**If the user is describing a feature or product behaviour they want to build**, start with [ELICITATION.md](./ELICITATION.md). This guide covers how to extract a specification through conversation: finding the right abstraction level, identifying entities and rules, surfacing implicit decisions and recognising when behaviour should be captured in a library spec rather than written from scratch. The elicitation process typically moves through phases, from scoping the domain to the happy path, then edge cases, then refinement.
+**If the user is describing a feature or behaviour they want to build**, start with [ELICITATION.md](./ELICITATION.md). This guide covers how to extract a specification through conversation: finding the right abstraction level, identifying entities and rules, surfacing implicit decisions and recognising when behaviour should be captured in a library spec rather than written from scratch. The elicitation process typically moves through phases, from scoping the domain to the happy path, then edge cases, then refinement.
 
 **If the user has existing code and wants to extract a specification from it**, start with [REVERSE_ENGINEERING.md](./REVERSE_ENGINEERING.md). This guide covers how to read implementation code and produce an Allium specification that captures the behaviour without the implementation details. It includes worked examples in Python, TypeScript and Java, along with techniques for identifying implicit state machines and scattered business logic, and for distinguishing essential behaviour from implementation accident.
 
@@ -92,14 +92,14 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- Open Questions
 ------------------------------------------------------------
 
--- Unresolved product decisions
+-- Unresolved design decisions
 ```
 
 ---
 
 ### Entities
 
-Entities represent the domain concepts that product owners talk about.
+Entities represent the domain concepts that matter to the system's behaviour.
 
 #### External Entities
 
@@ -462,7 +462,7 @@ ensures: CandidateInformed(
 )
 ```
 
-Communications are observable outcomes the product owner cares about, without specifying UI/UX details.
+Communications are observable outcomes that matter at the behavioural level, without specifying UI/UX details.
 
 ---
 
@@ -572,7 +572,7 @@ This allows the main specification to remain succinct while acknowledging that d
 
 ### Open Questions
 
-Capture unresolved product decisions:
+Capture unresolved design decisions:
 
 ```
 open_question "Admin ownership - should admins be assigned to specific roles?"
@@ -864,5 +864,5 @@ ensures: deadline = now + confirmation_deadline
 | **Precondition** | A requirement that must be true for a rule to execute |
 | **Postcondition** | An assertion about what becomes true after a rule executes |
 | **Deferred Specification** | Complex logic defined in a separate file |
-| **Open Question** | An unresolved product decision |
+| **Open Question** | An unresolved design decision |
 | **Default** | A configurable value used in rules |

@@ -1,6 +1,6 @@
 # Allium
 
-A specification language for capturing what your product does, independent of how it's built.
+A specification language for capturing what your software does, independent of how it's built.
 
 ## Installation
 
@@ -30,7 +30,7 @@ Writing code has always been a mechanism for understanding requirements. The act
 
 ### What changes with LLMs
 
-LLMs allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase.
+LLMs allow engineers to describe behaviour informally and receive working code, working at a higher level of abstraction than traditional development. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase.
 
 The consequences emerge over time. After several features, authentication assumes things about permissions that were never written down, error handling varies across modules and nobody remembers why that edge case was handled that way. Informal requirements contain implicit decisions, and each generation resolves them differently.
 
@@ -38,13 +38,15 @@ The consequences emerge over time. After several features, authentication assume
 
 Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail.
 
-The value is not in the syntax itself but in the discipline it imposes. Allium's structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over. This counteracts the natural tendency of LLMs to produce plausible-looking solutions to fuzzy problems, and requires the prompter to do the harder work of deciding what the system should actually do.
+The value is not in the syntax itself but in the discipline it imposes. Allium's structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over. This counteracts the natural tendency of LLMs to produce plausible-looking solutions to fuzzy problems, and requires the engineer to do the harder work of deciding what the system should actually do.
+
+While engineers are the primary audience, Allium specifications are readable by anyone involved in defining system behaviour. Product owners can validate that the spec captures their intent. QA engineers can derive test cases directly from the rules. The shared language reduces the translation errors that occur when requirements pass through multiple interpretations.
 
 ## A language without a runtime
 
 Allium has no compiler and no runtime. It is purely specification, defined entirely by its documentation. This is not a limitation but an illustration of its core premise: what matters is the specification, not the implementation.
 
-In an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The LLM reads the Allium skill documentation and uses it to interpret `.allium` files or create new specifications, whether through elicitation from conversation or reverse-engineering from existing code. The specification is the product; the code that implements it is secondary.
+In an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The LLM reads the Allium skill documentation and uses it to interpret `.allium` files or create new specifications, whether through elicitation from conversation or reverse-engineering from existing code. The specification is the primary artefact; the code that implements it is secondary.
 
 ## What Allium captures
 
@@ -70,9 +72,9 @@ rule UserRequestsPasswordReset {
 }
 ```
 
-This rule captures the behaviour that product owners care about: when a user requests a password reset, if the email matches and the account is active, a token is created and an email is sent. It says nothing about which database stores the token or which service sends the email. Those decisions belong to implementation.
+This rule captures observable behaviour: when a user requests a password reset, if the email matches and the account is active, a token is created and an email is sent. It says nothing about which database stores the token or which service sends the email. Those decisions belong to implementation.
 
-The separation matters because it allows the specification to remain stable while implementations change. A team can migrate from PostgreSQL to DynamoDB, or from SendGrid to Postmark, without touching the specification. Conversely, when product behaviour changes, the specification changes first, and the implementation follows.
+The separation matters because it allows the specification to remain stable while implementations change. A team can migrate from PostgreSQL to DynamoDB, or from SendGrid to Postmark, without touching the specification. Conversely, when the required behaviour changes, the specification changes first and the implementation follows.
 
 ## How we use it
 

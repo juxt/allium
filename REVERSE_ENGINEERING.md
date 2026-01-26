@@ -2,9 +2,9 @@
 
 ## Overview
 
-This guide is for extracting Allium specifications from existing codebases. While it might seem different from forward elicitation, **the core challenge is the same**: finding the right level of abstraction. In elicitation, you're filtering out implementation ideas as they arise. In reverse engineering, you're filtering out implementation details that already exist. Both require the same judgment about what matters at the product level.
+This guide is for extracting Allium specifications from existing codebases. While it might seem different from forward elicitation, **the core challenge is the same**: finding the right level of abstraction. In elicitation, you're filtering out implementation ideas as they arise. In reverse engineering, you're filtering out implementation details that already exist. Both require the same judgment about what matters at the domain level.
 
-**The core challenge:** Code tells you *how* something works. A specification needs to capture *what* it does and *why* it matters. The skill is the same as elicitation - asking "why does the product owner care about this?" and "could this be different while still being the same product?"
+**The core challenge:** Code tells you *how* something works. A specification needs to capture *what* it does and *why* it matters. The skill is the same as elicitation - asking "why does the stakeholder care about this?" and "could this be different while still being the same system?"
 
 ---
 
@@ -20,10 +20,10 @@ Before diving into code, establish what you're actually trying to specify. Not e
    - Clarify boundaries explicitly before starting
 
 2. **"Is there code we should deliberately exclude?"**
-   - **Legacy code**: Features kept for backwards compatibility but not part of the core product
-   - **Incidental code**: Supporting infrastructure that isn't product-level (logging, metrics, deployment)
+   - **Legacy code**: Features kept for backwards compatibility but not part of the core system
+   - **Incidental code**: Supporting infrastructure that isn't domain-level (logging, metrics, deployment)
    - **Deprecated paths**: Code scheduled for removal
-   - **Experimental features**: Behind feature flags, not yet product decisions
+   - **Experimental features**: Behind feature flags, not yet design decisions
 
 3. **"Who owns this spec?"**
    - Different teams may own different parts of a mono repo
@@ -31,7 +31,7 @@ Before diving into code, establish what you're actually trying to specify. Not e
 
 ### The "Would We Rebuild This?" Test
 
-For any code path you encounter, ask: **"If we rebuilt this product from scratch, would this be in the requirements?"**
+For any code path you encounter, ask: **"If we rebuilt this system from scratch, would this be in the requirements?"**
 
 - Yes → Include in spec
 - No, it's legacy → Exclude
@@ -58,11 +58,11 @@ At the top of a reverse-engineered spec, document what's included and excluded:
 
 ## Finding the Right Level of Abstraction
 
-Reverse engineering and elicitation share the same fundamental challenge: choosing what to include. The tests below work in both directions - whether you're hearing a product owner describe a feature or reading code that implements it.
+Reverse engineering and elicitation share the same fundamental challenge: choosing what to include. The tests below work in both directions - whether you're hearing a stakeholder describe a feature or reading code that implements it.
 
 ### The "Why" Test
 
-For every detail in the code, ask: **"Why does the product owner care about this?"**
+For every detail in the code, ask: **"Why does the stakeholder care about this?"**
 
 | Code detail | Why? | Include? |
 |-------------|------|----------|
@@ -73,11 +73,11 @@ For every detail in the code, ask: **"Why does the product owner care about this
 | Slot status changes to 'proposed' | Affects what candidate sees | Yes |
 | Email sent when invitation accepted | Communication requirement | Yes |
 
-If you can't articulate why a product owner would care, it's probably implementation.
+If you can't articulate why a stakeholder would care, it's probably implementation.
 
 ### The "Could It Be Different?" Test
 
-Ask: **"Could this be implemented differently while still being the same product?"**
+Ask: **"Could this be implemented differently while still being the same system?"**
 
 - If yes → probably implementation detail, abstract it away
 - If no → probably domain-level, include it
@@ -85,7 +85,7 @@ Ask: **"Could this be implemented differently while still being the same product
 | Detail | Could be different? | Include? |
 |--------|---------------------|----------|
 | `secrets.token_urlsafe(32)` | Yes - any secure token generation | No |
-| 7-day invitation expiry | No - this is the product decision | Yes |
+| 7-day invitation expiry | No - this is the design decision | Yes |
 | PostgreSQL database | Yes - any database | No |
 | "Pending → Confirmed → Completed" states | No - this is the workflow | Yes |
 
@@ -93,14 +93,14 @@ Ask: **"Could this be implemented differently while still being the same product
 
 Is this a **category** of thing, or a **specific instance**?
 
-| Instance (often implementation) | Template (often product-level) |
+| Instance (often implementation) | Template (often domain-level) |
 |--------------------------------|-------------------------------|
 | Google OAuth | Authentication provider |
 | Slack webhook | Notification channel |
 | SendGrid API | Email delivery |
 | `timedelta(hours=3)` | Confirmation deadline |
 
-But sometimes the instance IS the product concern - see "The Concrete Detail Problem" below.
+But sometimes the instance IS the domain concern - see "The Concrete Detail Problem" below.
 
 ---
 
@@ -108,7 +108,7 @@ But sometimes the instance IS the product concern - see "The Concrete Detail Pro
 
 ### Code is Over-Specified
 
-Every line of code makes decisions that might not matter at the product level:
+Every line of code makes decisions that might not matter at the domain level:
 
 ```python
 # Code tells you:
@@ -180,14 +180,14 @@ For every detail in the code, ask:
 | Invitation expires in 7 days | Yes - affects candidate experience | Yes |
 | Token is 32 bytes URL-safe | No - security implementation | No |
 | Uses SQLAlchemy ORM | No - persistence mechanism | No |
-| Email template name | Maybe - if templates are product decisions | Maybe |
+| Email template name | Maybe - if templates are design decisions | Maybe |
 | Slot status changes to 'proposed' | Yes - affects what candidate sees | Yes |
 | Database transaction commits | No - implementation detail | No |
 
 ### Distinguish Means from Ends
 
 **Means:** How the code achieves something
-**Ends:** What outcome the product needs
+**Ends:** What outcome the system needs
 
 | Means (code) | Ends (spec) |
 |--------------|-------------|
@@ -214,7 +214,7 @@ def authenticate(provider: str, code: str) -> User:
     return OAUTH_PROVIDERS[provider].authenticate(code)
 ```
 
-**Question:** Is "Google OAuth" product-level or implementation?
+**Question:** Is "Google OAuth" domain-level or implementation?
 
 **It's implementation if:**
 - Google is just the auth mechanism chosen
@@ -222,13 +222,13 @@ def authenticate(provider: str, code: str) -> User:
 - Users don't see or care which provider
 - The code is written generically (provider is a parameter)
 
-**It's product-level if:**
+**It's domain-level if:**
 - Users explicitly choose Google (vs Microsoft, etc.)
 - "Sign in with Google" is a feature
 - Google-specific scopes/permissions are used
-- Multiple providers are supported as a product feature
+- Multiple providers are supported as a feature
 
-**How to tell:** Look at the UI and user flows. If users see "Sign in with Google" as a choice, it's product-level. If they just see "Sign in" and Google happens to be behind it, it's implementation.
+**How to tell:** Look at the UI and user flows. If users see "Sign in with Google" as a choice, it's domain-level. If they just see "Sign in" and Google happens to be behind it, it's implementation.
 
 ### Database Choice Example
 
@@ -249,7 +249,7 @@ entity Candidate {
 }
 ```
 
-The specific database is rarely product-level. Exception: if the product explicitly promises PostgreSQL compatibility or specific PostgreSQL features to users.
+The specific database is rarely domain-level. Exception: if the system explicitly promises PostgreSQL compatibility or specific PostgreSQL features to users.
 
 ### Third-Party Integration Example
 
@@ -309,11 +309,11 @@ rule SyncFromGreenhouse {
 Look for variation in the codebase:
 
 - If there's only one OAuth provider → probably implementation
-- If there are multiple OAuth providers → probably product-level
+- If there are multiple OAuth providers → probably domain-level
 - If there's only one notification channel → probably implementation  
-- If there are Slack AND email AND SMS → probably product-level
+- If there are Slack AND email AND SMS → probably domain-level
 
-The presence of multiple implementations suggests the variation itself is a product concern.
+The presence of multiple implementations suggests the variation itself is a domain concern.
 
 ---
 
@@ -536,7 +536,7 @@ entity Invitation {
 }
 ```
 
-**After (product-level):**
+**After (domain-level):**
 ```
 entity Invitation {
     candidacy: Candidacy
@@ -559,7 +559,7 @@ Changes:
 The extracted spec is a hypothesis. Validate it:
 
 1. **Show the spec to the original developers** - "Is this what the system does?"
-2. **Show to product owners** - "Is this what the product should do?"
+2. **Show to stakeholders** - "Is this what the system should do?"
 3. **Look for gaps** - Code often has bugs or missing features; spec might reveal them
 
 Common findings:
@@ -842,7 +842,7 @@ rule ResetTokenExpires {
 - Database details (SQLAlchemy, column types, foreign keys)
 - HTTP layer (routes, JSON, status codes)
 - Security implementation (token generation algorithm, password hashing)
-- Email enumeration protection (product decision - could add back if desired)
+- Email enumeration protection (design decision - could add back if desired)
 - Template rendering details
 
 ---
@@ -1568,7 +1568,7 @@ The Java code uses `deletedAt != null` as the delete indicator, but the spec use
 
 During reverse engineering, stay alert for code that implements **generic integration patterns** rather than application-specific logic. These belong in library specs, not your main specification.
 
-**The same principle applies in elicitation.** When a product owner describes "we use Google for login" or "payments go through Stripe," pause and consider whether this is a library spec. See ELICITATION.md's "Recognising Library Spec Opportunities" section for conversation-level signals.
+**The same principle applies in elicitation.** When a stakeholder describes "we use Google for login" or "payments go through Stripe," pause and consider whether this is a library spec. See ELICITATION.md's "Recognising Library Spec Opportunities" section for conversation-level signals.
 
 ### Signals in the Code
 
@@ -1799,7 +1799,7 @@ The spec should capture the intended behaviour, not the bug:
 ensures: Notification.sent(to: user, channel: slack)
 ```
 
-Whether the current implementation properly handles failures is separate from what the product should do.
+Whether the current implementation properly handles failures is separate from what the system should do.
 
 ### Challenge: Over-Engineered Abstractions
 
@@ -1842,4 +1842,4 @@ Before finalising a reverse-engineered spec:
 - [ ] Tokens/secrets removed (implementation of identity)
 - [ ] Timestamps use domain Duration, not timedelta/seconds
 
-If any remain, ask: "Would a product owner include this in a requirements doc?"
+If any remain, ask: "Would a stakeholder include this in a requirements doc?"

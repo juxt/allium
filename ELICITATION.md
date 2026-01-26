@@ -2,9 +2,9 @@
 
 ## Overview
 
-This guide is for building Allium specifications through conversation with product owners or engineers. The goal is to extract domain knowledge, surface ambiguities, and produce a specification that captures what the product does without prescribing implementation.
+This guide is for building Allium specifications through conversation with stakeholders or engineers. The goal is to extract domain knowledge, surface ambiguities, and produce a specification that captures what the software does without prescribing implementation.
 
-**The same principles apply to reverse engineering.** Whether you're hearing a product owner describe a feature or reading code that implements it, the challenge is identical: finding the right level of abstraction. See REVERSE_ENGINEERING.md for guidance on extracting specs from existing codebases - it uses the same tests and strategies described here.
+**The same principles apply to reverse engineering.** Whether you're hearing a stakeholder describe a feature or reading code that implements it, the challenge is identical: finding the right level of abstraction. See REVERSE_ENGINEERING.md for guidance on extracting specs from existing codebases - it uses the same tests and strategies described here.
 
 ---
 
@@ -15,7 +15,7 @@ Before diving into details, establish what you're specifying. Not everything nee
 ### Questions to Ask First
 
 1. **"What's the boundary of this specification?"**
-   - A complete product? A single feature area? One service in a larger system?
+   - A complete system? A single feature area? One service in a larger system?
    - Be explicit about what's in and out of scope
 
 2. **"Are there areas we should deliberately exclude?"**
@@ -52,12 +52,12 @@ The hardest part of specification is choosing what to include and what to leave 
 
 ### The "Why" Test
 
-For every detail, ask: **"Why does the product owner care about this?"**
+For every detail, ask: **"Why does the stakeholder care about this?"**
 
 | Detail | Why? | Include? |
 |--------|------|----------|
 | "Users log in with Google OAuth" | They need to authenticate | Maybe not - "Users authenticate" might be sufficient |
-| "We support Google and Microsoft OAuth" | Users choose their provider | Yes - the choice is product-level |
+| "We support Google and Microsoft OAuth" | Users choose their provider | Yes - the choice is domain-level |
 | "Sessions expire after 24 hours" | Security/UX decision | Yes - affects user experience |
 | "Sessions are stored in Redis" | Performance | No - implementation detail |
 | "Passwords must be 12+ characters" | Security policy | Yes - affects users |
@@ -65,14 +65,14 @@ For every detail, ask: **"Why does the product owner care about this?"**
 
 ### The "Could It Be Different?" Test
 
-Ask: **"Could this be implemented differently while still being the same product?"**
+Ask: **"Could this be implemented differently while still being the same system?"**
 
 - If yes → probably implementation detail, abstract it away
 - If no → probably domain-level, include it
 
 Examples:
 - "Notifications sent via Slack" - Could be email, SMS, etc. → Abstract to `Notification.sent(channel: ...)`
-- "Interviewers must confirm within 3 hours" - This specific deadline matters to the product → Include the duration
+- "Interviewers must confirm within 3 hours" - This specific deadline matters at the domain level → Include the duration
 - "We use PostgreSQL" - Could be any database → Don't include
 - "Data is retained for 7 years for compliance" - Regulatory requirement → Include
 
@@ -80,18 +80,18 @@ Examples:
 
 Is this a **category** of thing, or a **specific instance**?
 
-| Instance (implementation) | Template (product-level) |
+| Instance (implementation) | Template (domain-level) |
 |---------------------------|-------------------------|
 | Google OAuth | Authentication provider |
 | Slack | Notification channel |
 | 15 minutes | Link expiry duration (configurable) |
 | Greenhouse ATS | External candidate source |
 
-But sometimes the instance IS the product concern:
+But sometimes the instance IS the domain concern:
 - "We specifically integrate with Salesforce" (competitive feature)
-- "We support exactly these three OAuth providers" (product scope)
+- "We support exactly these three OAuth providers" (design scope)
 
-When in doubt, ask the product owner: **"If we changed this, would it be a different product or just a different implementation?"**
+When in doubt, ask the stakeholder: **"If we changed this, would it be a different system or just a different implementation?"**
 
 ### Levels of Abstraction
 
@@ -104,7 +104,7 @@ Too concrete:          "Candidates click a button that POST to /api/invitations/
 ```
 
 **Signs you're too abstract:**
-- The spec could describe almost any product
+- The spec could describe almost any system
 - No testable assertions
 - Product owner says "but that doesn't capture..."
 
@@ -117,12 +117,12 @@ Too concrete:          "Candidates click a button that POST to /api/invitations/
 
 When you encounter a specific value (3 hours, 7 days, etc.), ask:
 
-1. **Is this value a product decision?** → Include it
+1. **Is this value a design decision?** → Include it
 2. **Might it vary per deployment/customer?** → Make it configurable
 3. **Is it arbitrary?** → Consider whether to include at all
 
 ```
--- Hardcoded product decision
+-- Hardcoded design decision
 rule InvitationExpires {
     when: invitation.created_at + 7.days <= now
     ...
@@ -366,10 +366,10 @@ During elicitation, stay alert for descriptions that suggest a **library spec** 
 
 When you detect a potential library spec, pause and explore:
 
-1. **"Is this specific to your product, or is it a standard integration?"**
+1. **"Is this specific to your system, or is it a standard integration?"**
    - If standard → likely a library spec candidate
 
-2. **"Would another product integrating with [X] work the same way?"**
+2. **"Would another system integrating with [X] work the same way?"**
    - If yes → definitely a library spec candidate
 
 3. **"Do you have specific customisations to how [X] works, or is it standard?"**
@@ -399,7 +399,7 @@ greenhouse-ats.allium spec that this application references?"
 
 **Option 3: Keep it inline (rare)**
 ```
-"This integration is so specific to your product that it probably doesn't
+"This integration is so specific to your system that it probably doesn't
 make sense as a standalone spec. Let's include it directly."
 ```
 
@@ -426,7 +426,7 @@ The library spec handles:
 - Configuration that varies between deployments
 
 The application spec handles:
-- What happens in *your product* when those events occur
+- What happens in *your system* when those events occur
 - Application-specific entities (your User, your Subscription)
 - Business rules unique to your domain
 
@@ -473,7 +473,7 @@ Some people want to cover every edge case immediately:
 
 Engineers especially jump to solutions:
 
-"I hear you saying we need real-time updates. At the product level, what does the user need to see and when?"
+"I hear you saying we need real-time updates. At the domain level, what does the user need to see and when?"
 
 ### The "Vague Agreement" Trap
 
@@ -492,7 +492,7 @@ Watch for actions without clear actors:
 ## Elicitation Session Structure
 
 **Opening (5 min):**
-- Explain Allium briefly: "We're capturing what the product does, not how it's built"
+- Explain Allium briefly: "We're capturing what the software does, not how it's built"
 - Set expectations: "I'll ask lots of questions, some obvious-seeming"
 - Agree on scope for this session
 
