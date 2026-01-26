@@ -26,7 +26,7 @@ Once installed, Claude Code will load the skill when it encounters `.allium` fil
 
 ### Code as a thinking tool
 
-Writing code has always been a mechanism for understanding requirements. The act of formalising behaviour into a programming language forces decisions: what happens when this field is null, what order should these operations occur in, how should this error propagate. Code is ultimately the reification of cause-and-effect behaviours we want our software to perform, but these essential behaviours often become secondary to incidental complexity: memory management, type systems, framework conventions and dependency injection.
+Writing code has always been a mechanism for understanding requirements. The act of formalising behaviour into a programming language forces decisions: what happens when this field is null, what order should these operations occur in, how should this error propagate. Code is how we make abstract requirements concrete, but expressing behaviour in code requires answering implementation questions that have nothing to do with the behaviour itself.
 
 ### What changes with LLMs
 
