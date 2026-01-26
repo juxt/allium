@@ -4,19 +4,9 @@ A specification language for capturing what your product does, independent of ho
 
 ## Why specification matters now
 
-We're seeing two failure modes in AI-assisted development, and they stem from the same root cause.
-
-The first is specification drift. Teams begin with a conversational approach to development, describing features to a model and iterating on the generated code. This works well initially, but after several features the codebase accumulates implicit decisions that nobody remembers making. The authentication flow assumes things about permissions that were never written down. Error handling varies across modules because each generation had slightly different context. When behaviour needs to change, there's no authoritative description of what the system is supposed to do, only the code itself, which conflates intent with implementation accident.
-
-The second is inconsistent generation. When requirements remain informal, the same feature request can produce substantially different implementations depending on context window contents or model version. This isn't a limitation of the models themselves: informal requirements contain implicit decisions, and without a specification to make those decisions explicit, each generation resolves the ambiguity differently.
-
-Both problems are specification problems. Allium addresses them by providing a formal language for capturing product behaviour at the domain level.
-
-## What Allium is
-
 Writing code has always been a mechanism for understanding requirements. The act of formalising behaviour into a programming language forces decisions: what happens when this field is null, what order these operations occur in, how this error propagates. Code in any language is ultimately the reification of cause-and-effect behaviours we want our software to perform, but these essential behaviours often become secondary to the incidental complexities of the language itself: memory management, type systems, framework conventions, dependency injection.
 
-LLMs change this dynamic. They allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase.
+LLMs change this dynamic. They allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase. After several features, authentication assumes things about permissions that were never written down, error handling varies across modules and nobody remembers why that edge case was handled that way. The same feature request produces different implementations depending on context window or model version, because informal requirements contain implicit decisions that each generation resolves differently.
 
 Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail. The language has no compiler and no runtime. It is purely specification. But in an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant.
 
