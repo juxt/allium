@@ -8,9 +8,15 @@ Writing code has always been a mechanism for understanding requirements. The act
 
 LLMs change this dynamic. They allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase. After several features, authentication assumes things about permissions that were never written down, error handling varies across modules and nobody remembers why that edge case was handled that way. The same feature request produces different implementations depending on context window or model version, because informal requirements contain implicit decisions that each generation resolves differently.
 
-Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail. The language has no compiler and no runtime. It is purely specification. But in an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant.
+Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail.
 
 The value is not in the syntax itself but in the discipline it imposes. Allium's structure forces you to identify triggers, preconditions and outcomes explicitly. It surfaces the questions that informal descriptions gloss over. This counteracts the natural tendency of LLMs to produce plausible-looking solutions to fuzzy problems, and requires the prompter to do the harder work of deciding what the system should actually do.
+
+## A language without a runtime
+
+Allium has no compiler and no runtime. It is purely specification, defined entirely by its documentation. This is not a limitation but an illustration of its core premise: what matters is the specification, not the implementation.
+
+In an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The LLM reads the Allium skill documentation and uses it to interpret `.allium` files or create new specifications, whether through elicitation from conversation or reverse-engineering from existing code. The specification is the product; the code that implements it is secondary.
 
 ## What Allium captures
 
@@ -53,13 +59,33 @@ The separation matters because it allows the specification to remain stable whil
 The repository contains four documents:
 
 - [SKILL.md](SKILL.md): The complete Allium language specification, covering entities, rules, triggers, relationships, projections and derived values
-- [PATTERNS.md](PATTERNS.md): Worked patterns for common domains including authentication, access control, invitations, soft delete, quotas and notifications
 - [ELICITATION.md](ELICITATION.md): A guide to extracting specifications through conversation with stakeholders
 - [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md): A guide to extracting specifications from existing implementations
+- [PATTERNS.md](PATTERNS.md): Worked examples for common domains including authentication, access control, invitations, soft delete, quotas and notifications
+
+## Installation
+
+Allium is distributed as a skill for [Claude Code](https://claude.ai/claude-code), Anthropic's CLI tool for AI-assisted development. A skill is a set of markdown files that provide Claude with domain-specific knowledge and capabilities.
+
+**Global installation** makes the skill available across all your projects:
+
+```bash
+git clone https://github.com/juxt/allium.git ~/.claude/skills/allium
+```
+
+**Project-local installation** scopes the skill to a specific codebase:
+
+```bash
+git clone https://github.com/juxt/allium.git .claude/skills/allium
+```
+
+For teams managing multiple skills across projects, [Craftdesk](https://craftdesk.io) provides a way to configure and synchronise skill installations.
+
+Once installed, Claude Code will automatically load the Allium skill when it encounters `.allium` files or when you mention Allium in conversation.
 
 ## The name
 
-Allium is the botanical family containing onions, garlic, leeks and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention, followed by Lettuce and Spinach for other language ecosystems. The phonetic echo of "LLM" is intentional, reflecting where we expect these specifications to be most useful. And as with its namesake, working with Allium occasionally produces tears, usually when you discover what was hiding in your requirements all along.
+Allium is the botanical family containing onions and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention, followed by Lettuce and Spinach for other language ecosystems. The phonetic echo of "LLM" is intentional, reflecting where we expect these specifications to be most useful. And as with its namesake, working with Allium occasionally produces tears, usually when you discover what was hiding in your requirements all along.
 
 ---
 
