@@ -24,11 +24,21 @@ Once installed, Claude Code will load the skill when it encounters `.allium` fil
 
 ## Why specification matters now
 
-Writing code has always been a mechanism for understanding requirements. Formalising behaviour forces decisions about edge cases and error handling. But these essential decisions often become secondary to incidental complexity: memory management, type systems, framework conventions and dependency injection.
+### Code as a thinking tool
 
-LLMs change this. They let engineers describe behaviour informally and receive working code, but this risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities, those guesses become silent assumptions. After several features, the codebase accumulates implicit decisions that nobody remembers making, and the same feature request produces different implementations depending on context window or model version.
+Writing code has always been a mechanism for understanding requirements. The act of formalising behaviour into a programming language forces decisions: what happens when this field is null, what order should these operations occur in, how should this error propagate. Code is ultimately the reification of cause-and-effect behaviours we want our software to perform, but these essential behaviours often become secondary to incidental complexity: memory management, type systems, framework conventions and dependency injection.
 
-Allium reintroduces disambiguation at a higher level of abstraction. Its structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over. The value is not the syntax but the discipline it imposes, counteracting the tendency of LLMs to guess at fuzzy problems.
+### What changes with LLMs
+
+LLMs allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase.
+
+The consequences emerge over time. After several features, authentication assumes things about permissions that were never written down, error handling varies across modules and nobody remembers why that edge case was handled that way. Informal requirements contain implicit decisions, and each generation resolves them differently.
+
+### Disambiguation without implementation
+
+Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail.
+
+The value is not in the syntax itself but in the discipline it imposes. Allium's structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over. This counteracts the natural tendency of LLMs to produce plausible-looking solutions to fuzzy problems, and requires the prompter to do the harder work of deciding what the system should actually do.
 
 ## A language without a runtime
 
