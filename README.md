@@ -4,9 +4,9 @@ A specification language for describing what your code does independent of how i
 
 ## Why specification?
 
-Software engineers often understand problems as they model them. Deciding whether a concept is one entity or two, naming a function and realising it does too many things, or discovering that two "different" workflows are actually the same. These clarifications emerge through the act of formalisation. Reasoning through implications in code is how we discover what we actually mean.
+Software engineers often understand problems as they model them. Deciding whether a concept is one entity or two, naming a function and realising it does too many things, or discovering that two "different" workflows are actually the same: these clarifications emerge through the act of formalisation. Reasoning through implications in code is how we discover what we actually mean.
 
-LLMs let engineers skip this process. Describe behaviour informally, receive working code. But when models guess at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase. The discovery that used to happen during implementation now doesn't happen at all.
+LLMs let engineers skip this process: describe behaviour informally, receive working code. But when models guess at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase. The discovery that used to happen during implementation now doesn't happen at all.
 
 Allium reclaims that discovery at a higher level of abstraction, without descending into implementation detail.
 
@@ -58,7 +58,7 @@ This rule captures observable behaviour: when a user requests a password reset, 
 
 The [language specification](SKILL.md) covers entities, rules, triggers, relationships, projections and derived values.
 
-## A language without a runtime
+### A language without a runtime
 
 Allium has no compiler and no runtime. It is purely specification, defined entirely by its documentation. This is not a limitation but an illustration of its core premise: what matters is the specification, not the implementation.
 
@@ -74,13 +74,25 @@ Allium specifications are not written by hand. They emerge through two processes
 
 ## The problems Allium solves
 
-**Silent assumptions.** After several features, authentication assumes things about permissions that were never written down and error handling varies across modules. Informal requirements contain implicit decisions, and each generation of code resolves them differently. Allium's structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over.
+### Silent assumptions
 
-**Implementation churn.** The specification remains stable while implementations change. A team can migrate from PostgreSQL to DynamoDB, or from SendGrid to Postmark, without touching the specification. Conversely, when the required behaviour changes, the specification changes first and the implementation follows.
+After several features, authentication assumes things about permissions that were never written down and error handling varies across modules. Informal requirements contain implicit decisions, and each generation of code resolves them differently. Allium's structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over.
 
-**Translation errors.** While engineers are the primary audience, Allium specifications are readable by anyone involved in defining system behaviour. Product owners can validate that the spec captures their intent. QA engineers can derive test cases directly from the rules. The shared language reduces errors that occur when requirements pass through multiple interpretations.
+### Specification-implementation coupling
 
-**Test generation.** Each rule implies test cases for success paths and for precondition violations, along with edge cases around state transitions and temporal behaviour. The specification becomes the authoritative description that both humans and automated systems can verify against.
+Requirements become tangled with infrastructure choices. Knowing what the system should do gets mixed up with how it currently does it. With a separate specification, the behaviour remains stable while implementations change. A team can migrate from PostgreSQL to DynamoDB without re-deriving the requirements from code. When behaviour needs to change, the specification changes first and the implementation follows.
+
+### Requirements that mutate
+
+Requirements pass through multiple interpretations: stakeholder to product owner, product owner to engineer, engineer to code. Each handoff introduces drift. Allium specifications are readable by anyone involved in defining system behaviour. Product owners can validate that the spec captures their intent. QA engineers can derive test cases directly from the rules. The shared language keeps everyone aligned on a single authoritative description.
+
+### Verification drift
+
+Tests accumulate organically and drift from intended behaviour. Edge cases get covered inconsistently. With Allium, each rule implies test cases for success paths and precondition violations. The specification becomes the authoritative source that both humans and automated systems verify against.
+
+### Model capability constraints
+
+Smaller and faster models can struggle to produce rich implementations from informal descriptions alone. A well-structured specification provides scaffolding that guides generation, allowing less capable models to produce higher quality code by following explicit rules rather than inferring intent.
 
 ## Pattern libraries
 
