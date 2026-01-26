@@ -2,15 +2,33 @@
 
 A specification language for capturing what your product does, independent of how it's built.
 
+## Installation
+
+Allium is a skill for [Claude Code](https://claude.ai/claude-code), Anthropic's CLI tool for AI-assisted development.
+
+**Global installation** makes the skill available across all your projects:
+
+```bash
+git clone https://github.com/juxt/allium.git ~/.claude/skills/allium
+```
+
+**Project-local installation** scopes the skill to a specific codebase:
+
+```bash
+git clone https://github.com/juxt/allium.git .claude/skills/allium
+```
+
+For teams managing multiple skills across projects, [Craftdesk](https://craftdesk.io) provides tooling for configuration and synchronisation.
+
+Once installed, Claude Code will load the skill when it encounters `.allium` files or when you mention Allium in conversation.
+
 ## Why specification matters now
 
-Writing code has always been a mechanism for understanding requirements. The act of formalising behaviour into a programming language forces decisions: what happens when this field is null, what order these operations occur in, how this error propagates. Code in any language is ultimately the reification of cause-and-effect behaviours we want our software to perform, but these essential behaviours often become secondary to the incidental complexities of the language itself: memory management, type systems, framework conventions, dependency injection.
+Writing code has always been a mechanism for understanding requirements. Formalising behaviour forces decisions about edge cases and error handling. But these essential decisions often become secondary to incidental complexity: memory management, type systems, framework conventions and dependency injection.
 
-LLMs change this dynamic. They allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase. After several features, authentication assumes things about permissions that were never written down, error handling varies across modules and nobody remembers why that edge case was handled that way. The same feature request produces different implementations depending on context window or model version, because informal requirements contain implicit decisions that each generation resolves differently.
+LLMs change this. They let engineers describe behaviour informally and receive working code, but this risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities, those guesses become silent assumptions. After several features, the codebase accumulates implicit decisions that nobody remembers making, and the same feature request produces different implementations depending on context window or model version.
 
-Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail.
-
-The value is not in the syntax itself but in the discipline it imposes. Allium's structure forces you to identify triggers, preconditions and outcomes explicitly. It surfaces the questions that informal descriptions gloss over. This counteracts the natural tendency of LLMs to produce plausible-looking solutions to fuzzy problems, and requires the prompter to do the harder work of deciding what the system should actually do.
+Allium reintroduces disambiguation at a higher level of abstraction. Its structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over. The value is not the syntax but the discipline it imposes, counteracting the tendency of LLMs to guess at fuzzy problems.
 
 ## A language without a runtime
 
@@ -62,26 +80,6 @@ The repository contains four documents:
 - [ELICITATION.md](ELICITATION.md): A guide to extracting specifications through conversation with stakeholders
 - [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md): A guide to extracting specifications from existing implementations
 - [PATTERNS.md](PATTERNS.md): Worked examples for common domains including authentication, access control, invitations, soft delete, quotas and notifications
-
-## Installation
-
-Allium is distributed as a skill for [Claude Code](https://claude.ai/claude-code), Anthropic's CLI tool for AI-assisted development. A skill is a set of markdown files that provide Claude with domain-specific knowledge and capabilities.
-
-**Global installation** makes the skill available across all your projects:
-
-```bash
-git clone https://github.com/juxt/allium.git ~/.claude/skills/allium
-```
-
-**Project-local installation** scopes the skill to a specific codebase:
-
-```bash
-git clone https://github.com/juxt/allium.git .claude/skills/allium
-```
-
-For teams managing multiple skills across projects, [Craftdesk](https://craftdesk.io) provides a way to configure and synchronise skill installations.
-
-Once installed, Claude Code will automatically load the Allium skill when it encounters `.allium` files or when you mention Allium in conversation.
 
 ## The name
 
