@@ -2,7 +2,7 @@
 
 A specification language for capturing what your product does, independent of how it's built.
 
-## Why Specification Matters Now
+## Why specification matters now
 
 We're seeing two failure modes in AI-assisted development, and they stem from the same root cause.
 
@@ -12,7 +12,17 @@ The second is inconsistent generation. When requirements remain informal, the sa
 
 Both problems are specification problems. Allium addresses them by providing a formal language for capturing product behaviour at the domain level.
 
-## What Allium Captures
+## What Allium is
+
+Writing code has always been a mechanism for understanding requirements. The act of formalising behaviour into a programming language forces decisions: what happens when this field is null, what order these operations occur in, how this error propagates. Code in any language is ultimately the reification of cause-and-effect behaviours we want our software to perform, but these essential behaviours often become secondary to the incidental complexities of the language itself: memory management, type systems, framework conventions, dependency injection.
+
+LLMs change this dynamic. They allow engineers to describe behaviour informally and receive working code, effectively stepping into a product ownership role. This is powerful, but it risks losing the disambiguation that traditionally happened during implementation. When the model guesses at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase.
+
+Allium reintroduces the disambiguation process at a higher level of abstraction. It provides a structured framework for working through requirements formally, identifying conflicts and edge cases, without descending into implementation detail. The language has no compiler and no runtime. It is purely specification. But in an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant.
+
+The value is not in the syntax itself but in the discipline it imposes. Allium's structure forces you to identify triggers, preconditions and outcomes explicitly. It surfaces the questions that informal descriptions gloss over. This counteracts the natural tendency of LLMs to produce plausible-looking solutions to fuzzy problems, and requires the prompter to do the harder work of deciding what the system should actually do.
+
+## What Allium captures
 
 Allium specifications describe what happens when events occur: the preconditions that must hold and the outcomes that result. They deliberately exclude implementation details such as database schemas, API designs, framework choices and internal algorithms.
 
@@ -40,9 +50,7 @@ This rule captures the behaviour that product owners care about: when a user req
 
 The separation matters because it allows the specification to remain stable while implementations change. A team can migrate from PostgreSQL to DynamoDB, or from SendGrid to Postmark, without touching the specification. Conversely, when product behaviour changes, the specification changes first, and the implementation follows.
 
-## How We Use It
-
-We use Allium in several ways.
+## How we use it
 
 **Elicitation** extracts specifications through structured conversation. Rather than generating code directly from informal requirements, we first work with stakeholders to produce an Allium specification that makes implicit decisions explicit. This surfaces ambiguities before implementation begins, when they're cheapest to resolve. The [elicitation guide](ELICITATION.md) describes this process in detail.
 
@@ -50,7 +58,7 @@ We use Allium in several ways.
 
 **Test generation** produces integration and end-to-end tests directly from specifications. Each rule implies test cases for success paths and for precondition violations, along with edge cases around state transitions and temporal behaviour. The specification becomes the authoritative description that both humans and automated systems can verify against.
 
-## What's Here
+## What's here
 
 The repository contains four documents:
 
@@ -59,7 +67,7 @@ The repository contains four documents:
 - [ELICITATION.md](ELICITATION.md): A guide to extracting specifications through conversation with stakeholders
 - [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md): A guide to extracting specifications from existing implementations
 
-## The Name
+## The name
 
 Allium is the botanical family containing onions, garlic, leeks and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention, followed by Lettuce and Spinach for other language ecosystems. The phonetic echo of "LLM" is intentional, reflecting where we expect these specifications to be most useful. And as with its namesake, working with Allium occasionally produces tears, usually when you discover what was hiding in your requirements all along.
 
