@@ -18,7 +18,7 @@ git clone https://github.com/juxt/allium.git ~/.claude/skills/allium
 git clone https://github.com/juxt/allium.git .claude/skills/allium
 ```
 
-For teams managing multiple skills across projects, [Craftdesk](https://craftdesk.io) provides tooling for configuration and synchronisation.
+For teams managing multiple skills across projects, [Craftdesk](https://github.com/mensfeld/craftdesk) provides tooling for configuration and synchronisation.
 
 Once installed, Claude Code will load the skill when it encounters `.allium` files or when you mention Allium in conversation.
 
