@@ -94,9 +94,23 @@ Tests accumulate organically and drift from intended behaviour. Edge cases get c
 
 Smaller and faster models can struggle to produce rich implementations from informal descriptions alone. A well-structured specification provides scaffolding that guides generation, allowing less capable models to produce higher quality code by following explicit rules rather than inferring intent.
 
-## Pattern libraries
+## Reusable specifications
 
-The [patterns library](PATTERNS.md) provides worked examples for common domains including authentication, access control, invitations, soft delete, quotas and notifications. These can be adapted to your specific requirements or used as starting points for elicitation.
+Allium specifications are composable. Common patterns can be published as standalone `.allium` files and referenced by other specifications using the `use` keyword:
+
+```allium
+use "github.com/allium-specs/google-oauth/abc123def" as oauth
+
+entity User {
+    authenticated_via: oauth/Session
+}
+```
+
+Coordinates are immutable references (git SHAs or content hashes), not version numbers. A spec is immutable once published, so no version resolution or lock files are needed.
+
+This means teams can publish general-purpose specifications for authentication flows, payment processing, notification systems or any other common interface. Others can compose these into their own specifications, responding to triggers and referencing entities across spec boundaries.
+
+The [patterns library](PATTERNS.md) illustrates this with a variety of worked examples.
 
 ## About the name
 
