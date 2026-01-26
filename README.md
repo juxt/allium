@@ -104,7 +104,7 @@ Allium is the botanical family containing onions and shallots. The name continue
 
 The phonetic echo of "LLM" is intentional, reflecting where we expect these specifications to be most useful.
 
-And as with its namesake, working with Allium occasionally produces tears. Usually when you discover what was hiding in your requirements all along.
+Like its namesake, working with Allium may produce tears during the peeling, but never at the table.
 
 ---
 
