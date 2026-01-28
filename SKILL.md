@@ -12,7 +12,7 @@ auto_trigger:
 
 Allium is a formal language for capturing software behaviour at the domain level. It sits between informal feature descriptions and implementation, providing a precise way to specify what software does without prescribing how it's built.
 
-The name comes from the botanical family containing onions, garlic, and shallots - layered, flavourful, and fundamental to good cooking. Like its namesake, Allium adds essential flavour to the development process.
+The name comes from the botanical family containing onions and shallots, continuing a tradition in behaviour specification tooling established by Cucumber and Gherkin.
 
 **Key principles:**
 - Describes observable behaviour, not implementation
@@ -37,7 +37,7 @@ This skill includes four documents. Which one you need depends on what you're tr
 
 **If the user has existing code and wants to extract a specification from it**, start with [REVERSE_ENGINEERING.md](./REVERSE_ENGINEERING.md). This guide covers how to read implementation code and produce an Allium specification that captures the behaviour without the implementation details. It includes worked examples in Python, TypeScript and Java, along with techniques for identifying implicit state machines and scattered business logic, and for distinguishing essential behaviour from implementation accident.
 
-**If you're writing a specification and need examples of common patterns**, consult [PATTERNS.md](./PATTERNS.md). This document provides complete worked examples for authentication, role-based access control, invitations, soft delete, notification preferences, usage limits, comments with mentions, and integration with library specs such as OAuth and payment processing.
+**If you're writing a specification and need examples of common patterns**, consult [PATTERNS.md](./PATTERNS.md). This document provides complete worked examples for authentication, role-based access control, invitations, soft delete, notification preferences, usage limits and comments with mentions, along with integration patterns for library specs such as OAuth and payment processing.
 
 **If you need the language syntax reference**, continue reading this document. The Language Reference section below covers file structure, entities, rules, triggers, expressions and validation rules.
 
@@ -152,7 +152,7 @@ entity Candidacy {
 
 #### Value Types
 
-Value types are structured data without identity. Unlike entities, they have no lifecycle and are compared by value, not reference. Use value types for concepts like time ranges, addresses, or coordinates.
+Value types are structured data without identity. Unlike entities, they have no lifecycle and are compared by value, not reference. Use value types for concepts such as time ranges and addresses.
 
 ```
 value TimeRange {
@@ -699,11 +699,11 @@ External entities in one spec may be internal entities in another - the boundary
 A valid Allium specification must satisfy:
 
 **Structural validity:**
-1. All referenced entities and values exist - either as internal, external, or imported
+1. All referenced entities and values exist (internal, external or imported)
 2. All entity fields have defined types
 3. All relationships reference valid entities (singular names)
 4. All rules have at least one trigger and at least one ensures clause
-5. All triggers are valid (external stimulus, state transition, entity creation, temporal, derived, or chained)
+5. All triggers are valid (external stimulus, state transition, entity creation, temporal, derived or chained)
 
 **State machine validity:**
 6. All status values are reachable - every status can be reached via some rule

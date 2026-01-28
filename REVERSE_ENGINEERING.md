@@ -347,7 +347,7 @@ Integrations:
 
 ### Step 2: Extract Entity States
 
-Look at enum fields, status columns, and state machines:
+Look at enum fields and status columns:
 
 ```python
 class Invitation(Base):
@@ -439,7 +439,7 @@ rule CandidateAcceptsInvitation {
 
 ### Step 4: Find Temporal Triggers
 
-Look for scheduled jobs, cron tasks, and time-based logic:
+Look for scheduled jobs and time-based logic:
 
 ```python
 # In celery tasks or cron jobs

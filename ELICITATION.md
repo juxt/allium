@@ -2,9 +2,9 @@
 
 ## Overview
 
-This guide is for building Allium specifications through conversation with stakeholders or engineers. The goal is to extract domain knowledge, surface ambiguities, and produce a specification that captures what the software does without prescribing implementation.
+This guide is for building Allium specifications through conversation with stakeholders or engineers. The goal is to surface ambiguities and produce a specification that captures what the software does without prescribing implementation.
 
-**The same principles apply to reverse engineering.** Whether you're hearing a stakeholder describe a feature or reading code that implements it, the challenge is identical: finding the right level of abstraction. See REVERSE_ENGINEERING.md for guidance on extracting specs from existing codebases - it uses the same tests and strategies described here.
+**The same principles apply to reverse engineering.** Whether you're hearing a stakeholder describe a feature or reading code that implements it, the challenge is identical: finding the right level of abstraction. See REVERSE_ENGINEERING.md for guidance on extracting specs from existing codebases, which uses the same tests and strategies described here.
 
 ---
 
@@ -339,7 +339,7 @@ Not everything needs to be specified now:
 
 During elicitation, stay alert for descriptions that suggest a **library spec** rather than application-specific logic. Library specs are standalone specifications for generic integrations that could be reused across projects.
 
-**This applies equally to reverse engineering.** When examining existing code and finding OAuth flows, payment processing, or other integration patterns, the same questions apply. See REVERSE_ENGINEERING.md for code-level signals that indicate library spec candidates.
+**This applies equally to reverse engineering.** When examining existing code and finding OAuth flows or payment processing, the same questions apply. See REVERSE_ENGINEERING.md for code-level signals that indicate library spec candidates.
 
 ### Signals That Something Might Be a Library Spec
 

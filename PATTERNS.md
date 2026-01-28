@@ -21,7 +21,7 @@ This library contains reusable patterns for common SaaS scenarios. Each pattern 
 
 **Demonstrates:** Temporal triggers, token lifecycle, configuration, multiple related rules
 
-This pattern handles user registration, login, and password reset - the foundation of most SaaS applications.
+This pattern handles user registration, login and password reset: the foundation of most SaaS applications.
 
 ```
 -- password-auth.allium

@@ -2,13 +2,15 @@
 
 A language for capturing what your code does, independent of how it's built.
 
-## The iteration problem
+## The problem with conversational context
 
-Engineers who work extensively with LLMs tend to notice a pattern: the first prompt produces remarkable results, but iteration quality degrades over subsequent exchanges. By prompt forty or fifty, the model is making mistakes it wouldn't have made initially, and you find yourself re-explaining constraints that should have been obvious from context.
+We've observed two patterns among engineers who work extensively with LLMs.
 
-We believe this happens because each prompt is an informal specification that exists only for the duration of the conversation. The assumptions you stated, the constraints you clarified, the edge cases you discussed: all of it evaporates when the chat ends. The next session starts from zero, and the session after that starts from zero again.
+Within a session, meaning drifts. The first prompt produces strong results, but iteration quality degrades over subsequent exchanges. By prompt forty or fifty, the model is making mistakes it wouldn't have made initially, pattern-matching on its own outputs and the conversation's drift rather than the original intent.
 
-Allium addresses this by giving behavioural intent a durable form. Rather than scattering specifications across ephemeral conversations, you accumulate them in files that persist alongside your code and provide context to every future interaction.
+Across sessions, knowledge evaporates. The assumptions stated and constraints clarified disappear when the chat ends, and the next session starts from zero. Each conversation is an informal specification that exists only for its duration.
+
+Allium addresses both problems by giving behavioural intent a durable form. Within a session, the spec provides a stable reference point that doesn't drift with the conversation. Across sessions, it persists alongside your code and provides context to every future interaction.
 
 ## Our hypothesis
 
