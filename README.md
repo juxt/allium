@@ -20,7 +20,7 @@ A reasonable response to the iteration problem is to clear the context and start
 
 The limitation emerges when you need the model to distinguish between what the code *does* and what it *should do*. Code captures implementation, including bugs and expedient decisions made under pressure. When the model reads your codebase, it treats all of this as intended behaviour. If authentication silently fails open under certain conditions, the model will preserve that behaviour unless you explicitly tell it otherwise.
 
-This is where "ask a better question" becomes interesting, because a better question is one that specifies intent more precisely. You find yourself explaining which behaviours are deliberate and which are accidental, which constraints must be preserved and which can be relaxed. You are, in effect, writing a specification in natural language, distributed across your prompts.
+The natural response is to prompt more precisely, but precise prompting means specifying intent: which behaviours are deliberate and which are accidental, which constraints must be preserved and which can be relaxed. You end up writing a specification in natural language, distributed across your prompts.
 
 Allium captures this specification work in a form that persists. The next engineer, or the next model, or you in six months, can understand not just what the system does but what it was meant to do.
 
