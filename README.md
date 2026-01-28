@@ -1,38 +1,32 @@
 # Allium
 
-A specification language for describing what your code does independent of how it's built.
+A language for capturing what your code does, independent of how it's built.
 
-## Why specification?
+## The iteration problem
 
-Software engineers often understand problems as they model them. Deciding whether a concept is one entity or two, naming a function and realising it does too many things, or discovering that two "different" workflows are actually the same: these clarifications emerge through the act of formalisation. Reasoning through implications in code is how we discover what we actually mean.
+Engineers who work extensively with LLMs tend to notice a pattern: the first prompt produces remarkable results, but iteration quality degrades over subsequent exchanges. By prompt forty or fifty, the model is making mistakes it wouldn't have made initially, and you find yourself re-explaining constraints that should have been obvious from context.
 
-LLMs let engineers skip this process: describe behaviour informally, receive working code. But when models guess at ambiguities rather than surfacing them, those guesses become silent assumptions embedded in the codebase. The discovery that used to happen during implementation now doesn't happen at all.
+We believe this happens because each prompt is an informal specification that exists only for the duration of the conversation. The assumptions you stated, the constraints you clarified, the edge cases you discussed: all of it evaporates when the chat ends. The next session starts from zero, and the session after that starts from zero again.
 
-Allium reclaims that discovery at a higher level of abstraction, without descending into implementation detail.
+Allium addresses this by giving behavioural intent a durable form. Rather than scattering specifications across ephemeral conversations, you accumulate them in files that persist alongside your code and provide context to every future interaction.
 
-## Installation
+## Our hypothesis
 
-Allium is a skill for [Claude Code](https://claude.ai/claude-code), Anthropic's CLI tool for AI-assisted development.
+We believe Allium addresses this, but we haven't proven it yet. This document explains the theory; your experiments will test whether it holds in practice. We're looking for evidence that structured behavioural specs reduce misunderstandings and produce better code on the first try. We're also open to discovering that the overhead isn't worth the clarity.
 
-**Global installation** makes the skill available across all your projects:
+## Why not just point the LLM at the code?
 
-```bash
-git clone git@github.com:juxt/allium.git ~/.claude/skills/allium
-```
+A reasonable response to the iteration problem is to clear the context and start fresh, giving the model access to the codebase itself. Modern LLMs navigate codebases effectively, and many engineers find this sufficient for their needs.
 
-**Project-local installation** scopes the skill to a specific codebase:
+The limitation emerges when you need the model to distinguish between what the code *does* and what it *should do*. Code captures implementation, including bugs and expedient decisions made under pressure. When the model reads your codebase, it treats all of this as intended behaviour. If authentication silently fails open under certain conditions, the model will preserve that behaviour unless you explicitly tell it otherwise.
 
-```bash
-git clone git@github.com:juxt/allium.git .claude/skills/allium
-```
+This is where "ask a better question" becomes interesting, because a better question is one that specifies intent more precisely. You find yourself explaining which behaviours are deliberate and which are accidental, which constraints must be preserved and which can be relaxed. You are, in effect, writing a specification in natural language, distributed across your prompts.
 
-For teams managing multiple skills across projects, [Craftdesk](https://github.com/mensfeld/craftdesk) provides tooling for configuration and synchronisation.
+Allium captures this specification work in a form that persists. The next engineer, or the next model, or you in six months, can understand not just what the system does but what it was meant to do.
 
-Once installed, Claude Code will load the skill when it encounters `.allium` files or when you mention Allium in conversation.
+## What Allium captures
 
-## What a spec looks like
-
-Allium specifications describe what happens when events occur: the preconditions that must hold and the outcomes that result. They deliberately exclude implementation details like database schemas and API designs.
+Allium provides a minimal syntax for describing events with their preconditions and the outcomes that result. The language deliberately excludes implementation details such as database schemas and API designs, focusing purely on observable behaviour.
 
 ```allium
 rule UserRequestsPasswordReset {
@@ -54,49 +48,119 @@ rule UserRequestsPasswordReset {
 }
 ```
 
-This rule captures observable behaviour: when a user requests a password reset, if the email matches and the account is active, a token is created and an email is sent. It says nothing about which database stores the token or which service sends the email. Those decisions belong to implementation.
+This rule captures observable behaviour: when a user requests a password reset, if the email matches and the account is active, a token is created and an email is sent. It says nothing about which database stores the token or which service sends the email, because those decisions belong to implementation.
 
-The [language specification](SKILL.md) covers entities, rules, triggers, relationships, projections and derived values.
+The [language reference](SKILL.md) covers entities, rules, triggers, relationships, projections and derived values.
 
 ### A language without a runtime
 
-Allium has no compiler and no runtime. It is purely specification, defined entirely by its documentation. This is not a limitation but an illustration of its core premise: what matters is the specification, not the implementation.
+Allium has no compiler and no runtime. It is purely specification, defined entirely by its documentation.
 
-In an era where LLMs function as pseudocode compilers, executing informal descriptions into real code, a well-structured specification language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The specification is the primary artefact; the code that implements it is secondary.
+In an era where LLMs function as pseudocode compilers, executing informal descriptions into working code, a well-structured behavioural language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The specification is the primary artefact; the code that implements it is secondary.
 
-## How specs are created
+## How knowledge accumulates
 
-Allium specifications are not written by hand. They emerge through two processes:
+Behavioural models tend to accumulate incrementally through two processes:
 
-**Elicitation** extracts specifications through structured conversation. Rather than generating code directly from informal requirements, you first work with stakeholders to produce a specification that makes implicit decisions explicit. This surfaces ambiguities before implementation, when they're cheapest to resolve. See the [elicitation guide](ELICITATION.md).
+**Elicitation** extracts models through structured conversation, working with stakeholders to surface implicit decisions and resolve ambiguities. See the [elicitation guide](ELICITATION.md).
 
-**Reverse engineering** extracts specifications from existing codebases. When inheriting a system or preparing for significant changes, you analyse the implementation to produce a specification that captures what the system actually does, distinct from what documentation claims. See the [reverse engineering guide](REVERSE_ENGINEERING.md).
+**Reverse engineering** extracts models from existing codebases, analysing implementation to capture what the system actually does. See the [reverse engineering guide](REVERSE_ENGINEERING.md).
 
-## The problems Allium solves
+Both processes are iterative. Neither requires you to pause development and "write specs" before coding.
 
-### Silent assumptions
+## How to evaluate this
 
-After several features, authentication assumes things about permissions that were never written down and error handling varies across modules. Informal requirements contain implicit decisions, and each generation of code resolves them differently. Allium's structure forces you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over.
+We're asking you to test whether Allium improves your LLM-assisted workflow. Here's what we're looking for:
 
-### Specification-implementation coupling
+**Good candidates for testing:**
+- A feature with non-obvious constraints or edge cases
+- Work on a system where you've previously had to re-explain context across sessions
+- A module where "what it should do" isn't fully captured by "what it currently does"
+- A greenfield feature where you can establish specs from the start
 
-Requirements become tangled with infrastructure choices. Knowing what the system should do gets mixed up with how it currently does it. With a separate specification, the behaviour remains stable while implementations change. A team can migrate from PostgreSQL to DynamoDB without re-deriving the requirements from code. When behaviour needs to change, the specification changes first and the implementation follows.
+**What to notice:**
+- Does having the spec reduce back-and-forth with the model?
+- Does the model make fewer mistakes that violate stated constraints?
+- Is the overhead of maintaining the spec worth the clarity it provides?
+- Do you find yourself naturally updating the spec, or does it rot?
 
-### Requirements that mutate
+**What to report back:**
+- Where it helped and where it didn't
+- What's missing from the language
+- Whether the spec stayed accurate as the code evolved
+- Whether you'd use it again on similar work
 
-Requirements pass through multiple interpretations: stakeholder to product owner, product owner to engineer, engineer to code. Each handoff introduces drift. Allium specifications are readable by anyone involved in defining system behaviour. Product owners can validate that the spec captures their intent. QA engineers can derive test cases directly from the rules. The shared language keeps everyone aligned on a single authoritative description.
+Give it a few sessions before forming an opinion. The value, if any, compounds over time.
 
-### Verification drift
+## Installation
 
-Tests accumulate organically and drift from intended behaviour. Edge cases get covered inconsistently. With Allium, each rule implies test cases for success paths and precondition violations. The specification becomes the authoritative source that both humans and automated systems verify against.
+Allium is a skill for [Claude Code](https://claude.ai/claude-code), Anthropic's CLI tool for AI-assisted development.
 
-### Model capability constraints
+**Global installation** makes the skill available across all your projects:
 
-Smaller and faster models can struggle to produce rich implementations from informal descriptions alone. A well-structured specification provides scaffolding that guides generation, allowing less capable models to produce higher quality code by following explicit rules rather than inferring intent.
+```bash
+git clone git@github.com:juxt/allium.git ~/.claude/skills/allium
+```
 
-## Reusable specifications
+**Project-local installation** scopes the skill to a specific codebase:
 
-Allium specifications are composable. Common patterns can be published as standalone `.allium` files and referenced by other specifications using the `use` keyword:
+```bash
+git clone git@github.com:juxt/allium.git .claude/skills/allium
+```
+
+For teams managing multiple skills across projects, [Craftdesk](https://github.com/mensfeld/craftdesk) provides tooling for configuration and synchronisation.
+
+Once installed, Claude Code will load the skill when it encounters `.allium` files or when you mention Allium in conversation.
+
+## About the name
+
+Allium is the botanical family containing onions and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention, followed by Lettuce and Spinach for other language ecosystems.
+
+The phonetic echo of "LLM" is intentional, reflecting where we expect these models to be most useful.
+
+Like its namesake, working with Allium may produce tears during the peeling, but never at the table.
+
+---
+
+## Appendix: The problems we think this addresses
+
+These are the issues we believe Allium addresses. We're stating them as hypotheses to test, not proven benefits.
+
+### Constraints that don't persist
+
+After several features built through LLM-assisted development, authentication sometimes assumes things about permissions that were never written down, and error handling can vary across modules in ways that reflect different conversations rather than deliberate design. Each generation of code resolves ambiguities independently, because the constraints from previous sessions weren't captured anywhere the model could reference.
+
+Allium's structure requires you to identify preconditions and outcomes for each trigger, surfacing questions that informal descriptions gloss over. Once captured, these constraints remain available to every future interaction.
+
+### Intent that drifts from implementation
+
+Requirements tend to become tangled with infrastructure choices over time. Knowing what the system should do gets mixed up with how it currently does it, making it difficult to reason about behaviour changes without also reasoning about implementation changes.
+
+With a separate behavioural model, intent remains stable while implementations evolve. A team can migrate from PostgreSQL to DynamoDB without re-deriving requirements from code, and when behaviour needs to change, the model changes first. Conflicts between intended and implemented behaviour surface immediately rather than hiding in production.
+
+### Knowledge scattered across conversations
+
+Requirements pass through multiple interpretations on their way to code: stakeholder to product owner, product owner to engineer, engineer to LLM. Each handoff introduces drift, and the authoritative version often exists only in someone's memory of a conversation that happened weeks ago.
+
+Allium captures knowledge in a form that's readable by anyone involved in defining system behaviour. Product owners can validate that the model captures their intent and QA engineers can derive test cases directly from the rules, keeping everyone aligned on a single authoritative description.
+
+### Tests that drift from intent
+
+Tests accumulate organically and tend to drift from intended behaviour as systems evolve. Edge cases get covered inconsistently, and the relationship between test assertions and business requirements becomes unclear.
+
+With Allium, each rule implies test cases for success paths and precondition violations. The behavioural model becomes the authoritative source that both humans and automated systems verify against, making it clear when tests and intent have diverged.
+
+### Smaller models with limited context
+
+Smaller and faster models can struggle to produce rich implementations from informal descriptions alone, particularly when the system has complex constraints or non-obvious edge cases. A well-structured behavioural model provides scaffolding that guides generation, allowing less capable models to produce higher quality code by following explicit rules rather than inferring intent from limited context.
+
+## Appendix: Future directions
+
+We're exploring these capabilities but haven't built them yet.
+
+### Composable models
+
+We're designing Allium models to be composable. Common patterns will be publishable as standalone `.allium` files and referenced by other models using the `use` keyword:
 
 ```allium
 use "github.com/allium-specs/google-oauth/abc123def" as oauth
@@ -106,19 +170,11 @@ entity User {
 }
 ```
 
-Coordinates are immutable references (git SHAs or content hashes), not version numbers. A spec is immutable once published, so no version resolution or lock files are needed.
+Coordinates will be immutable references such as git SHAs or content hashes, not version numbers. A model becomes immutable once published, so no version resolution or lock files are needed.
 
-This means teams can publish general-purpose specifications for authentication flows, payment processing, notification systems or any other common interface. Others can compose these into their own specifications, responding to triggers and referencing entities across spec boundaries.
+Teams will be able to publish general-purpose models for authentication flows and payment processing. Others can compose these into their own models, responding to triggers and referencing entities across boundaries.
 
 The [patterns library](PATTERNS.md) illustrates this with a variety of worked examples.
-
-## About the name
-
-Allium is the botanical family containing onions and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention, followed by Lettuce and Spinach for other language ecosystems.
-
-The phonetic echo of "LLM" is intentional, reflecting where we expect these specifications to be most useful.
-
-Like its namesake, working with Allium may produce tears during the peeling, but never at the table.
 
 ---
 
