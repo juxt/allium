@@ -6,15 +6,11 @@ A language for capturing what your code does, independent of how it's built.
 
 We've observed two patterns among engineers who work extensively with LLMs.
 
-Within a session, meaning drifts. The first prompt produces strong results, but iteration quality degrades over subsequent exchanges. By prompt forty or fifty, the model is making mistakes it wouldn't have made initially, pattern-matching on its own outputs and the conversation's drift rather than the original intent.
+1. Within a session, meaning drifts. The first prompt produces strong results, but iteration quality degrades over subsequent exchanges. By prompt forty or fifty, the model is making mistakes it wouldn't have made initially, pattern-matching on its own outputs and the conversation's drift rather than the original intent.
 
-Across sessions, knowledge evaporates. The assumptions stated and constraints clarified disappear when the chat ends, and the next session starts from zero. Each conversation is an informal specification that exists only for its duration.
+2. Across sessions, knowledge evaporates. The assumptions stated and constraints clarified disappear when the chat ends, and the next session starts from zero. Each conversation is an informal specification that exists only for its duration.
 
-Allium addresses both problems by giving behavioural intent a durable form. Within a session, the spec provides a stable reference point that doesn't drift with the conversation. Across sessions, it persists alongside your code and provides context to every future interaction.
-
-## Our hypothesis
-
-We believe Allium addresses this, but we haven't proven it yet. This document explains the theory; your experiments will test whether it holds in practice. We're looking for evidence that structured behavioural specs reduce misunderstandings and produce better code on the first try. We're also open to discovering that the overhead isn't worth the clarity.
+Allium addresses both problems by giving behavioural intent a durable form. Within a session, the behavioural model provides a stable reference point that doesn't drift with the conversation. Across sessions, it persists alongside your code and provides context to every future interaction.
 
 ## Why not just point the LLM at the code?
 
@@ -25,6 +21,20 @@ The limitation emerges when you need the model to distinguish between what the c
 The natural response is to prompt more precisely, but precise prompting means specifying intent: which behaviours are deliberate and which are accidental, which constraints must be preserved and which can be relaxed. You end up writing a specification in natural language, distributed across your prompts.
 
 Allium captures this specification work in a form that persists. The next engineer, or the next model, or you in six months, can understand not just what the system does but what it was meant to do.
+
+## Our hypothesis
+
+We believe Allium addresses this, but we haven't proven it yet. This document explains the theory; your experiments will test whether it holds in practice. We're looking for evidence that structured behavioural models reduce misunderstandings and produce better code on the first try. We're also open to discovering that the overhead isn't worth the clarity.
+
+## How knowledge accumulates
+
+Behavioural models tend to accumulate incrementally through two processes:
+
+**Elicitation** extracts models through structured conversation, working with stakeholders to surface implicit decisions and resolve ambiguities. See the [elicitation guide](ELICITATION.md).
+
+**Reverse engineering** extracts models from existing codebases, analysing implementation to capture what the system actually does. See the [reverse engineering guide](REVERSE_ENGINEERING.md).
+
+Both processes are iterative. Neither requires you to pause development and "write models" before coding.
 
 ## What Allium captures
 
@@ -60,16 +70,6 @@ Allium has no compiler and no runtime. It is purely specification, defined entir
 
 In an era where LLMs function as pseudocode compilers, executing informal descriptions into working code, a well-structured behavioural language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The specification is the primary artefact; the code that implements it is secondary.
 
-## How knowledge accumulates
-
-Behavioural models tend to accumulate incrementally through two processes:
-
-**Elicitation** extracts models through structured conversation, working with stakeholders to surface implicit decisions and resolve ambiguities. See the [elicitation guide](ELICITATION.md).
-
-**Reverse engineering** extracts models from existing codebases, analysing implementation to capture what the system actually does. See the [reverse engineering guide](REVERSE_ENGINEERING.md).
-
-Both processes are iterative. Neither requires you to pause development and "write specs" before coding.
-
 ## How to evaluate this
 
 We're asking you to test whether Allium improves your LLM-assisted workflow. Here's what we're looking for:
@@ -78,18 +78,18 @@ We're asking you to test whether Allium improves your LLM-assisted workflow. Her
 - A feature with non-obvious constraints or edge cases
 - Work on a system where you've previously had to re-explain context across sessions
 - A module where "what it should do" isn't fully captured by "what it currently does"
-- A greenfield feature where you can establish specs from the start
+- A greenfield feature where you can establish behavioural models from the start
 
 **What to notice:**
-- Does having the spec reduce back-and-forth with the model?
-- Does the model make fewer mistakes that violate stated constraints?
-- Is the overhead of maintaining the spec worth the clarity it provides?
-- Do you find yourself naturally updating the spec, or does it rot?
+- Does having the behavioural model reduce back-and-forth with the LLM?
+- Does the LLM make fewer mistakes that violate stated constraints?
+- Is the overhead of maintaining the model worth the clarity it provides?
+- Do you find yourself naturally updating the model, or does it rot?
 
 **What to report back:**
 - Where it helped and where it didn't
 - What's missing from the language
-- Whether the spec stayed accurate as the code evolved
+- Whether the model stayed accurate as the code evolved
 - Whether you'd use it again on similar work
 
 Give it a few sessions before forming an opinion. The value, if any, compounds over time.
