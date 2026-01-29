@@ -1,0 +1,52 @@
+-- A valid Allium specification
+
+external entity Role {
+    title: String
+}
+
+value Location {
+    name: String
+    timezone: String
+}
+
+entity User {
+    email: Email
+    password_hash: String
+    status: pending | active | locked
+    role: Role
+
+    -- Relationships
+    sessions: Session for this user
+
+    -- Projections
+    active_sessions: sessions with status = active
+
+    -- Derived
+    is_active: status = active
+}
+
+entity Session {
+    user: User
+    status: active | expired
+    created_at: Timestamp
+    expires_at: Timestamp
+}
+
+default session_duration = 3600
+
+rule LoginSuccess {
+    when: UserLogsIn(email, password)
+
+    let user = User{email}
+
+    requires: user.exists
+    requires: not user.is_locked
+
+    ensures: user.status = active
+    ensures: Session.created(
+        user: user,
+        status: active,
+        created_at: now,
+        expires_at: now + config/session_duration
+    )
+}

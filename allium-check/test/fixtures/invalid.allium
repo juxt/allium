@@ -1,0 +1,42 @@
+-- An invalid Allium specification with various errors
+
+entity User {
+    email: Email
+    status: pending | active | locked
+
+    -- Reference to undefined entity
+    profile: Proflie
+
+    -- Relationship to undefined entity
+    posts: Poast for this user
+}
+
+entity Session {
+    user: User
+    status: active | expired
+}
+
+rule LoginSuccess {
+    when: UserLogsIn(email, password)
+
+    -- Reference to undefined entity
+    let usr = Usr{email}
+
+    -- Reference to undefined variable
+    requires: usre.exists
+
+    -- Invalid enum value
+    ensures: user.status = actve
+
+    -- Another invalid enum
+    ensures: Session.created(
+        user: user,
+        status: activ
+    )
+}
+
+rule BadTrigger {
+    when: sess: Sesion.status becomes active
+
+    ensures: sess.status = expired
+}

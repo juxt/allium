@@ -1,0 +1,114 @@
+-- E-commerce Order Management
+
+external entity Customer {
+    email: Email
+    name: String
+}
+
+external entity Product {
+    sku: String
+    name: String
+    price: Decimal
+}
+
+value Address {
+    line1: String
+    line2: String?
+    city: String
+    postcode: String
+    country: String
+}
+
+entity Order {
+    customer: Customer
+    status: draft | placed | paid | shipped | delivered | cancelled
+    shipping_address: Address?
+    placed_at: Timestamp?
+
+    -- Relationships
+    items: OrderItem for this order
+
+    -- Projections
+    pending_items: items with status = pending
+
+    -- Derived
+    total: items.sum(i => i.subtotal)
+    is_empty: items.count = 0
+    can_place: status = draft and not is_empty and shipping_address != null
+}
+
+entity OrderItem {
+    order: Order
+    product: Product
+    quantity: Integer
+    unit_price: Decimal
+    status: pending | allocated | shipped
+
+    -- Derived
+    subtotal: quantity * unit_price
+}
+
+entity Payment {
+    order: Order
+    amount: Decimal
+    status: pending | completed | failed | refunded
+    provider_ref: String?
+}
+
+default min_order_value = 10
+
+rule AddItemToOrder {
+    when: CustomerAddsItem(customer, order, product, quantity)
+
+    requires: order.customer = customer
+    requires: order.status = draft
+    requires: quantity > 0
+
+    ensures: OrderItem.created(
+        order: order,
+        product: product,
+        quantity: quantity,
+        unit_price: product.price,
+        status: pending
+    )
+}
+
+rule PlaceOrder {
+    when: CustomerPlacesOrder(customer, order)
+
+    requires: order.customer = customer
+    requires: order.can_place
+    requires: order.total >= config/min_order_value
+
+    ensures: order.status = placed
+    ensures: order.placed_at = now
+}
+
+rule ProcessPayment {
+    when: payment: Payment.status becomes completed
+
+    let order = payment.order
+
+    requires: order.status = placed
+    requires: payment.amount >= order.total
+
+    ensures: order.status = paid
+}
+
+rule ShipOrder {
+    when: WarehouseShipsOrder(order, tracking_ref)
+
+    requires: order.status = paid
+
+    ensures: order.status = shipped
+    ensures: order.items.each(item => item.status = shipped)
+}
+
+rule CancelOrder {
+    when: CustomerCancelsOrder(customer, order, reason)
+
+    requires: order.customer = customer
+    requires: order.status in [draft, placed]
+
+    ensures: order.status = cancelled
+}

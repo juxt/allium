@@ -1,0 +1,22 @@
+{
+  "name": "allium-check",
+  "version": "0.1.0",
+  "description": "CLI tool for checking Allium specification files",
+  "type": "module",
+  "bin": {
+    "allium-check": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "tsc --watch",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/integration.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  }
+}

@@ -1,0 +1,62 @@
+-- Spec with intentional errors for testing the checker
+
+external entity Usr {
+    email: Email
+    name: String
+}
+
+entity Document {
+    -- Typo in type reference
+    author: Uzer
+
+    title: String
+    status: draft | published | archived
+
+    -- Typo in relationship target
+    comments: Coment for this document
+}
+
+entity Comment {
+    document: Document
+    author: Usr
+    content: String
+}
+
+rule PublishDocument {
+    -- Typo in trigger entity
+    when: AuthorPublishes(autor, document)
+
+    -- Typo in variable reference
+    requires: docment.author = autor
+
+    -- Invalid enum value (typo)
+    requires: document.status = drft
+
+    -- Correct
+    ensures: document.status = published
+}
+
+rule ArchiveDocument {
+    when: doc: Document.status becomes archived
+
+    -- Invalid enum value
+    ensures: doc.status = archved
+}
+
+-- Reference to undefined entity in another rule
+rule CommentOnDocument {
+    when: UserComments(user, document, content)
+
+    -- Typo in entity for join lookup
+    let membership = DocAccess{document, user}
+
+    requires: membership.exists
+    requires: document.status = published
+
+    -- Typo in created entity
+    ensures: Commment.created(
+        document: document,
+        author: user,
+        content: content
+    )
+}

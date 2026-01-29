@@ -1,0 +1,124 @@
+-- Project Management System
+
+external entity User {
+    email: Email
+    name: String
+}
+
+entity Project {
+    name: String
+    owner: User
+    status: active | archived | deleted
+    created_at: Timestamp
+
+    -- Relationships
+    tasks: Task for this project
+    members: ProjectMember for this project
+
+    -- Projections
+    open_tasks: tasks with status != done
+    overdue_tasks: tasks with due_date < now and status != done
+
+    -- Derived
+    progress: tasks.count(t => t.status = done) / tasks.count
+    has_overdue: overdue_tasks.count > 0
+}
+
+entity ProjectMember {
+    project: Project
+    user: User
+    role: owner | admin | member | viewer
+    joined_at: Timestamp
+}
+
+entity Task {
+    project: Project
+    title: String
+    description: String?
+    assignee: User?
+    status: todo | in_progress | review | done
+    priority: low | medium | high | critical
+    due_date: Timestamp?
+    created_at: Timestamp
+    completed_at: Timestamp?
+
+    -- Relationships
+    comments: Comment for this task
+    subtasks: Task for this parent
+
+    -- Derived
+    is_overdue: due_date != null and due_date < now and status != done
+    is_blocked: subtasks.any(s => s.status != done)
+}
+
+entity Comment {
+    task: Task
+    author: User
+    content: String
+    created_at: Timestamp
+}
+
+rule CreateTask {
+    when: UserCreatesTask(user, project, title, priority)
+
+    let membership = ProjectMember{project, user}
+
+    requires: membership.exists
+    requires: membership.role in [owner, admin, member]
+    requires: project.status = active
+
+    ensures: Task.created(
+        project: project,
+        title: title,
+        priority: priority,
+        status: todo,
+        created_at: now
+    )
+}
+
+rule AssignTask {
+    when: UserAssignsTask(assigner, task, assignee)
+
+    let membership = ProjectMember{project: task.project, user: assigner}
+    let assignee_membership = ProjectMember{project: task.project, user: assignee}
+
+    requires: membership.exists
+    requires: membership.role in [owner, admin]
+    requires: assignee_membership.exists
+
+    ensures: task.assignee = assignee
+}
+
+rule StartTask {
+    when: UserStartsTask(user, task)
+
+    requires: task.assignee = user
+    requires: task.status = todo
+    requires: not task.is_blocked
+
+    ensures: task.status = in_progress
+}
+
+rule CompleteTask {
+    when: UserCompletesTask(user, task)
+
+    requires: task.assignee = user
+    requires: task.status in [in_progress, review]
+    requires: not task.is_blocked
+
+    ensures: task.status = done
+    ensures: task.completed_at = now
+}
+
+rule ArchiveProject {
+    when: OwnerArchivesProject(user, project)
+
+    let membership = ProjectMember{project, user}
+
+    requires: membership.exists
+    requires: membership.role = owner
+    requires: project.status = active
+    requires: project.open_tasks.count = 0
+
+    ensures: project.status = archived
+}
