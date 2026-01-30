@@ -29,9 +29,9 @@ This pattern handles user registration, login and password reset: the foundation
 config {
     min_password_length: Integer = 12
     max_login_attempts: Integer = 5
-    lockout_duration: Duration = 15.minutes
-    reset_token_expiry: Duration = 1.hour
-    session_duration: Duration = 24.hours
+    lockout_duration: Duration = PT15M
+    reset_token_expiry: Duration = PT1H
+    session_duration: Duration = PT24H
 }
 
 ------------------------------------------------------------
@@ -463,7 +463,7 @@ This pattern handles inviting users to collaborate on resources, whether they're
 -- resource-invitation.allium
 
 config {
-    invitation_expiry: Duration = 7.days
+    invitation_expiry: Duration = P7D
 }
 
 ------------------------------------------------------------
@@ -687,7 +687,7 @@ This pattern implements soft delete where items appear deleted but can be restor
 -- soft-delete.allium
 
 config {
-    retention_period: Duration = 30.days
+    retention_period: Duration = P30D
 }
 
 ------------------------------------------------------------
@@ -841,7 +841,7 @@ entity User {
     -- Projections
     unread_notifications: notifications with status = unread
     pending_email_notifications: notifications with email_status = pending
-    recent_pending_notifications: notifications with email_status = pending and created_at >= now - 24.hours
+    recent_pending_notifications: notifications with email_status = pending and created_at >= now - PT24H
 }
 
 entity NotificationSetting {
@@ -1582,9 +1582,9 @@ use "github.com/allium-specs/oauth2/a]f8e2c1d" as oauth
 -- Configure the OAuth spec for our application
 oauth/config {
     providers: { google, microsoft, github }
-    session_duration: 24.hours
-    refresh_window: 1.hour
-    link_expiry: 15.minutes
+    session_duration: PT24H
+    refresh_window: PT1H
+    link_expiry: PT15M
 }
 
 ------------------------------------------------------------
@@ -1773,7 +1773,7 @@ stripe/config {
     currency: USD
     tax_calculation: automatic
     proration: create_prorations
-    trial_period: 14.days
+    trial_period: P14D
 }
 
 ------------------------------------------------------------
@@ -1866,7 +1866,7 @@ rule HandlePaymentFailure {
 
 -- When trial is ending, remind user
 rule TrialEndingReminder {
-    when: sub.trial_ends_at - 3.days <= now
+    when: sub.trial_ends_at - P3D <= now
 
     requires: sub.status = trialing
     requires: not sub.trial_reminder_sent

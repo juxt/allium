@@ -153,7 +153,7 @@ rule SendInvitation {
     ensures: Invitation.created(
         candidacy: candidacy,
         slots: slots,
-        expires_at: now + 7.days,
+        expires_at: now + P7D,
         status: pending
     )
     ensures: Email.sent(
@@ -167,7 +167,7 @@ What we dropped:
 - `candidate_id: int` → just `candidacy`
 - `db.session.query(...)` → relationship traversal
 - `secrets.token_urlsafe(32)` → token is implementation
-- `datetime.utcnow() + timedelta(...)` → `now + 7.days`
+- `datetime.utcnow() + timedelta(...)` → `now + P7D`
 - `db.session.add/commit` → implied by `created`
 - `invitation.slots.append(slot)` → implied by relationship
 
@@ -193,7 +193,7 @@ For every detail in the code, ask:
 |--------------|-------------|
 | `requests.post('https://slack.com/api/...')` | `Notification.sent(channel: slack)` |
 | `candidate.oauth_token = google.exchange(code)` | `Candidate authenticated` |
-| `redis.setex(f'session:{id}', 86400, data)` | `Session.created(expires: 24.hours)` |
+| `redis.setex(f'session:{id}', 86400, data)` | `Session.created(expires: PT24H)` |
 | `for slot in slots: slot.status = 'cancelled'` | `slots.each(s => s.status = cancelled)` |
 
 ---
@@ -764,7 +764,7 @@ def cleanup_expired_tokens():
 -- password-reset.allium
 
 config {
-    reset_token_expiry: Duration = 1.hour
+    reset_token_expiry: Duration = PT1H
     min_password_length: Integer = 12
 }
 
@@ -1479,7 +1479,7 @@ public class RetentionCleanupJob {
 -- soft-delete.allium
 
 config {
-    retention_period: Duration = 30.days
+    retention_period: Duration = P30D
 }
 
 entity Document {

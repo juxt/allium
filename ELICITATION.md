@@ -124,13 +124,13 @@ When you encounter a specific value (3 hours, 7 days, etc.), ask:
 ```
 -- Hardcoded design decision
 rule InvitationExpires {
-    when: invitation.created_at + 7.days <= now
+    when: invitation.created_at + P7D <= now
     ...
 }
 
 -- Configurable
 config {
-    invitation_expiry: Duration = 7.days
+    invitation_expiry: Duration = P7D
 }
 
 rule InvitationExpires {

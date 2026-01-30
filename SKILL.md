@@ -182,7 +182,11 @@ value Location {
 - `Decimal` - numbers with fractional parts (use for money, percentages)
 - `Boolean` - true/false
 - `Timestamp` - point in time
-- `Duration` - length of time (e.g., `24.hours`, `7.days`)
+- `Duration` - length of time in ISO 8601 format (e.g., `PT24H`, `P7D`)
+  - Format: `P[n]Y[n]M[n]DT[n]H[n]M[n]S` where `P` marks the start, `T` separates date from time
+  - Date components: `P1Y` (1 year), `P2M` (2 months), `P3D` (3 days), `P1Y2M3D` (1 year, 2 months, 3 days)
+  - Time components: `PT1H` (1 hour), `PT30M` (30 minutes), `PT45S` (45 seconds), `PT2H30M` (2.5 hours)
+  - Examples: `PT24H` (24 hours), `P7D` (7 days), `PT15M` (15 minutes), `P30D` (30 days)
 - `Email` - email address (validated string)
 - `URL` - web address (validated string)
 
@@ -323,7 +327,7 @@ The variable before the colon (e.g., `interview:`) binds the entity that trigger
 ```
 when: invitation.expires_at <= now
 when: interview.slot.time.start - 1.hour <= now
-when: feedback_request.requested_at + 24.hours <= now
+when: feedback_request.requested_at + PT24H <= now
 ```
 
 Temporal triggers fire once when the condition becomes true. **Important:** Always include a `requires` clause to prevent re-firing:
@@ -382,7 +386,7 @@ Bind values for use in ensures clauses:
 ```
 let confirmation = SlotConfirmation{slot, interviewer}
 let time_until = interview.slot.time.start - now
-let is_urgent = time_until < 24.hours
+let is_urgent = time_until < PT24H
 let is_modified = 
     interviewers != suggestion.suggested_interviewers 
     or proposed_times != suggestion.suggested_times
@@ -534,7 +538,7 @@ status = pending
 status != proposed
 count >= 2
 expires_at <= now
-time_until < 24.hours
+time_until < PT24H
 status in [confirmed, declined, expired]
 ```
 
@@ -543,8 +547,8 @@ status in [confirmed, declined, expired]
 ```
 candidacy.retry_count + 1
 interview.slot.time.start - now
-feedback_request.requested_at + 24.hours
-now + 7.days
+feedback_request.requested_at + PT24H
+now + P7D
 ```
 
 #### Boolean Logic
@@ -588,9 +592,9 @@ Open questions are surfaced by the specification checker as warnings, indicating
 Define default values:
 
 ```
-default InterviewType = { name: "All in one", duration: 75.minutes }
+default InterviewType = { name: "All in one", duration: PT75M }
 default retry_limit = 2
-default invitation_expiry = 7.days
+default invitation_expiry = P7D
 ```
 
 ---
@@ -633,11 +637,11 @@ External specs' entities are just entities - use them directly with qualified na
 
 ```
 rule RequestFeedback {
-    when: interview.slot.time.start + 5.minutes <= now
+    when: interview.slot.time.start + PT5M <= now
     ensures: feedback/Request.created(
         subject: interview,
         respondents: interview.interviewers,
-        deadline: 24.hours
+        deadline: PT24H
     )
 }
 ```
@@ -666,8 +670,8 @@ Some specs need configuration. Config is just data:
 use "github.com/allium-specs/google-oauth/abc123def" as oauth
 
 oauth/config {
-    session_duration: 8.hours
-    link_expiry: 15.minutes
+    session_duration: PT8H
+    link_expiry: PT15M
 }
 ```
 
@@ -839,7 +843,7 @@ is_archived: Boolean
 ```
 -- Bad: hardcoded values
 requires: attempts < 3
-ensures: deadline = now + 48.hours
+ensures: deadline = now + PT48H
 
 -- Good: use defaults
 requires: attempts < max_attempts
