@@ -14,6 +14,7 @@ This library contains reusable patterns for common SaaS scenarios. Each pattern 
 | Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers |
 | Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications |
 | Integrating Library Specs | External spec references, configuration, responding to external triggers |
+| Sum Types for Data Structures | Sum types, variant-specific fields, type guards, exhaustiveness |
 
 ---
 
@@ -1980,6 +1981,281 @@ When creating or choosing library specs:
 3. **Observable triggers**: Library specs should emit triggers for all significant events so consuming specs can respond
 4. **Minimal coupling**: Library specs shouldn't depend on your application entities - the linkage goes one way
 5. **Clear boundaries**: The library spec handles its domain (OAuth flow, payment processing); your spec handles application concerns (user creation, access control)
+
+---
+
+## Pattern 9: Sum Types for Data Structures
+
+**Demonstrates:** Sum types, variant-specific fields, type guards, exhaustiveness, tree structures
+
+Sum types specify that an entity is exactly one of several variants - never both, never neither. This is more precise than nullable fields or status enums because the type system enforces the constraint.
+
+This pattern shows a memory hash trie implementation where nodes are either branches (with children) or leaves (with data).
+
+```
+-- memory-hash-trie.allium
+
+config {
+    log_limit: Integer = 100         -- max entries in leaf log before compaction
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value Path {
+    -- Position in trie hierarchy
+    components: List<Integer>
+    depth: Integer
+}
+
+------------------------------------------------------------
+-- Entities
+------------------------------------------------------------
+
+-- Base entity representing any node in the trie
+entity Node {
+    path: Path
+    type: Branch | Leaf              -- Sum type: exactly one variant
+}
+
+-- Branch nodes distribute indices across children by IID bits
+entity Branch : Node {
+    children: List<Node?>            -- Sparse array, nulls for empty buckets
+    child_count: Integer
+}
+
+-- Leaf nodes store actual row indices
+entity Leaf : Node {
+    data: List<Integer>              -- SORTED indices (compacted from previous logs)
+    log: List<Integer>               -- UNSORTED indices (recent additions)
+    log_count: Integer               -- Number of valid entries in log
+    sorted_data_cache: List<Integer>?
+    
+    -- Derived
+    total_count: data.count + log_count
+    needs_compaction: log_count >= config/log_limit
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule InsertIntoLeaf {
+    when: InsertIndex(node, index)
+    
+    requires: node.type = Leaf       -- Type guard: accessing Leaf-specific fields
+    requires: not node.needs_compaction
+    
+    ensures: node.log = node.log.add(index)
+    ensures: node.log_count = node.log_count + 1
+    ensures: node.sorted_data_cache = null    -- Invalidate cache
+}
+
+rule CompactLeaf {
+    when: node: Leaf.needs_compaction becomes true
+    
+    requires: node.type = Leaf
+    
+    let merged = merge_sorted(node.data, sort(node.log))
+    
+    ensures: node.data = merged
+    ensures: node.log = []
+    ensures: node.log_count = 0
+    ensures: node.sorted_data_cache = merged
+}
+
+rule SplitLeafIntoBranch {
+    when: SplitNode(node)
+    
+    requires: node.type = Leaf
+    requires: node.total_count > config/split_threshold
+    
+    let buckets = distribute_by_hash(node.data + node.log, node.path.depth + 1)
+    
+    ensures:
+        -- Transform the leaf into a branch
+        node.type = Branch
+        node.children = buckets.map(bucket =>
+            if bucket.is_empty:
+                null
+            else:
+                Leaf.created(
+                    path: extend_path(node.path, bucket.index),
+                    data: bucket.indices,
+                    log: [],
+                    log_count: 0
+                )
+        )
+        node.child_count = buckets.count(b => not b.is_empty)
+}
+
+rule QueryNode {
+    when: QueryIndices(node, predicate)
+    
+    ensures:
+        if node.type = Branch:
+            -- Recursively query children
+            for each child in node.children:
+                if child != null:
+                    QueryIndices(child, predicate)
+        else:
+            -- node.type = Leaf (exhaustive)
+            Results.created(
+                indices: filter(node.data + node.log, predicate)
+            )
+}
+
+rule GetNodeStats {
+    when: GetStats(node)
+    
+    ensures:
+        if node.type = Branch:
+            BranchStats.created(
+                path: node.path,
+                child_count: node.child_count,
+                occupied_buckets: node.children.count(c => c != null)
+            )
+        else:
+            -- node.type = Leaf (exhaustive check)
+            LeafStats.created(
+                path: node.path,
+                data_count: node.data.count,
+                log_count: node.log_count,
+                total_count: node.total_count,
+                compaction_needed: node.needs_compaction
+            )
+}
+
+rule MergeBranches {
+    when: MergeNode(branch)
+    
+    requires: branch.type = Branch
+    requires: branch.child_count < config/merge_threshold
+    
+    let all_indices = branch.children
+        .filter(c => c != null)
+        .flatMap(c =>
+            if c.type = Leaf:
+                c.data + c.log
+            else:
+                []  -- Skip non-leaf children
+        )
+    
+    ensures:
+        -- Transform branch back into leaf
+        branch.type = Leaf
+        branch.data = sort(all_indices)
+        branch.log = []
+        branch.log_count = 0
+}
+```
+
+**Key language features shown:**
+- **Sum type declaration**: `type: Branch | Leaf` specifies exactly one variant
+- **Variant entities**: `entity Branch : Node` and `entity Leaf : Node` extend the base entity
+- **Type guards**: `requires: node.type = Leaf` enables access to leaf-specific fields
+- **Variant-specific fields**: `children` only on `Branch`, `data`/`log` only on `Leaf`
+- **Exhaustive conditionals**: `if node.type = Branch: ... else: ...` covers all variants
+- **Type transformation**: Rules that change `node.type` between variants
+- **Derived values**: `needs_compaction` computed from `log_count` threshold
+
+**When to use this pattern:**
+
+Use sum types for data structures when:
+- An entity has fundamentally different data based on its kind (Branch vs Leaf)
+- The variants are mutually exclusive by definition (a node can't be both)
+- You need to prevent invalid state combinations (a Branch with `log` field would be meaningless)
+- The structure naturally models as alternatives (Result<Success, Failure>, Node = Branch | Leaf)
+
+**Common sum type patterns:**
+
+**Result types** - success or failure:
+```
+entity APIResponse {
+    request_id: String
+    type: Success | Error
+}
+
+entity Success : APIResponse {
+    data: JSON
+    timestamp: Timestamp
+}
+
+entity Error : APIResponse {
+    error_code: String
+    message: String
+    retry_after: Duration?
+}
+```
+
+**Message variants** - different notification channels:
+```
+entity Notification {
+    recipient: User
+    created_at: Timestamp
+    type: EmailNotification | SMSNotification | PushNotification
+}
+
+entity EmailNotification : Notification {
+    subject: String
+    body: String
+    from: Email
+}
+
+entity SMSNotification : Notification {
+    message: String
+    phone: String
+}
+
+entity PushNotification : Notification {
+    title: String
+    body: String
+    deep_link: URL?
+}
+```
+
+**State-dependent data** - different fields per lifecycle stage:
+```
+entity Order {
+    order_id: String
+    type: Draft | Placed | Shipped | Delivered
+}
+
+entity Draft : Order {
+    cart_items: List<CartItem>
+    estimated_total: Decimal
+}
+
+entity Placed : Order {
+    confirmed_items: List<OrderItem>
+    total_amount: Decimal
+    payment_method: PaymentMethod
+}
+
+entity Shipped : Order {
+    tracking_number: String
+    carrier: String
+    shipped_at: Timestamp
+}
+
+entity Delivered : Order {
+    delivered_at: Timestamp
+    signature: String?
+}
+```
+
+**Sum types vs status enums:**
+
+Use **status enums** (`status: pending | active | completed`) when:
+- All states share the same fields
+- State is just a lifecycle marker
+- No variant-specific behavior or data
+
+Use **sum types** (`type: Draft | Placed | Shipped`) when:
+- Each state has different fields
+- The structure changes fundamentally between states
+- You want type-level guarantees about field access
 
 ---
 

@@ -174,6 +174,132 @@ value Location {
 - **Entity**: Has identity, lifecycle, can be referenced, has rules that govern it
 - **Value**: No identity, immutable, embedded within entities, compared by structure
 
+#### Sum Types
+
+Sum types (also known as discriminated unions or tagged unions) specify that an entity is exactly one of several alternatives - never both, never neither. This is more precise than nullable fields or string tags because the type system itself enforces the constraint.
+
+**Basic syntax:**
+
+```
+entity Node {
+    path: Path
+    type: Branch | Leaf
+}
+
+entity Branch : Node {
+    children: List<Node?>
+}
+
+entity Leaf : Node {
+    data: List<Integer>
+    log: List<Integer>
+}
+```
+
+In this example, a `Node` is constrained to be either a `Branch` or a `Leaf`. The `type` field uses the pipe syntax `Branch | Leaf` to declare the sum type. Each variant is defined as a separate entity that extends the base entity using the `: Node` syntax.
+
+**Semantic guarantees:**
+
+Sum types provide several guarantees that improve correctness:
+
+- **Exhaustiveness**: All possible cases are declared upfront, making it clear what variants exist
+- **Impossibility**: Invalid states (both variants, or neither variant) cannot be represented
+- **Clarity**: The constraint is explicit in the type declaration, not scattered across validation rules
+- **Type safety**: When the type is `Branch`, only `Branch` fields are accessible; when it's `Leaf`, only `Leaf` fields are accessible
+
+**Accessing variant-specific fields:**
+
+Fields defined on variant entities are only accessible when that variant is active:
+
+```
+rule ProcessNode {
+    when: ProcessingRequested(node)
+    
+    ensures:
+        if node.type = Branch:
+            -- node.children is accessible here
+            for each child in node.children:
+                ProcessingRequested(child)
+        else:
+            -- node.type = Leaf (exhaustive)
+            -- node.data and node.log are accessible here
+            Results.created(data: node.data + node.log)
+}
+```
+
+**When to use sum types:**
+
+Use sum types when:
+- An entity has fundamentally different behaviors or data based on its kind
+- You need to prevent invalid state combinations
+- The variants are mutually exclusive by definition
+- You want exhaustiveness checking in conditional logic
+
+Don't use sum types when:
+- Simple status enums are sufficient (`pending | active | completed`)
+- The variants share most of their structure (use regular entity inheritance instead)
+- The distinction is purely implementation-level, not domain-level
+
+**Common patterns:**
+
+**Result types** - operations that succeed or fail:
+```
+entity ProcessingResult {
+    type: Success | Failure
+}
+
+entity Success : ProcessingResult {
+    data: List<Record>
+    processed_count: Integer
+}
+
+entity Failure : ProcessingResult {
+    error_message: String
+    retry_after: Duration?
+}
+```
+
+**Message types** - different kinds of notifications:
+```
+entity Notification {
+    recipient: User
+    type: Email | SMS | Push
+}
+
+entity Email : Notification {
+    subject: String
+    body: String
+    from_address: Email
+}
+
+entity SMS : Notification {
+    message: String
+    phone_number: String
+}
+
+entity Push : Notification {
+    title: String
+    body: String
+    deep_link: URL?
+}
+```
+
+**Tree structures** - nodes that are either branches or leaves:
+```
+entity TreeNode {
+    depth: Integer
+    type: Branch | Leaf
+}
+
+entity Branch : TreeNode {
+    children: List<TreeNode>
+}
+
+entity Leaf : TreeNode {
+    value: String
+}
+```
+
 #### Field Types
 
 **Primitive types:**
@@ -716,6 +842,13 @@ A valid Allium specification must satisfy:
 11. Type consistency in comparisons and arithmetic
 12. All lambdas are explicit (use `i => i.field` not `field`)
 
+**Sum type validity:**
+13. Sum type declarations use the pipe syntax (`A | B | C`)
+14. All variant entities must extend the base entity (using `: BaseEntity` syntax)
+15. Variant-specific fields are only accessed within type guards
+16. The base entity's `type` field must list all variants
+17. Variants must be mutually exclusive - no entity can be multiple variants simultaneously
+
 The checker should warn (but not error) on:
 - External entities without known governing specification
 - Open questions
@@ -754,6 +887,12 @@ From an Allium specification, generate:
 - Happy path through main flow
 - Edge cases and error paths
 - Concurrent scenarios: what happens if two triggers fire simultaneously?
+
+**Sum type tests** (per sum type):
+- Type discrimination: verify each variant has distinct accessible fields
+- Exhaustiveness: verify all variants are handled in conditional logic
+- Invalid state prevention: verify that an entity cannot be multiple variants
+- Type guard correctness: verify variant-specific fields are only accessible within appropriate type guards
 
 **Concurrency note:** Rules are assumed to be atomic - a rule either completes entirely or not at all. If two rules could fire simultaneously on the same entity, test that the resulting state is consistent regardless of order.
 
@@ -854,6 +993,9 @@ ensures: deadline = now + confirmation_deadline
 |------|------------|
 | **Entity** | A domain concept with identity and lifecycle |
 | **Value** | Structured data without identity, compared by structure |
+| **Sum Type** | A type constraint specifying an entity is exactly one of several variants (e.g., A \| B \| C) |
+| **Variant** | One of the alternatives in a sum type, defined as an entity extending the base entity |
+| **Type Guard** | A conditional check that determines which variant an entity is, enabling access to variant-specific fields |
 | **External Entity** | An entity managed by another specification |
 | **Field** | Data stored on an entity or value |
 | **Relationship** | Navigation from one entity to related entities |
