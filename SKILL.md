@@ -65,10 +65,10 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- Structured data without identity (optional section)
 
 ------------------------------------------------------------
--- Entities
+-- Entities and Variants
 ------------------------------------------------------------
 
--- Entities managed by this specification
+-- Entities managed by this specification, plus their variants
 
 ------------------------------------------------------------
 -- Defaults
@@ -183,49 +183,113 @@ Sum types (also known as discriminated unions or tagged unions) specify that an 
 ```
 entity Node {
     path: Path
-    type: Branch | Leaf
+    kind: Branch | Leaf              -- discriminator field
 }
 
-entity Branch : Node {
-    children: List<Node?>
+variant Branch : Node {
+    children: List<Node?>            -- variant-specific field
 }
 
-entity Leaf : Node {
-    data: List<Integer>
+variant Leaf : Node {
+    data: List<Integer>              -- variant-specific fields
     log: List<Integer>
 }
 ```
 
-In this example, a `Node` is constrained to be either a `Branch` or a `Leaf`. The `type` field uses the pipe syntax `Branch | Leaf` to declare the sum type. Each variant is defined as a separate entity that extends the base entity using the `: Node` syntax.
+The sum type declaration has three parts:
+1. **Discriminator field**: A field on the base entity whose type is a pipe-separated list of variant names (e.g., `kind: Branch | Leaf`). The field name can be anything descriptive (`kind`, `node_type`, etc.).
+2. **Variant declarations**: Variants are declared using the `variant` keyword (not `entity`) and specify which base entity they belong to using the `: BaseEntity` syntax.
+3. **Variant-specific fields**: Fields declared on variants that only exist when that variant is active.
+
+**Distinguishing sum types from enums:**
+
+The pipe syntax is used for both enums and sum types. The distinction is:
+- **Lowercase** values are enum literals: `status: pending | active | completed`
+- **Capitalised** values are variant references: `kind: Branch | Leaf`
+
+The validator checks that capitalised names in a discriminator field correspond to `variant` declarations that extend the base entity. If they don't exist or aren't declared as variants, it's an error.
+
+**Field inheritance:**
+
+Variants inherit all fields from the base entity:
+```
+entity Notification {
+    user: User                       -- inherited by all variants
+    created_at: Timestamp            -- inherited by all variants
+    kind: MentionNotification | ShareNotification
+}
+
+variant MentionNotification : Notification {
+    comment: Comment                 -- variant-specific
+    mentioned_by: User               -- variant-specific
+}
+```
+
+A `MentionNotification` instance has `user`, `created_at`, `kind`, `comment`, and `mentioned_by` fields. The discriminator field `kind` is also inherited and is automatically set to `MentionNotification` when creating that variant.
+
+**Creating variant instances:**
+
+Always create instances using the variant entity name, not the base:
+```
+-- Correct: create via variant
+ensures: MentionNotification.created(
+    user: recipient,
+    comment: comment,
+    mentioned_by: author,
+    created_at: now
+)
+
+-- Invalid: cannot create base entity directly when it has a sum type discriminator
+ensures: Notification.created(...)   -- Error: must specify which variant
+```
+
+The discriminator field is set automatically based on which variant you create.
+
+**Type guards:**
+
+A type guard is a condition that narrows an entity to a specific variant, enabling access to that variant's fields. Type guards can appear in two places:
+
+1. **In `requires` clauses** - guards the entire rule:
+```
+rule ProcessLeaf {
+    when: ProcessNode(node)
+    requires: node.kind = Leaf       -- type guard: entire rule assumes Leaf
+    ensures: Results.created(data: node.data + node.log)
+}
+```
+
+2. **In `if` expressions** - guards a branch:
+```
+rule ProcessNode {
+    when: ProcessNode(node)
+    ensures:
+        if node.kind = Branch:
+            -- node.children accessible here
+            for each child in node.children:
+                ProcessNode(child)
+        else:
+            -- node.kind = Leaf (exhaustive)
+            -- node.data and node.log accessible here
+            Results.created(data: node.data + node.log)
+}
+```
+
+Accessing variant-specific fields outside a type guard is an error:
+```
+rule Invalid {
+    when: ProcessNode(node)
+    ensures: node.children.count    -- Error: node.children only accessible when kind = Branch
+}
+```
 
 **Semantic guarantees:**
 
 Sum types provide several guarantees that improve correctness:
 
-- **Exhaustiveness**: All possible cases are declared upfront, making it clear what variants exist
-- **Impossibility**: Invalid states (both variants, or neither variant) cannot be represented
-- **Clarity**: The constraint is explicit in the type declaration, not scattered across validation rules
-- **Type safety**: When the type is `Branch`, only `Branch` fields are accessible; when it's `Leaf`, only `Leaf` fields are accessible
-
-**Accessing variant-specific fields:**
-
-Fields defined on variant entities are only accessible when that variant is active:
-
-```
-rule ProcessNode {
-    when: ProcessingRequested(node)
-    
-    ensures:
-        if node.type = Branch:
-            -- node.children is accessible here
-            for each child in node.children:
-                ProcessingRequested(child)
-        else:
-            -- node.type = Leaf (exhaustive)
-            -- node.data and node.log are accessible here
-            Results.created(data: node.data + node.log)
-}
-```
+- **Exhaustiveness**: All possible variants are declared upfront in the discriminator field
+- **Mutual exclusivity**: An entity is exactly one variant - never both, never neither
+- **Type safety**: Variant-specific fields are only accessible within appropriate type guards
+- **Automatic discrimination**: The discriminator field is set automatically on creation
 
 **When to use sum types:**
 
@@ -236,8 +300,8 @@ Use sum types when:
 - You want exhaustiveness checking in conditional logic
 
 Don't use sum types when:
-- Simple status enums are sufficient (`pending | active | completed`)
-- The variants share most of their structure (use regular entity inheritance instead)
+- Simple status enums are sufficient (`status: pending | active | completed`)
+- The variants share most of their structure (consider optional fields instead)
 - The distinction is purely implementation-level, not domain-level
 
 **Common patterns:**
@@ -245,42 +309,42 @@ Don't use sum types when:
 **Result types** - operations that succeed or fail:
 ```
 entity ProcessingResult {
-    type: Success | Failure
+    kind: Success | Failure
 }
 
-entity Success : ProcessingResult {
+variant Success : ProcessingResult {
     data: List<Record>
     processed_count: Integer
 }
 
-entity Failure : ProcessingResult {
+variant Failure : ProcessingResult {
     error_message: String
     retry_after: Duration?
 }
 ```
 
-**Message types** - different kinds of notifications:
+**Notification types** - different kinds of notifications:
 ```
 entity Notification {
     recipient: User
-    type: EmailNotification | SMSNotification | PushNotification
+    created_at: Timestamp
+    kind: MentionNotification | ShareNotification | SystemNotification
 }
 
-entity EmailNotification : Notification {
-    subject: String
-    body: String
-    from_address: Email
+variant MentionNotification : Notification {
+    comment: Comment
+    mentioned_by: User
 }
 
-entity SMSNotification : Notification {
-    message: String
-    phone_number: String
+variant ShareNotification : Notification {
+    resource: Resource
+    shared_by: User
+    permission: view | edit | admin
 }
 
-entity PushNotification : Notification {
+variant SystemNotification : Notification {
     title: String
     body: String
-    deep_link: URL?
 }
 ```
 
@@ -288,14 +352,14 @@ entity PushNotification : Notification {
 ```
 entity TreeNode {
     depth: Integer
-    type: Branch | Leaf
+    kind: Branch | Leaf
 }
 
-entity Branch : TreeNode {
+variant Branch : TreeNode {
     children: List<TreeNode>
 }
 
-entity Leaf : TreeNode {
+variant Leaf : TreeNode {
     value: String
 }
 ```
@@ -843,11 +907,13 @@ A valid Allium specification must satisfy:
 12. All lambdas are explicit (use `i => i.field` not `field`)
 
 **Sum type validity:**
-13. Sum type declarations use the pipe syntax (`A | B | C`)
-14. All variant entities must extend the base entity (using `: BaseEntity` syntax)
-15. Variant-specific fields are only accessed within type guards
-16. The base entity's `type` field must list all variants
-17. Variants must be mutually exclusive - no entity can be multiple variants simultaneously
+13. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
+14. All names in a discriminator field must be declared as `variant X : BaseEntity`
+15. All variants that extend a base entity must be listed in that entity's discriminator field
+16. Variant-specific fields are only accessed within type guards (`requires:` or `if` branches)
+17. Base entities with sum type discriminators cannot be instantiated directly - must use a variant
+18. Discriminator field names are user-defined (e.g., `kind`, `node_type`) - there is no reserved name
+19. The `variant` keyword is required for variant declarations - using `entity` for a type that extends another entity with a discriminator is an error
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -993,9 +1059,10 @@ ensures: deadline = now + confirmation_deadline
 |------|------------|
 | **Entity** | A domain concept with identity and lifecycle |
 | **Value** | Structured data without identity, compared by structure |
-| **Sum Type** | A type constraint specifying an entity is exactly one of several variants (e.g., A \| B \| C) |
-| **Variant** | One of the alternatives in a sum type, defined as an entity extending the base entity |
-| **Type Guard** | A conditional check that determines which variant an entity is, enabling access to variant-specific fields |
+| **Sum Type** | A type constraint specifying an entity is exactly one of several variants, declared via a discriminator field (e.g., `kind: A \| B \| C`) |
+| **Discriminator** | A field on a base entity whose type is a pipe-separated list of variant names; automatically set when creating variants |
+| **Variant** | One of the alternatives in a sum type, declared with the `variant` keyword (e.g., `variant A : Base { ... }`) |
+| **Type Guard** | A condition (`requires:` or `if` branch) that narrows an entity to a specific variant, enabling access to variant-specific fields |
 | **External Entity** | An entity managed by another specification |
 | **Field** | Data stored on an entity or value |
 | **Relationship** | Navigation from one entity to related entities |

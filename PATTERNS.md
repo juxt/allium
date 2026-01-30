@@ -10,11 +10,10 @@ This library contains reusable patterns for common SaaS scenarios. Each pattern 
 | Role-Based Access Control | Derived permissions, relationships, `requires` checks |
 | Invitation to Resource | Join entities, permission levels, tokenised actions |
 | Soft Delete & Restore | State machines, projections filtering deleted items |
-| Notification Preferences | User preferences affecting rule behaviour, digest batching |
+| Notification Preferences | Sum types for notification variants, user preferences, digest batching |
 | Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers |
 | Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications |
 | Integrating Library Specs | External spec references, configuration, responding to external triggers |
-| Sum Types for Data Structures | Sum types, variant-specific fields, type guards, exhaustiveness |
 
 ---
 
@@ -815,9 +814,9 @@ rule RestoreAll {
 
 ## Pattern 5: Notification Preferences & Digests
 
-**Demonstrates:** User preferences affecting rule behaviour, batching/digest logic, temporal triggers for scheduled sends
+**Demonstrates:** Sum types for notification variants, user preferences affecting rule behaviour, digest batching, temporal triggers
 
-This pattern handles in-app notifications with user-controlled email preferences and digest batching.
+This pattern handles in-app notifications with user-controlled email preferences and digest batching. It uses sum types to model different notification kinds, each carrying its own contextual data rather than pre-computed strings.
 
 ```
 -- notifications.allium
@@ -834,11 +833,11 @@ config {
 entity User {
     email: Email
     name: String
-    
+
     -- Relationships
     notification_settings: NotificationSetting for this user
     notifications: Notification for this user
-    
+
     -- Projections
     unread_notifications: notifications with status = unread
     pending_email_notifications: notifications with email_status = pending
@@ -847,31 +846,91 @@ entity User {
 
 entity NotificationSetting {
     user: User
-    
+
     -- Per-type email preferences
     email_on_mention: immediately | daily_digest | never
     email_on_comment: immediately | daily_digest | never
     email_on_share: immediately | daily_digest | never
     email_on_assignment: immediately | daily_digest | never
-    
+
     -- Global settings
     digest_enabled: Boolean
     digest_day_of_week: Set<DayOfWeek>    -- e.g., { monday, wednesday, friday }
 }
 
+------------------------------------------------------------
+-- Notification Sum Type
+------------------------------------------------------------
+
+-- Base notification entity with shared fields
 entity Notification {
     user: User
-    type: mention | comment | share | assignment | system
-    title: String
-    body: String
-    link: URL?
     created_at: Timestamp
     status: unread | read | archived
     email_status: pending | sent | skipped | digested
-    
+    kind: MentionNotification | ReplyNotification | ShareNotification |
+          AssignmentNotification | SystemNotification
+
     -- Derived
     is_unread: status = unread
 }
+
+-- Someone @mentioned the user in a comment
+variant MentionNotification : Notification {
+    comment: Comment
+    mentioned_by: User
+
+    -- Derived display values
+    title: "{mentioned_by.name} mentioned you"
+    body: truncate(comment.body, 100)
+    link: comment.parent.url
+}
+
+-- Someone replied to the user's comment
+variant ReplyNotification : Notification {
+    reply: Comment              -- the new reply
+    original_comment: Comment   -- the user's comment being replied to
+    replied_by: User
+
+    -- Derived display values
+    title: "{replied_by.name} replied to your comment"
+    body: truncate(reply.body, 100)
+    link: reply.parent.url
+}
+
+-- Someone shared a resource with the user
+variant ShareNotification : Notification {
+    resource: Resource
+    shared_by: User
+    permission: view | edit | admin
+
+    -- Derived display values
+    title: "{shared_by.name} shared {resource.name} with you"
+    body: "You now have {permission} access"
+    link: resource.url
+}
+
+-- Someone assigned a task to the user
+variant AssignmentNotification : Notification {
+    task: Task
+    assigned_by: User
+
+    -- Derived display values
+    title: "{assigned_by.name} assigned you a task"
+    body: task.title
+    link: task.url
+}
+
+-- System-generated notification (catch-all for non-structured notifications)
+variant SystemNotification : Notification {
+    title: String
+    body: String
+    link: URL?
+}
+
+------------------------------------------------------------
+-- Supporting Entities
+------------------------------------------------------------
 
 entity DigestBatch {
     user: User
@@ -882,34 +941,118 @@ entity DigestBatch {
 }
 
 ------------------------------------------------------------
--- Creating notifications
+-- Creating notifications (type-specific rules)
 ------------------------------------------------------------
 
-rule CreateNotification {
-    when: NotificationTriggered(user, type, title, body, link)
-    
+rule CreateMentionNotification {
+    when: UserMentioned(user, comment, mentioned_by)
+
     let settings = user.notification_settings
-    let email_preference = settings.preference_for(type)    -- black box lookup
-    
-    ensures:
-        let notification = Notification.created(
-            user: user,
-            type: type,
-            title: title,
-            body: body,
-            link: link,
-            created_at: now,
-            status: unread,
-            email_status: if email_preference = never then skipped else pending
-        )
-        -- Immediate email if preference is "immediately"
-        if email_preference = immediately:
-            Email.sent(
-                to: user.email,
-                template: notification_immediate,
-                data: { notification: notification }
-            )
-            notification.email_status = sent
+
+    requires: user != mentioned_by    -- don't notify self
+
+    ensures: MentionNotification.created(
+        user: user,
+        comment: comment,
+        mentioned_by: mentioned_by,
+        created_at: now,
+        status: unread,
+        email_status: if settings.email_on_mention = never then skipped else pending
+    )
+}
+
+rule CreateReplyNotification {
+    when: CommentReplied(original_author, reply, original_comment)
+
+    let settings = original_author.notification_settings
+
+    requires: original_author != reply.author    -- don't notify self
+
+    ensures: ReplyNotification.created(
+        user: original_author,
+        reply: reply,
+        original_comment: original_comment,
+        replied_by: reply.author,
+        created_at: now,
+        status: unread,
+        email_status: if settings.email_on_comment = never then skipped else pending
+    )
+}
+
+rule CreateShareNotification {
+    when: ResourceShared(user, resource, shared_by, permission)
+
+    let settings = user.notification_settings
+
+    requires: user != shared_by    -- don't notify self
+
+    ensures: ShareNotification.created(
+        user: user,
+        resource: resource,
+        shared_by: shared_by,
+        permission: permission,
+        created_at: now,
+        status: unread,
+        email_status: if settings.email_on_share = never then skipped else pending
+    )
+}
+
+rule CreateAssignmentNotification {
+    when: TaskAssigned(user, task, assigned_by)
+
+    let settings = user.notification_settings
+
+    requires: user != assigned_by    -- don't notify self
+
+    ensures: AssignmentNotification.created(
+        user: user,
+        task: task,
+        assigned_by: assigned_by,
+        created_at: now,
+        status: unread,
+        email_status: if settings.email_on_assignment = never then skipped else pending
+    )
+}
+
+rule CreateSystemNotification {
+    when: SystemNotificationTriggered(user, title, body, link)
+
+    ensures: SystemNotification.created(
+        user: user,
+        title: title,
+        body: body,
+        link: link,
+        created_at: now,
+        status: unread,
+        email_status: pending
+    )
+}
+
+------------------------------------------------------------
+-- Immediate email sending
+------------------------------------------------------------
+
+rule SendImmediateEmail {
+    when: notification: Notification.created
+
+    let settings = notification.user.notification_settings
+    let preference =
+        if notification.kind = MentionNotification: settings.email_on_mention
+        else if notification.kind = ReplyNotification: settings.email_on_comment
+        else if notification.kind = ShareNotification: settings.email_on_share
+        else if notification.kind = AssignmentNotification: settings.email_on_assignment
+        else: immediately    -- system notifications send immediately by default
+
+    requires: notification.email_status = pending
+    requires: preference = immediately
+
+    ensures: Email.sent(
+        to: notification.user.email,
+        template: notification_immediate,
+        data: { notification: notification }
+    )
+    ensures: notification.email_status = sent
+}
 
 ------------------------------------------------------------
 -- Reading notifications
@@ -917,24 +1060,24 @@ rule CreateNotification {
 
 rule MarkAsRead {
     when: MarkNotificationRead(user, notification)
-    
+
     requires: notification.user = user
     requires: notification.status = unread
-    
+
     ensures: notification.status = read
 }
 
 rule MarkAllAsRead {
     when: MarkAllNotificationsRead(user)
-    
+
     ensures: user.unread_notifications.each(n => n.status = read)
 }
 
 rule ArchiveNotification {
     when: ArchiveNotification(user, notification)
-    
+
     requires: notification.user = user
-    
+
     ensures: notification.status = archived
 }
 
@@ -945,14 +1088,14 @@ rule ArchiveNotification {
 rule CreateDailyDigest {
     when: time_of_day = config/digest_time
     for each: user in Users with notification_settings.digest_enabled = true
-    
+
     let today = current_day_of_week
     let settings = user.notification_settings
     let pending = user.recent_pending_notifications.take(config/max_batch_size)
-    
+
     requires: today in settings.digest_day_of_week
     requires: pending.count > 0
-    
+
     ensures: DigestBatch.created(
         user: user,
         notifications: pending,
@@ -967,11 +1110,11 @@ rule SendDigest {
 
     requires: batch.status = pending
     requires: batch.notifications.count > 0
-    
+
     ensures: Email.sent(
         to: batch.user.email,
         template: daily_digest,
-        data: { 
+        data: {
             notifications: batch.notifications,
             unread_count: batch.user.unread_notifications.count
         }
@@ -986,9 +1129,9 @@ rule SendDigest {
 
 rule UpdateNotificationPreferences {
     when: UpdatePreferences(user, preferences)
-    
+
     let settings = user.notification_settings
-    
+
     ensures: settings.email_on_mention = preferences.mention
     ensures: settings.email_on_comment = preferences.comment
     ensures: settings.email_on_share = preferences.share
@@ -999,13 +1142,41 @@ rule UpdateNotificationPreferences {
 ```
 
 **Key language features shown:**
+- **Sum types**: `kind: MentionNotification | ReplyNotification | ...` declares notification variants
+- **Variant declarations**: Each notification kind uses `variant X : Notification` syntax
+- **Derived display values**: `title`, `body`, `link` computed from actual entity references
+- **Variant-specific creation rules**: Each variant has its own creation rule with appropriate fields
+- **Exhaustive kind checking**: `SendImmediateEmail` handles all variants explicitly
 - User preferences stored as entity
-- Conditional logic based on preferences (`if email_preference = immediately`)
 - Scheduled triggers (`when: time_of_day = config/digest_time`)
 - `for each` with filter (`for each: user in Users with ... = true`)
-- Set membership (`today in settings.digest_day_of_week`)
 - Batching and limiting (`.take(config/max_batch_size)`)
-- Multi-step flows (create batch → send batch)
+
+**Why sum types here?**
+
+The previous approach used pre-computed `title`, `body`, and `link` strings:
+```
+Notification.created(
+    type: mention,
+    title: "{author} mentioned you",
+    body: truncate(comment.body, 100),
+    link: comment.parent.url
+)
+```
+
+With sum types, each notification carries its actual entity references:
+```
+MentionNotification.created(
+    comment: comment,
+    mentioned_by: author
+)
+```
+
+This is better because:
+1. **Rich queries**: "Show all notifications about this document" queries the actual relationships
+2. **Type safety**: Creating a `MentionNotification` requires a `comment` - you can't forget it
+3. **Flexible rendering**: Display logic can access full entity data, not just truncated strings
+4. **Consistency**: If a user's name changes, notification titles reflect the current name
 
 ---
 
@@ -1415,41 +1586,39 @@ rule CreateReply {
 }
 
 ------------------------------------------------------------
--- Notifications for mentions
+-- Notifications for mentions and replies
 ------------------------------------------------------------
 
+-- Trigger the notification system when someone is mentioned
 rule NotifyMentionedUser {
     when: mention: CommentMention.created
 
     requires: mention.user != mention.comment.author    -- don't notify self
     requires: not mention.notified
-    
+
     ensures: mention.notified = true
-    ensures: Notification.created(
+    ensures: UserMentioned(
         user: mention.user,
-        type: mention,
-        title: "{author} mentioned you",
-        body: truncate(mention.comment.body, 100),
-        link: mention.comment.parent.url
+        comment: mention.comment,
+        mentioned_by: mention.comment.author
     )
 }
 
+-- Trigger the notification system when someone's comment receives a reply
 rule NotifyCommentAuthorOfReply {
     when: comment: Comment.created
 
     let original_author = comment.reply_to?.author
-    
+
     requires: comment.is_reply
     requires: original_author != null
     requires: original_author != comment.author    -- don't notify self
     requires: original_author not in comment.mentioned_users    -- avoid double notify
-    
-    ensures: Notification.created(
-        user: original_author,
-        type: comment,
-        title: "{author} replied to your comment",
-        body: truncate(comment.body, 100),
-        link: comment.parent.url
+
+    ensures: CommentReplied(
+        original_author: original_author,
+        reply: comment,
+        original_comment: comment.reply_to
     )
 }
 
@@ -1552,7 +1721,7 @@ rule ToggleReaction {
 - Explicit `let` binding for created entities
 - Set operations (`new_mentioned_users - old_mentions`)
 - Depth limiting (`thread_depth < 3`)
-- Multiple notifications from one action (mention + reply)
+- **Cross-pattern triggers**: Emits `UserMentioned` and `CommentReplied` triggers that Pattern 5 handles
 - Avoiding double notifications (`original_author not in comment.mentioned_users`)
 - Toggle pattern with conditional ensures
 - Join entity with three keys (`CommentReaction{comment, user, emoji}`)
@@ -1981,281 +2150,6 @@ When creating or choosing library specs:
 3. **Observable triggers**: Library specs should emit triggers for all significant events so consuming specs can respond
 4. **Minimal coupling**: Library specs shouldn't depend on your application entities - the linkage goes one way
 5. **Clear boundaries**: The library spec handles its domain (OAuth flow, payment processing); your spec handles application concerns (user creation, access control)
-
----
-
-## Pattern 9: Sum Types for Data Structures
-
-**Demonstrates:** Sum types, variant-specific fields, type guards, exhaustiveness, tree structures
-
-Sum types specify that an entity is exactly one of several variants - never both, never neither. This is more precise than nullable fields or status enums because the type system enforces the constraint.
-
-This pattern shows a memory hash trie implementation where nodes are either branches (with children) or leaves (with data).
-
-```
--- memory-hash-trie.allium
-
-config {
-    log_limit: Integer = 100         -- max entries in leaf log before compaction
-    split_threshold: Integer = 1000  -- max entries in leaf before splitting into branch
-    merge_threshold: Integer = 10    -- min children in branch before merging back to leaf
-}
-
-------------------------------------------------------------
--- Value Types
-------------------------------------------------------------
-
-value Path {
-    -- Position in trie hierarchy
-    components: List<Integer>
-    depth: Integer
-}
-
-------------------------------------------------------------
--- Entities
-------------------------------------------------------------
-
--- Base entity representing any node in the trie
-entity Node {
-    path: Path
-    type: Branch | Leaf              -- Sum type: exactly one variant
-}
-
--- Branch nodes distribute indices across children by IID bits
-entity Branch : Node {
-    children: List<Node?>            -- Sparse array, nulls for empty buckets
-    child_count: Integer
-}
-
--- Leaf nodes store actual row indices
-entity Leaf : Node {
-    data: List<Integer>              -- SORTED indices (compacted from previous logs)
-    log: List<Integer>               -- UNSORTED indices (recent additions)
-    log_count: Integer               -- Number of valid entries in log
-    sorted_data_cache: List<Integer>?
-    
-    -- Derived
-    total_count: data.count + log_count
-    needs_compaction: log_count >= config/log_limit
-}
-
-------------------------------------------------------------
--- Rules
-------------------------------------------------------------
-
-rule InsertIntoLeaf {
-    when: InsertIndex(node, index)
-    
-    requires: node.type = Leaf       -- Type guard: accessing Leaf-specific fields
-    requires: not node.needs_compaction
-    
-    ensures: node.log = node.log.add(index)
-    ensures: node.log_count = node.log_count + 1
-    ensures: node.sorted_data_cache = null    -- Invalidate cache
-}
-
-rule CompactLeaf {
-    when: node: Leaf.needs_compaction becomes true
-    
-    requires: node.type = Leaf
-    
-    let merged = merge_sorted(node.data, sort(node.log))
-    
-    ensures: node.data = merged
-    ensures: node.log = []
-    ensures: node.log_count = 0
-    ensures: node.sorted_data_cache = merged
-}
-
-rule SplitLeafIntoBranch {
-    when: SplitNode(node)
-    
-    requires: node.type = Leaf
-    requires: node.total_count > config/split_threshold
-    
-    let buckets = distribute_by_hash(node.data + node.log, node.path.depth + 1)
-    
-    ensures:
-        -- Transform the leaf into a branch
-        node.type = Branch
-        node.children = buckets.map(bucket =>
-            if bucket.is_empty:
-                null
-            else:
-                Leaf.created(
-                    path: extend_path(node.path, bucket.index),
-                    data: bucket.indices,
-                    log: [],
-                    log_count: 0
-                )
-        )
-        node.child_count = buckets.count(b => not b.is_empty)
-}
-
-rule QueryNode {
-    when: QueryIndices(node, predicate)
-    
-    ensures:
-        if node.type = Branch:
-            -- Recursively query children
-            for each child in node.children:
-                if child != null:
-                    QueryIndices(child, predicate)
-        else:
-            -- node.type = Leaf (exhaustive)
-            Results.created(
-                indices: filter(node.data + node.log, predicate)
-            )
-}
-
-rule GetNodeStats {
-    when: GetStats(node)
-    
-    ensures:
-        if node.type = Branch:
-            BranchStats.created(
-                path: node.path,
-                child_count: node.child_count,
-                occupied_buckets: node.children.count(c => c != null)
-            )
-        else:
-            -- node.type = Leaf (exhaustive check)
-            LeafStats.created(
-                path: node.path,
-                data_count: node.data.count,
-                log_count: node.log_count,
-                total_count: node.total_count,
-                compaction_needed: node.needs_compaction
-            )
-}
-
-rule MergeBranches {
-    when: MergeNode(branch)
-    
-    requires: branch.type = Branch
-    requires: branch.child_count < config/merge_threshold
-    
-    let all_indices = branch.children
-        .filter(c => c != null)
-        .flatMap(c =>
-            if c.type = Leaf:
-                c.data + c.log
-            else:
-                []  -- Skip non-leaf children
-        )
-    
-    ensures:
-        -- Transform branch back into leaf
-        branch.type = Leaf
-        branch.data = sort(all_indices)
-        branch.log = []
-        branch.log_count = 0
-}
-```
-
-**Key language features shown:**
-- **Sum type declaration**: `type: Branch | Leaf` specifies exactly one variant
-- **Variant entities**: `entity Branch : Node` and `entity Leaf : Node` extend the base entity
-- **Type guards**: `requires: node.type = Leaf` enables access to leaf-specific fields
-- **Variant-specific fields**: `children` only on `Branch`, `data`/`log` only on `Leaf`
-- **Exhaustive conditionals**: `if node.type = Branch: ... else: ...` covers all variants
-- **Type transformation**: Rules that change `node.type` between variants
-- **Derived values**: `needs_compaction` computed from `log_count` threshold
-
-**When to use this pattern:**
-
-Use sum types for data structures when:
-- An entity has fundamentally different data based on its kind (Branch vs Leaf)
-- The variants are mutually exclusive by definition (a node can't be both)
-- You need to prevent invalid state combinations (a Branch with `log` field would be meaningless)
-- The structure naturally models as alternatives (Result<Success, Failure>, Node = Branch | Leaf)
-
-**Common sum type patterns:**
-
-**Result types** - success or failure:
-```
-entity ProcessingResult {
-    type: Success | Failure
-}
-
-entity Success : ProcessingResult {
-    data: List<Record>
-    processed_count: Integer
-}
-
-entity Failure : ProcessingResult {
-    error_message: String
-    retry_after: Duration?
-}
-```
-
-**Message variants** - different notification channels:
-```
-entity Notification {
-    recipient: User
-    created_at: Timestamp
-    type: EmailNotification | SMSNotification | PushNotification
-}
-
-entity EmailNotification : Notification {
-    subject: String
-    body: String
-    from: Email
-}
-
-entity SMSNotification : Notification {
-    message: String
-    phone: String
-}
-
-entity PushNotification : Notification {
-    title: String
-    body: String
-    deep_link: URL?
-}
-```
-
-**State-dependent data** - different fields per lifecycle stage:
-```
-entity Order {
-    order_id: String
-    type: Draft | Placed | Shipped | Delivered
-}
-
-entity Draft : Order {
-    cart_items: List<CartItem>
-    estimated_total: Decimal
-}
-
-entity Placed : Order {
-    confirmed_items: List<OrderItem>
-    total_amount: Decimal
-    payment_method: PaymentMethod
-}
-
-entity Shipped : Order {
-    tracking_number: String
-    carrier: String
-    shipped_at: Timestamp
-}
-
-entity Delivered : Order {
-    delivered_at: Timestamp
-    signature: String?
-}
-```
-
-**Sum types vs status enums:**
-
-Use **status enums** (`status: pending | active | completed`) when:
-- All states share the same fields
-- State is just a lifecycle marker
-- No variant-specific behaviour or data
-
-Use **sum types** (`type: Draft | Placed | Shipped`) when:
-- Each state has different fields
-- The structure changes fundamentally between states
-- You want type-level guarantees about field access
 
 ---
 
