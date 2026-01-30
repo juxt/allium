@@ -1,0 +1,271 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.navbar {
+  background: linear-gradient(90deg, #2d3561 0%, #764ba2 50%, #667eea 100%);
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 80px;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  padding: 0.5rem 0;
+}
+
+.logo {
+  height: 60px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.brand-title {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 1.875rem;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.brand-tagline {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  line-height: 1.2;
+  font-style: italic;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 2rem;
+  margin: 0;
+}
+
+.nav-menu a {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-menu a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-menu a.active {
+  border-bottom-color: #ffd93d;
+  border-radius: 4px 4px 0 0;
+}
+
+main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  min-height: calc(100vh - 200px);
+}
+
+h2, h3 {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+ul, ol {
+  margin-bottom: 1rem;
+  padding-left: 2rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+pre {
+  background: #f5f5f5;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+  margin: 1.5rem 0 2rem;
+}
+
+code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+.terminal {
+  background: #1e1e2e;
+  border-radius: 8px;
+  margin: 1.5rem 0 2rem;
+  overflow: hidden;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.terminal-titlebar {
+  background: #313244;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.terminal-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.terminal-dot.red { background: #f38ba8; }
+.terminal-dot.yellow { background: #f9e2af; }
+.terminal-dot.green { background: #a6e3a1; }
+
+.terminal-body {
+  padding: 0;
+}
+
+.terminal .turn {
+  padding: 0.75rem 1.25rem;
+}
+
+.terminal .user {
+  background: #2a2a3d;
+  color: #cdd6f4;
+}
+
+.terminal .user .prompt {
+  color: #a6e3a1;
+  font-weight: 600;
+}
+
+.terminal .llm {
+  background: #1e1e2e;
+  color: #bac2de;
+  padding-left: 2.5rem;
+}
+
+.terminal .llm .marker {
+  color: #e07858;
+}
+
+.terminal .llm code {
+  color: #f9e2af;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.terminal .user code {
+  color: #f9e2af;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  color: #666;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+footer a {
+  color: #666;
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: #764ba2;
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    min-height: auto;
+  }
+
+  .nav-brand {
+    width: 100%;
+  }
+
+  .logo {
+    height: 52px;
+  }
+
+  .brand-title {
+    font-size: 1.625rem;
+  }
+
+  .brand-tagline {
+    font-size: 0.9375rem;
+  }
+
+  .nav-menu {
+    width: 100%;
+    gap: 0.375rem;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+
+  .nav-menu a {
+    font-size: 0.9375rem;
+    padding: 0.5rem 0.625rem;
+    white-space: nowrap;
+  }
+}

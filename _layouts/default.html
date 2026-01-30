@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title }} - {{ site.title }}</title>
+  <meta name="description" content="{{ site.description }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="{{ site.baseurl }}/" class="nav-brand">
+        <img src="{{ site.baseurl }}/assets/logo-white.png" alt="Allium" class="logo">
+        <div class="brand-text">
+          <h1 class="brand-title">Allium</h1>
+          <p class="brand-tagline">Velocity through clarity</p>
+        </div>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="{{ site.baseurl }}/" class="{% if page.url == '/' %}active{% endif %}">Home</a></li>
+        <li><a href="{{ site.baseurl }}/language" class="{% if page.url contains '/language' %}active{% endif %}">Language</a></li>
+        <li><a href="{{ site.baseurl }}/usage" class="{% if page.url contains '/usage' %}active{% endif %}">Usage</a></li>
+        <li><a href="{{ site.baseurl }}/installation" class="{% if page.url contains '/installation' %}active{% endif %}">Installation</a></li>
+        <li><a href="{{ site.baseurl }}/about" class="{% if page.url contains '/about' %}active{% endif %}">About</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main>
+    {{ content }}
+  </main>
+  <footer>
+    <p>© JUXT Ltd 2026 | <a href="https://github.com/juxt/allium">GitHub</a></p>
+  </footer>
+</body>
+</html>
