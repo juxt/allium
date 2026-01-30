@@ -2250,7 +2250,7 @@ entity Delivered : Order {
 Use **status enums** (`status: pending | active | completed`) when:
 - All states share the same fields
 - State is just a lifecycle marker
-- No variant-specific behavior or data
+- No variant-specific behaviour or data
 
 Use **sum types** (`type: Draft | Placed | Shipped`) when:
 - Each state has different fields
