@@ -1997,6 +1997,8 @@ This pattern shows a memory hash trie implementation where nodes are either bran
 
 config {
     log_limit: Integer = 100         -- max entries in leaf log before compaction
+    split_threshold: Integer = 1000  -- max entries in leaf before splitting into branch
+    merge_threshold: Integer = 10    -- min children in branch before merging back to leaf
 }
 
 ------------------------------------------------------------
@@ -2172,19 +2174,17 @@ Use sum types for data structures when:
 
 **Result types** - success or failure:
 ```
-entity APIResponse {
-    request_id: String
-    type: Success | Error
+entity ProcessingResult {
+    type: Success | Failure
 }
 
-entity Success : APIResponse {
-    data: JSON
-    timestamp: Timestamp
+entity Success : ProcessingResult {
+    data: List<Record>
+    processed_count: Integer
 }
 
-entity Error : APIResponse {
-    error_code: String
-    message: String
+entity Failure : ProcessingResult {
+    error_message: String
     retry_after: Duration?
 }
 ```

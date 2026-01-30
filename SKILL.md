@@ -230,7 +230,7 @@ rule ProcessNode {
 **When to use sum types:**
 
 Use sum types when:
-- An entity has fundamentally different behaviors or data based on its kind
+- An entity has fundamentally different behaviour or data based on its kind
 - You need to prevent invalid state combinations
 - The variants are mutually exclusive by definition
 - You want exhaustiveness checking in conditional logic
@@ -263,21 +263,21 @@ entity Failure : ProcessingResult {
 ```
 entity Notification {
     recipient: User
-    type: Email | SMS | Push
+    type: EmailNotification | SMSNotification | PushNotification
 }
 
-entity Email : Notification {
+entity EmailNotification : Notification {
     subject: String
     body: String
     from_address: Email
 }
 
-entity SMS : Notification {
+entity SMSNotification : Notification {
     message: String
     phone_number: String
 }
 
-entity Push : Notification {
+entity PushNotification : Notification {
     title: String
     body: String
     deep_link: URL?
