@@ -117,8 +117,8 @@ li {
 }
 
 pre {
-  background: #002b36;
-  color: #839496;
+  background: #1e1e2e;
+  color: #cdd6f4;
   padding: 1.25rem 1.5rem;
   overflow-x: auto;
   border-radius: 6px;
@@ -142,15 +142,17 @@ pre code {
   padding: 0;
 }
 
-/* Allium syntax highlighting — solarized dark */
-.allium-keyword { color: #b58900; }
-.allium-type { color: #268bd2; }
-.allium-field { color: #93a1a1; }
-.allium-string { color: #2aa198; }
-.allium-comment { color: #586e75; font-style: italic; }
-.allium-operator { color: #cb4b16; }
-.allium-value { color: #d33682; }
-.allium-number { color: #d33682; }
+/* Allium syntax highlighting */
+.allium-keyword { color: #cba6f7; }
+.allium-type { color: #89b4fa; }
+.allium-field { color: #f9e2af; }
+.allium-string { color: #a6e3a1; }
+.allium-comment { color: #6c7086; font-style: italic; }
+.allium-operator { color: #f38ba8; }
+.allium-number { color: #fab387; }
+.allium-property { color: #94e2d5; }
+.allium-punctuation { color: #9399b2; }
+.allium-builtin { color: #f5c2e7; }
 
 /* Notice callout */
 .notice {
