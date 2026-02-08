@@ -133,4 +133,4 @@ A developer asks the LLM to check whether the code still matches the Allium.
   </div>
 </div>
 
-Code and intent diverge silently over time. Allium gives the LLM something to check against, turning "does this look right?" into a concrete comparison with a definitive answer.
+Code and intent diverge silently over time. Allium gives the LLM something to check against, turning "does this look right?" into a concrete comparison with a definitive answer. See the [distillation guide](https://github.com/juxt/allium/blob/main/distillation.md) for a structured approach to catching drift, and the [elicitation guide](https://github.com/juxt/allium/blob/main/elicitation.md) for building specs from conversations like the ones above.

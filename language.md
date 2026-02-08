@@ -90,7 +90,7 @@ rule IncidentEscalates {
 }
 ```
 
-The *language reference* covers entities, rules, triggers, relationships, projections, derived values and surfaces.
+The [language reference](https://github.com/juxt/allium/blob/main/SKILL.md) covers entities, rules, triggers, relationships, projections, derived values and surfaces.
 
 ## A language without a runtime
 
@@ -120,4 +120,4 @@ Coordinates will be immutable references such as git SHAs or content hashes, not
 
 Teams will be able to publish general-purpose models for authentication flows and payment processing. Others can compose these into their own models, responding to triggers and referencing entities across boundaries.
 
-The *patterns library* illustrates this with a variety of worked examples.
+The [patterns library](https://github.com/juxt/allium/blob/main/patterns.md) illustrates this with a variety of worked examples.
