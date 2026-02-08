@@ -5,8 +5,6 @@ title: Usage
 
 ## What this looks like in practice
 
-### Getting started with /allium
-
 Type `/allium` in Claude Code and Allium examines your project, then offers to distill from existing code or build a new spec through conversation.
 
 <div class="terminal">

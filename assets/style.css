@@ -246,6 +246,9 @@ pre code {
 
 .terminal .llm .marker {
   color: #e07858;
+  font-size: 1.3em;
+  line-height: 0;
+  vertical-align: middle;
 }
 
 .terminal .llm code {
