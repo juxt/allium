@@ -98,6 +98,16 @@ main {
   min-height: calc(100vh - 200px);
 }
 
+.hero {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: #764ba2;
+  text-align: center;
+  line-height: 1.4;
+  margin: 1rem 0 2.5rem;
+}
+
 h2, h3 {
   margin-top: 2rem;
   margin-bottom: 1rem;
