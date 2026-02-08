@@ -176,7 +176,8 @@ code {
 }
 
 .terminal .turn {
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 1.25rem 0.75rem calc(1.25rem + 2ch);
+  text-indent: -2ch;
 }
 
 .terminal .user {
@@ -192,7 +193,7 @@ code {
 .terminal .llm {
   background: #1e1e2e;
   color: #bac2de;
-  padding-left: 2.5rem;
+  padding-left: calc(2.5rem + 2ch);
 }
 
 .terminal .llm .marker {
