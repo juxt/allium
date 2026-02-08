@@ -3,7 +3,7 @@ layout: default
 title: Home
 ---
 
-<p class="hero">Allium is an LLM-native language for sharpening intent alongside implementation.</p>
+<p class="hero">Allium is an LLM-native language for sharpening intent alongside implementation</p>
 
 <div class="terminal">
   <div class="terminal-titlebar">
