@@ -11,4 +11,4 @@ The phonetic echo of "LLM" is intentional, reflecting where we expect these mode
 
 The idiom "know your onions" means to understand a subject thoroughly. Engineers have always held two models: what the system should do and what it currently does. Code formalised implementation; intent remained scattered across documents, emails and Slack messages. LLMs generate implementations from descriptions, so Allium consolidates that scattered understanding into an explicit form models can reference reliably.
 
-Like its namesake, working with Allium may produce tears during the peeling, but never at the table.
+Like its namesake, Allium may bring tears during preparation. What you serve up is better for it.
