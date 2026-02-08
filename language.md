@@ -3,6 +3,10 @@ layout: default
 title: Language
 ---
 
+<div class="notice">
+You don't write or edit Allium specs directly. You describe what your system should do in conversation, and the LLM manages the specification on your behalf. The syntax below is human-readable so you can review what the model produces, but it's designed for LLM consumption first.
+</div>
+
 ## What Allium captures
 
 Allium provides a minimal syntax for describing events with their preconditions and the outcomes that result. The language deliberately excludes implementation details such as database schemas and API designs, focusing purely on observable behaviour.

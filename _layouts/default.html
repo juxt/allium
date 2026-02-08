@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ site.baseurl }}/assets/style.css">
+  <script src="{{ site.baseurl }}/assets/allium-highlight.js"></script>
 </head>
 <body>
   <nav class="navbar">
@@ -30,8 +31,8 @@
       </a>
       <ul class="nav-menu">
         <li><a href="{{ site.baseurl }}/" class="{% if page.url == '/' %}active{% endif %}">Home</a></li>
-        <li><a href="{{ site.baseurl }}/language" class="{% if page.url contains '/language' %}active{% endif %}">Language</a></li>
         <li><a href="{{ site.baseurl }}/usage" class="{% if page.url contains '/usage' %}active{% endif %}">Usage</a></li>
+        <li><a href="{{ site.baseurl }}/language" class="{% if page.url contains '/language' %}active{% endif %}">Language</a></li>
         <li><a href="{{ site.baseurl }}/installation" class="{% if page.url contains '/installation' %}active{% endif %}">Installation</a></li>
         <li><a href="{{ site.baseurl }}/about" class="{% if page.url contains '/about' %}active{% endif %}">About</a></li>
       </ul>
