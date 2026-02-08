@@ -5,6 +5,43 @@ title: Usage
 
 ## What this looks like in practice
 
+### Getting started with /allium
+
+Type `/allium` in Claude Code and Allium examines your project, then offers to distill from existing code or build a new spec through conversation.
+
+<div class="terminal">
+  <div class="terminal-titlebar">
+    <div class="terminal-dots">
+      <span class="terminal-dot red"></span>
+      <span class="terminal-dot yellow"></span>
+      <span class="terminal-dot green"></span>
+    </div>
+    <span class="terminal-title">Claude Code</span>
+  </div>
+  <div class="terminal-body">
+    <div class="turn user">
+      <span class="prompt">&gt;</span> /allium
+    </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> I can see you have an existing codebase with authentication, billing and a team management module, but no Allium spec yet. I can <strong>distill from code</strong> to capture what your implementation currently does, or <strong>start from intent</strong> to build a spec through conversation. Which would you prefer?
+    </div>
+    <div class="turn user">
+      <span class="prompt">&gt;</span> Distill from code. Start with the authentication module.
+    </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> I've read through <code>auth/</code>. I can see login, password reset, session management and role-based access. I've drafted an initial spec at <code>auth.allium</code> with 4 entities and 9 rules. A few things I want to flag:
+    </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> Your login handler in <code>auth/login.py:34</code> allows unlimited retries for users with an <code>internal</code> role. Is that intentional, or should the lockout policy apply to everyone?
+    </div>
+    <div class="turn user">
+      <span class="prompt">&gt;</span> That's a bug. Lockout should apply to everyone. Update the spec and fix the code.
+    </div>
+  </div>
+</div>
+
+The [elicitation guide](https://github.com/juxt/allium/blob/main/elicitation.md) and [distillation guide](https://github.com/juxt/allium/blob/main/distillation.md) cover both approaches in detail.
+
 ### Allium surfaces implications you missed
 
 A customer's account was suspended for a terms of service violation. They've appealed and the team wants to let them back in.
