@@ -258,14 +258,14 @@ footer a:hover {
   }
 
   .nav-menu {
-    gap: 0.375rem;
-    flex-wrap: wrap;
+    gap: 0;
+    flex-wrap: nowrap;
     justify-content: center;
   }
 
   .nav-menu a {
-    font-size: 0.9375rem;
-    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.5rem;
     white-space: nowrap;
   }
 }
