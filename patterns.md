@@ -6,33 +6,31 @@ This library contains reusable patterns for common SaaS scenarios. Each pattern 
 
 | Pattern | Key Features Demonstrated |
 |---------|---------------------------|
-| Password Auth with Reset | Temporal triggers, token lifecycle, configuration |
-| Role-Based Access Control | Derived permissions, relationships, `requires` checks |
-| Invitation to Resource | Join entities, permission levels, tokenised actions |
+| Password Auth with Reset | Temporal triggers, token lifecycle, defaults, surfaces |
+| Role-Based Access Control | Derived permissions, relationships, `requires` checks, surfaces |
+| Invitation to Resource | Join entities, permission levels, tokenised actions, surfaces |
 | Soft Delete & Restore | State machines, projections filtering deleted items |
-| Notification Preferences | Sum types for notification variants, user preferences, digest batching |
-| Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers |
-| Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications |
+| Notification Preferences | Sum types for notification variants, user preferences, digest batching, surfaces |
+| Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers, surfaces |
+| Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications, surfaces |
 | Integrating Library Specs | External spec references, configuration, responding to external triggers |
 
 ---
 
 ## Pattern 1: Password Authentication with Reset
 
-**Demonstrates:** Temporal triggers, token lifecycle, configuration, multiple related rules
+**Demonstrates:** Temporal triggers, token lifecycle, defaults, surfaces, multiple related rules
 
 This pattern handles user registration, login and password reset: the foundation of most SaaS applications.
 
 ```
 -- password-auth.allium
 
-config {
-    min_password_length: Integer = 12
-    max_login_attempts: Integer = 5
-    lockout_duration: Duration = 15.minutes
-    reset_token_expiry: Duration = 1.hour
-    session_duration: Duration = 24.hours
-}
+default min_password_length = 12
+default max_login_attempts = 5
+default lockout_duration = 15.minutes
+default reset_token_expiry = 1.hour
+default session_duration = 24.hours
 
 ------------------------------------------------------------
 -- Entities
@@ -85,7 +83,7 @@ rule Register {
     when: UserRegisters(email, password)
     
     requires: not User.exists(email: email)
-    requires: password.length >= config/min_password_length
+    requires: password.length >= min_password_length
     
     ensures: User.created(
         email: email,
@@ -116,7 +114,7 @@ rule LoginSuccess {
     ensures: Session.created(
         user: user,
         created_at: now,
-        expires_at: now + config/session_duration,
+        expires_at: now + session_duration,
         status: active
     )
 }
@@ -132,9 +130,9 @@ rule LoginFailure {
     
     ensures: user.failed_login_attempts = user.failed_login_attempts + 1
     ensures:
-        if user.failed_login_attempts >= config/max_login_attempts:
+        if user.failed_login_attempts >= max_login_attempts:
             user.status = locked
-            user.locked_until = now + config/lockout_duration
+            user.locked_until = now + lockout_duration
             Email.sent(to: user.email, template: account_locked)
 }
 
@@ -201,7 +199,7 @@ rule RequestPasswordReset {
         let token = PasswordResetToken.created(
             user: user,
             created_at: now,
-            expires_at: now + config/reset_token_expiry,
+            expires_at: now + reset_token_expiry,
             status: pending
         )
         Email.sent(
@@ -215,7 +213,7 @@ rule CompletePasswordReset {
     when: UserResetsPassword(token, new_password)
     
     requires: token.is_valid
-    requires: new_password.length >= config/min_password_length
+    requires: new_password.length >= min_password_length
     
     let user = token.user
     
@@ -236,15 +234,80 @@ rule CompletePasswordReset {
 
 rule ResetTokenExpires {
     when: token.expires_at <= now
-    
+
     requires: token.status = pending
-    
+
     ensures: token.status = expired
+}
+
+------------------------------------------------------------
+-- Actors
+------------------------------------------------------------
+
+actor AuthenticatedUser {
+    identified_by: Session.user with Session.is_valid
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface Authentication {
+    for visitor: User
+
+    requires:
+        email
+        password
+
+    provides:
+        UserLogsIn(email, password)
+        UserRegisters(email, password)
+        UserRequestsPasswordReset(email)
+
+    invariant: NoSessionRequired
+        -- Accessible without an existing session.
+
+    guidance:
+        -- Show lockout status and unlock time when user.is_locked.
+        -- Validate password length client-side before submission.
+}
+
+surface PasswordReset {
+    for visitor: User
+
+    context token: PasswordResetToken
+
+    exposes:
+        token.is_valid
+        token.expires_at
+
+    requires:
+        new_password when token.is_valid
+
+    provides:
+        UserResetsPassword(token, new_password)
+            when token.is_valid
+
+    invariant: NoSessionRequired
+        -- Accessible without an existing session.
+}
+
+surface AccountManagement {
+    for user: AuthenticatedUser
+
+    exposes:
+        user.email
+        user.active_sessions
+        user.active_sessions.count
+
+    provides:
+        UserLogsOut(session) for each session in user.active_sessions
+        UserRequestsPasswordReset(user.email)
 }
 ```
 
 **Key language features shown:**
-- `config` block with typed defaults
+- `default` declarations for configurable values
 - Derived values (`is_locked`, `is_valid`)
 - Multiple rules for same trigger with different `requires` (login success vs failure)
 - Temporal triggers with guards (`when: token.expires_at <= now` with `requires: status = pending`)
@@ -252,12 +315,13 @@ rule ResetTokenExpires {
 - Bulk updates (`user.active_sessions.each(...)`)
 - Explicit `let` binding for created entities
 - Black box functions (`hash()`, `verify()`)
+- Surfaces with conditional availability and `for each` iteration in `provides`
 
 ---
 
 ## Pattern 2: Role-Based Access Control (RBAC)
 
-**Demonstrates:** Derived permissions, relationships, using permissions in `requires` clauses
+**Demonstrates:** Derived permissions, relationships, using permissions in `requires` clauses, surfaces
 
 This pattern implements hierarchical roles where higher roles inherit permissions from lower ones.
 
@@ -434,12 +498,75 @@ rule CreateDocument {
 
 rule ViewDocument {
     when: ViewDocument(user, document)
-    
+
     let membership = WorkspaceMembership{user, document.workspace}
-    
+
     requires: membership.can_read
-    
+
     ensures: DocumentView.recorded(user: user, document: document, at: now)
+}
+
+------------------------------------------------------------
+-- Actors
+------------------------------------------------------------
+
+actor WorkspaceAdmin {
+    identified_by: User with WorkspaceMembership{user, workspace}.can_admin
+}
+
+actor WorkspaceEditor {
+    identified_by: User with WorkspaceMembership{user, workspace}.can_write
+}
+
+actor WorkspaceViewer {
+    identified_by: User with WorkspaceMembership{user, workspace}.can_read
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface WorkspaceMemberManagement {
+    for admin: WorkspaceAdmin
+
+    context workspace: Workspace
+
+    exposes:
+        workspace.name
+        workspace.memberships
+        workspace.admins
+
+    provides:
+        AddMemberToWorkspace(admin, workspace, new_user, role)
+        ChangeMemberRole(admin, workspace, target_user, new_role)
+            when target_user != workspace.owner
+        RemoveMemberFromWorkspace(admin, workspace, target_user)
+            when target_user != workspace.owner
+
+    invariant: OwnerProtection
+        -- The workspace owner's role cannot be changed or removed.
+}
+
+surface WorkspaceDocuments {
+    for member: User
+
+    context workspace: Workspace
+
+    let membership = WorkspaceMembership{member, workspace}
+
+    exposes:
+        workspace.name
+        workspace.documents
+
+    provides:
+        CreateDocument(member, workspace, title, content)
+            when membership.can_write
+        ViewDocument(member, document) for each document in workspace.documents
+            when membership.can_read
+
+    related:
+        WorkspaceMemberManagement(workspace)
+            when membership.can_admin
 }
 ```
 
@@ -450,21 +577,21 @@ rule ViewDocument {
 - Permission checks in `requires` clauses
 - Membership with `in` operator for set membership
 - `deleted` as an outcome (soft or hard delete unspecified)
+- Surfaces with role-based actors and permission-gated actions
+- `related` clause for cross-surface navigation
 
 ---
 
 ## Pattern 3: Invitation to Resource
 
-**Demonstrates:** Tokenised actions, permission levels, invitation lifecycle, guest vs member flows
+**Demonstrates:** Tokenised actions, permission levels, invitation lifecycle, guest vs member flows, surfaces
 
 This pattern handles inviting users to collaborate on resources, whether they're existing users or not.
 
 ```
 -- resource-invitation.allium
 
-config {
-    invitation_expiry: Duration = 7.days
-}
+default invitation_expiry = 7.days
 
 ------------------------------------------------------------
 -- Entities
@@ -531,7 +658,7 @@ rule InviteToResource {
         permission: permission,
         invited_by: inviter,
         created_at: now,
-        expires_at: now + config/invitation_expiry,
+        expires_at: now + invitation_expiry,
         status: pending
     )
     ensures: Email.sent(
@@ -652,19 +779,70 @@ rule ChangeSharePermission {
 
 rule RevokeShare {
     when: RevokeShare(actor, share)
-    
+
     let actor_share = ResourceShare{share.resource, actor}
-    
+
     requires: actor = share.resource.owner or actor_share.can_admin
     requires: share.user != share.resource.owner
     requires: share.status = active
-    
+
     ensures: share.status = revoked
     ensures: Notification.sent(
         to: share.user,
         template: access_revoked,
         data: { resource: share.resource }
     )
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface ResourceSharing {
+    for sharer: User
+
+    context resource: Resource
+
+    let share = ResourceShare{resource, sharer}
+
+    exposes:
+        resource.active_shares
+        resource.pending_invitations
+
+    provides:
+        InviteToResource(sharer, resource, email, permission)
+            when sharer = resource.owner or share.can_invite
+        RevokeInvitation(sharer, invitation)
+            for each invitation in resource.pending_invitations
+            when sharer = resource.owner or share.can_admin
+        ChangeSharePermission(sharer, s, new_permission)
+            for each s in resource.active_shares
+            when sharer = resource.owner or share.can_admin
+        RevokeShare(sharer, s)
+            for each s in resource.active_shares
+            when sharer = resource.owner or share.can_admin
+
+    invariant: OwnerCannotBeRevoked
+        -- The resource owner's access cannot be revoked or downgraded.
+}
+
+surface InvitationResponse {
+    for recipient: User
+
+    context invitation: ResourceInvitation with email = recipient.email
+
+    exposes:
+        invitation.resource.name
+        invitation.permission
+        invitation.invited_by.name
+        invitation.expires_at
+        invitation.is_valid
+
+    provides:
+        AcceptInvitation(invitation, recipient)
+            when invitation.is_valid
+        DeclineInvitation(invitation)
+            when invitation.is_valid
 }
 ```
 
@@ -674,6 +852,8 @@ rule RevokeShare {
 - Invitation lifecycle (pending → accepted/declined/expired/revoked)
 - Checking existence with `.exists`
 - Permission escalation prevention (`can't invite as admin unless owner`)
+- Surfaces for both resource owner and invitation recipient boundaries
+- Conditional `provides` with `for each` iteration over collections
 
 ---
 
@@ -686,9 +866,7 @@ This pattern implements soft delete where items appear deleted but can be restor
 ```
 -- soft-delete.allium
 
-config {
-    retention_period: Duration = 30.days
-}
+default retention_period = 30.days
 
 ------------------------------------------------------------
 -- Entities
@@ -706,7 +884,7 @@ entity Document {
     
     -- Derived
     is_active: status = active
-    retention_expires_at: deleted_at + config/retention_period
+    retention_expires_at: deleted_at + retention_period
     can_restore: status = deleted and retention_expires_at > now
 }
 
@@ -805,7 +983,7 @@ rule RestoreAll {
 - `status` field with clear lifecycle
 - Nullable timestamps (`deleted_at: Timestamp?`)
 - Projections filtering by status (`documents: all_documents with status = active`)
-- Derived values using config (`retention_expires_at: deleted_at + config/retention_period`)
+- Derived values using defaults (`retention_expires_at: deleted_at + retention_period`)
 - Temporal trigger for automatic cleanup (`when: document.retention_expires_at <= now`)
 - `permanently_deleted` as distinct from soft delete
 - Bulk operations with `.each()`
@@ -814,17 +992,15 @@ rule RestoreAll {
 
 ## Pattern 5: Notification Preferences & Digests
 
-**Demonstrates:** Sum types for notification variants, user preferences affecting rule behaviour, digest batching, temporal triggers
+**Demonstrates:** Sum types for notification variants, user preferences affecting rule behaviour, digest batching, temporal triggers, surfaces
 
 This pattern handles in-app notifications with user-controlled email preferences and digest batching. It uses sum types to model different notification kinds, each carrying its own contextual data rather than pre-computed strings.
 
 ```
 -- notifications.allium
 
-config {
-    digest_time: Time = 09:00
-    max_batch_size: Integer = 50
-}
+default digest_time = 09:00
+default max_batch_size = 50
 
 ------------------------------------------------------------
 -- Entities
@@ -1086,12 +1262,12 @@ rule ArchiveNotification {
 ------------------------------------------------------------
 
 rule CreateDailyDigest {
-    when: time_of_day = config/digest_time
+    when: time_of_day = digest_time
     for each: user in Users with notification_settings.digest_enabled = true
 
     let today = current_day_of_week
     let settings = user.notification_settings
-    let pending = user.recent_pending_notifications.take(config/max_batch_size)
+    let pending = user.recent_pending_notifications.take(max_batch_size)
 
     requires: today in settings.digest_day_of_week
     requires: pending.count > 0
@@ -1139,6 +1315,47 @@ rule UpdateNotificationPreferences {
     ensures: settings.digest_enabled = preferences.digest_enabled
     ensures: settings.digest_day_of_week = preferences.digest_days
 }
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface NotificationCentre {
+    for user: User
+
+    exposes:
+        user.unread_notifications
+        user.unread_notifications.count
+        user.notifications
+
+    provides:
+        MarkNotificationRead(user, notification)
+            for each notification in user.unread_notifications
+        MarkAllNotificationsRead(user)
+            when user.unread_notifications.count > 0
+        ArchiveNotification(user, notification)
+            for each notification in user.notifications
+
+    related:
+        NotificationPreferences(user)
+}
+
+surface NotificationPreferences {
+    for user: User
+
+    context settings: NotificationSetting with user = user
+
+    exposes:
+        settings.email_on_mention
+        settings.email_on_comment
+        settings.email_on_share
+        settings.email_on_assignment
+        settings.digest_enabled
+        settings.digest_day_of_week
+
+    provides:
+        UpdatePreferences(user, preferences)
+}
 ```
 
 **Key language features shown:**
@@ -1148,9 +1365,10 @@ rule UpdateNotificationPreferences {
 - **Variant-specific creation rules**: Each variant has its own creation rule with appropriate fields
 - **Exhaustive kind checking**: `SendImmediateEmail` handles all variants explicitly
 - User preferences stored as entity
-- Scheduled triggers (`when: time_of_day = config/digest_time`)
+- Scheduled triggers (`when: time_of_day = digest_time`)
 - `for each` with filter (`for each: user in Users with ... = true`)
-- Batching and limiting (`.take(config/max_batch_size)`)
+- Batching and limiting (`.take(max_batch_size)`)
+- Surfaces with `related` clause linking notification centre to preferences
 
 **Why sum types here?**
 
@@ -1182,7 +1400,7 @@ This is better because:
 
 ## Pattern 6: Usage Limits & Quotas
 
-**Demonstrates:** Limit checks in `requires`, metered resources, plan tiers, overage handling
+**Demonstrates:** Limit checks in `requires`, metered resources, plan tiers, overage handling, surfaces
 
 This pattern handles SaaS usage limits: different plans have different quotas, and usage is tracked and enforced.
 
@@ -1447,10 +1665,10 @@ rule DowngradePlan {
 
 rule DowngradeBlocked {
     when: DowngradePlan(workspace, new_plan)
-    
+
     requires: workspace.documents.count > new_plan.max_documents
               and not new_plan.has_unlimited_documents
-    
+
     ensures: UserInformed(
         user: workspace.owner,
         about: downgrade_blocked,
@@ -1461,6 +1679,66 @@ rule DowngradeBlocked {
             must_delete: workspace.documents.count - new_plan.max_documents
         }
     )
+}
+
+------------------------------------------------------------
+-- Actors
+------------------------------------------------------------
+
+actor WorkspaceOwner {
+    identified_by: workspace.owner
+}
+
+actor APIConsumer {
+    identified_by: workspace with valid api_key
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface UsageDashboard {
+    for owner: WorkspaceOwner
+
+    context workspace: Workspace
+
+    exposes:
+        workspace.plan
+        workspace.documents.count
+        workspace.documents_remaining
+        workspace.storage_remaining
+        workspace.members_remaining
+        workspace.usage.api_requests_today
+        workspace.usage.api_requests_remaining
+
+    provides:
+        UpgradePlan(workspace, new_plan)
+        DowngradePlan(workspace, new_plan)
+
+    guidance:
+        -- Show progress bars for usage against limits.
+        -- Highlight when any resource is above 80% of its limit.
+}
+
+surface APIAccess {
+    for consumer: APIConsumer
+
+    context workspace: Workspace
+
+    exposes:
+        workspace.usage.api_requests_remaining
+        workspace.plan.max_api_requests_per_day
+
+    requires:
+        api_key
+
+    provides:
+        ApiRequestReceived(workspace, endpoint)
+            when workspace.usage.api_requests_remaining > 0
+
+    invariant: RateLimitEnforcement
+        -- Requests beyond the daily limit receive HTTP 429 with
+        -- reset time.
 }
 ```
 
@@ -1473,12 +1751,13 @@ rule DowngradeBlocked {
 - Daily reset with temporal trigger
 - Plan upgrade/downgrade logic with limit validation
 - Feature flags (`can_use_feature(f)`)
+- Interaction surface for usage dashboard and API surface with rate limit invariant
 
 ---
 
 ## Pattern 7: Comments with Mentions
 
-**Demonstrates:** Nested entities, parsing for mentions, cross-entity notifications, threading
+**Demonstrates:** Nested entities, parsing for mentions, cross-entity notifications, threading, surfaces
 
 This pattern implements comments with @mentions, including mention parsing and notification generation.
 
@@ -1698,9 +1977,9 @@ rule RemoveReaction {
 
 rule ToggleReaction {
     when: ToggleReaction(user, comment, emoji)
-    
+
     let existing = CommentReaction{comment, user, emoji}
-    
+
     ensures:
         if existing.exists:
             existing.deleted
@@ -1711,6 +1990,48 @@ rule ToggleReaction {
                 emoji: emoji,
                 created_at: now
             )
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface CommentThread {
+    for viewer: User
+
+    context parent: Commentable
+
+    let comments = Comment for parent with status = active
+
+    exposes:
+        comment.author.name for each comment in comments
+        comment.body for each comment in comments
+        comment.created_at for each comment in comments
+        comment.is_edited for each comment in comments
+        comment.active_replies for each comment in comments
+        comment.reactions for each comment in comments
+
+    provides:
+        CreateComment(viewer, parent, body)
+        CreateReply(viewer, comment, body)
+            for each comment in comments
+            when comment.thread_depth < 3
+        EditComment(viewer, comment, new_body)
+            for each comment in comments
+            when viewer = comment.author
+        DeleteComment(viewer, comment)
+            for each comment in comments
+            when viewer = comment.author or viewer.is_admin
+        AddReaction(viewer, comment, emoji)
+            for each comment in comments
+        RemoveReaction(viewer, comment, emoji)
+            for each comment in comments
+            when CommentReaction{comment, viewer, emoji}.exists
+
+    guidance:
+        -- Show "edited" indicator when comment.is_edited.
+        -- Show "deleted comment" placeholder for deleted replies
+        -- rather than removing them from the thread.
 }
 ```
 
@@ -1725,6 +2046,7 @@ rule ToggleReaction {
 - Avoiding double notifications (`original_author not in comment.mentioned_users`)
 - Toggle pattern with conditional ensures
 - Join entity with three keys (`CommentReaction{comment, user, emoji}`)
+- Surface with role-conditional actions (author can edit, author or admin can delete)
 
 ---
 
@@ -2170,21 +2492,24 @@ entity Document {
     title: String
     content: String
     status: active | deleted
+    deleted_at: Timestamp?
+    deleted_by: User?
+
+    -- From comments pattern
+    comments: comments/Comment for this document
+
+    -- From soft-delete pattern
+    retention_expires_at: deleted_at + trash/retention_period
+    can_restore: status = deleted and retention_expires_at > now
     ...
 }
-
--- Documents are commentable
-apply comments/Commentable to Document
-
--- Documents use soft delete
-apply trash/SoftDelete to Document
 
 -- Document actions require RBAC checks
 rule EditDocument {
     when: EditDocument(user, document, content)
-    
+
     let share = rbac/ResourceShare{document, user}
-    
+
     requires: share.can_edit
     ...
 }
