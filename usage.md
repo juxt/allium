@@ -42,7 +42,7 @@ The [elicitation guide](https://github.com/juxt/allium/blob/main/elicitation.md)
 
 ### Allium surfaces implications you missed
 
-A customer's account was suspended for a terms of service violation. They've appealed and the team wants to let them back in.
+A booking platform wants to add self-service rescheduling.
 
 <div class="terminal">
   <div class="terminal-titlebar">
@@ -55,21 +55,21 @@ A customer's account was suspended for a terms of service violation. They've app
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> A customer says they can't reset their password. Their account was suspended last month but they've appealed and we want to let them back in. Can you enable password reset for suspended users?
+      <span class="prompt">&gt;</span> Customers want to reschedule appointments through the app. Add a reschedule option to the booking detail page.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Your Allium requires <code>user.status = active</code> for password resets. This user's status is <code>suspended</code>, so the reset is blocked by design. Reactivating through password reset would bypass your <code>AccountReinstated</code> rule, which requires admin approval and logs an audit trail.
+      <span class="marker">✻</span> Your Allium has a <code>CancellationFee</code> rule: cancellations within 24 hours of the appointment incur a charge. A reschedule is functionally a cancellation followed by a new booking, so rescheduling a same-day appointment would trigger the fee.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Should we reinstate the account through the existing admin flow first, then let them reset their password? Or create a new <code>AccountReinstatedViaAppeal</code> rule that combines both steps with the audit trail intact?
+      <span class="marker">✻</span> Should rescheduling be exempt from the cancellation fee, follow the same 24-hour policy as cancellations or have its own separate policy?
     </div>
     <div class="turn user">
-      <span class="prompt">&gt;</span> Reinstate through the admin flow first. The audit trail matters.
+      <span class="prompt">&gt;</span> Rescheduling should be free if it's to another slot in the same week. Otherwise the cancellation policy applies.
     </div>
   </div>
 </div>
 
-Without Allium, the LLM would have relaxed the status check, accidentally creating a backdoor around an admin control. The behavioural model caught that password reset and account reinstatement are separate concerns with different approval requirements.
+Without Allium, the LLM would have implemented a straightforward reschedule endpoint. The behavioural model caught that a same-day reschedule triggers the cancellation fee, a consequence the developer hadn't considered.
 
 ### Knowledge persists across sessions
 
@@ -117,27 +117,21 @@ A developer asks for a straightforward feature.
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> Add an endpoint so admins can view any user's payment history.
+      <span class="prompt">&gt;</span> Add a bulk discount. Orders over 50 units get 15% off.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Your Allium doesn't give admins blanket access. <code>AdminAction</code> requires the admin's scope to include the target resource. The current scopes are <code>billing</code>, <code>users</code> and <code>support</code>. Should this endpoint require <code>billing</code> scope?
+      <span class="marker">✻</span> Your Allium already has a <code>LoyaltyDiscount</code> rule that gives returning customers 10% off orders over &pound;100. A 55-unit order from a loyal customer could qualify for both. Your <code>OrderTotal</code> derivation doesn't specify how multiple discounts interact.
+    </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> Should discounts stack (10% + 15% = 25%), apply the better of the two (15%) or compound (15% then 10% on the remainder)? And should the bulk discount apply before or after the loyalty calculation?
     </div>
     <div class="turn user">
-      <span class="prompt">&gt;</span> Yes, billing scope. But our support team needs to see payment history too, for resolving disputes. What are our options?
-    </div>
-    <div class="turn llm">
-      <span class="marker">✻</span> You could add <code>billing</code> to the support role, but that also grants access to refunds and plan changes, which your Allium controls through the same scope.
-    </div>
-    <div class="turn llm">
-      <span class="marker">✻</span> Alternatively, split <code>billing</code> into <code>billing.read</code> and <code>billing.write</code>. Support gets read-only access, finance gets both. Your code in <code>admin/permissions.py</code> already distinguishes read and write operations but maps them both to the same scope check, so the implementation is halfway there.
-    </div>
-    <div class="turn user">
-      <span class="prompt">&gt;</span> Go with the read/write split. Update the Allium first, then refactor the scope checks to match.
+      <span class="prompt">&gt;</span> Apply the better of the two. They shouldn't stack. Update the Allium first, then adjust the pricing logic.
     </div>
   </div>
 </div>
 
-Without Allium, the LLM would likely have implemented a simple `is_admin` check. Instead, the conversation surfaced a scoping model, explored its implications for a second team, and arrived at a design that aligns the behavioural model with a distinction the code already made but never formalised.
+Without Allium, the LLM would have added the bulk discount with no awareness of the loyalty programme. The specification surfaced a pricing interaction the developer never mentioned, and the conversation arrived at an explicit discount precedence rule.
 
 ### Distillation catches drift
 
@@ -154,16 +148,16 @@ A developer asks the LLM to check whether the code still matches the Allium.
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> Can you check whether our authentication code matches the Allium?
+      <span class="prompt">&gt;</span> Can you check whether our publishing workflow matches the Allium?
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> I found a divergence. Your Allium says <code>LoginAttempt</code> requires <code>user.failed_attempts < max_login_attempts</code>, with a default of 5. But <code>auth/login.py</code> line 47 hardcodes the limit at 3 and doesn't reset the counter after a successful login. The Allium says <code>UserAuthenticates</code> ensures <code>user.failed_attempts = 0</code>.
+      <span class="marker">✻</span> I found a divergence. Your Allium says <code>ArticlePublished</code> requires <code>article.status = approved</code>, meaning every article goes through editor review before publication. But <code>publishing/views.py</code> line 82 skips the approval check for users with <code>role = senior_author</code>. The Allium has no such exception.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Either the code drifted or the Allium is aspirational. Which should we trust?
+      <span class="marker">✻</span> Either the code introduced a shortcut or the Allium is incomplete. Which should we trust?
     </div>
     <div class="turn user">
-      <span class="prompt">&gt;</span> The Allium is right. Fix the code to match.
+      <span class="prompt">&gt;</span> That was a quick fix during a deadline. The approval step matters. Fix the code to match.
     </div>
   </div>
 </div>

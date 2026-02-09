@@ -21,7 +21,7 @@ rule UserRequestsPasswordReset {
     ensures:
         let token = ResetToken.created(
             user: user,
-            expires_at: now + config.reset_token_lifetime
+            expires_at: now + reset_token_lifetime
         )
         Email.sent(
             to: user.email,
@@ -100,13 +100,9 @@ In an era where LLMs function as pseudocode compilers, executing informal descri
 
 ---
 
-## Future directions
+## Composable models
 
-We're exploring these capabilities but haven't built them yet.
-
-### Composable models
-
-We're designing Allium models to be composable. Common patterns will be publishable as standalone `.allium` files and referenced by other models using the `use` keyword:
+Allium models are composable. Common patterns can be published as standalone `.allium` files and referenced by other models using the `use` keyword:
 
 ```allium
 use "github.com/allium-specs/google-oauth/abc123def" as oauth
@@ -116,8 +112,8 @@ entity User {
 }
 ```
 
-Coordinates will be immutable references such as git SHAs or content hashes, not version numbers. A model becomes immutable once published, so no version resolution or lock files are needed.
+Coordinates are immutable references such as git SHAs or content hashes, not version numbers. A model is immutable once published, so no version resolution or lock files are needed. You can respond to triggers from external specs, reference their entities and configure them for your application.
 
-Teams will be able to publish general-purpose models for authentication flows and payment processing. Others can compose these into their own models, responding to triggers and referencing entities across boundaries.
+The [patterns library](https://github.com/juxt/allium/blob/main/patterns.md) demonstrates composition across a variety of domains, and the [language reference](https://github.com/juxt/allium/blob/main/SKILL.md) covers the full modular specification syntax.
 
-The [patterns library](https://github.com/juxt/allium/blob/main/patterns.md) illustrates this with a variety of worked examples.
+The mechanism is there, but the ecosystem of shared specs is just getting started. If you build something reusable, we'd love to hear about it.

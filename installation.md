@@ -42,7 +42,7 @@ In Claude Code, type `/allium` and Allium takes it from there.
       <span class="prompt">&gt;</span> /allium
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> I can see you have an existing codebase with authentication, billing and a team management module, but no Allium spec yet. I can <strong>distill from code</strong> to capture what your implementation currently does, or <strong>start from intent</strong> to build a spec through conversation. Which would you prefer?
+      <span class="marker">✻</span> I can see you have an existing codebase with order processing, inventory management and a shipping module, but no Allium spec yet. I can <strong>distill from code</strong> to capture what your implementation currently does, or <strong>start from intent</strong> to build a spec through conversation. Which would you prefer?
     </div>
   </div>
 </div>

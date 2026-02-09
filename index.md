@@ -16,10 +16,10 @@ title: Home
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> Users are asking to delete their accounts. Add a self-service option to the account settings page.
+      <span class="prompt">&gt;</span> We need backorder support. Let customers order items that are currently out of stock.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Your Allium says <code>Team</code> requires at least one admin. If the user is the sole admin of any team, deleting their account would leave that team without an admin. Should we block self-deletion for sole admins, or prompt them to transfer the role first?
+      <span class="marker">✻</span> Your Allium says <code>OrderConfirmed</code> triggers <code>PaymentCaptured</code>, which charges the customer immediately. A backorder would charge before the item ships. Should we defer payment capture until <code>OrderDispatched</code>, or capture immediately and refund if the item can't be fulfilled?
     </div>
   </div>
 </div>
