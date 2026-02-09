@@ -66,10 +66,16 @@ A booking platform wants to add self-service rescheduling.
     <div class="turn user">
       <span class="prompt">&gt;</span> Rescheduling should be free if it's to another slot in the same week. Otherwise the cancellation policy applies.
     </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> When you say same week, do you mean the calendar week (Monday to Sunday) or within seven days of the original appointment? An appointment on Saturday rescheduled to the following Tuesday would be within seven days but cross a calendar week boundary.
+    </div>
+    <div class="turn user">
+      <span class="prompt">&gt;</span> Within seven days of the original appointment.
+    </div>
   </div>
 </div>
 
-Without Allium, the LLM would have implemented a straightforward reschedule endpoint. The behavioural model caught that a same-day reschedule triggers the cancellation fee, a consequence the developer hadn't considered.
+Without Allium, the LLM would have implemented a straightforward reschedule endpoint. The behavioural model caught that a same-day reschedule triggers the cancellation fee, and then pushed the developer to define "same week" precisely enough to implement.
 
 ### Knowledge persists across sessions
 
