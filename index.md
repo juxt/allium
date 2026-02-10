@@ -19,7 +19,13 @@ title: Home
       <span class="prompt">&gt;</span> We need backorder support. Let customers order items that are currently out of stock.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Your Allium says <code>OrderConfirmed</code> triggers <code>PaymentCaptured</code>, which charges the customer immediately. A backorder would charge before the item ships. Should we defer payment capture until <code>OrderDispatched</code>, or capture immediately and refund if the item can't be fulfilled?
+      <span class="marker">✻</span> Your Allium says <code>OrderConfirmed</code> triggers <code>PaymentCaptured</code>, which charges the customer immediately. A backorder would charge before the item ships. Should we defer payment capture until the item is available, or capture immediately and refund if we can't fulfil?
+    </div>
+    <div class="turn user">
+      <span class="prompt">&gt;</span> Capture payment details upfront but don't charge until we can fulfil. Update the Allium and implement.
+    </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> Updated <code>orders.allium</code>. <code>BackorderPlaced</code> authorises payment and defers capture until <code>ReadyToFulfil</code>. Implementing now.
     </div>
   </div>
 </div>
