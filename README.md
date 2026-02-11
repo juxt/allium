@@ -21,6 +21,11 @@ A language for sharpening intent alongside implementation. [juxt.github.io/alliu
 npx skills add juxt/allium
 ```
 
+Once installed, type `/allium` to get started. Allium examines your project and offers to distill from existing code or build a new spec through conversation. You can also jump straight to a specific mode:
+
+- `/allium:elicit` — build a spec through structured conversation with stakeholders
+- `/allium:distill` — extract a spec from existing code
+
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
 ## The problem with conversational context
@@ -141,7 +146,7 @@ rule IncidentEscalates {
 }
 ```
 
-The [language reference](SKILL.md) covers entities, rules, triggers, relationships, projections, derived values, surfaces and actor declarations.
+The [language reference](references/language-reference.md) covers entities, rules, triggers, relationships, projections, derived values, surfaces and actor declarations.
 
 ### A language without a runtime
 
