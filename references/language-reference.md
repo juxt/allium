@@ -6,6 +6,13 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 ```
 -- Comments use double-dash
+-- use declarations (optional)
+
+------------------------------------------------------------
+-- Context
+------------------------------------------------------------
+
+-- Entity instances this module operates on (optional)
 
 ------------------------------------------------------------
 -- External Entities
@@ -26,10 +33,16 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- Entities managed by this specification, plus their variants
 
 ------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+-- Configurable parameters for this specification
+
+------------------------------------------------------------
 -- Defaults
 ------------------------------------------------------------
 
--- Default values for entities
+-- Default entity instances
 
 ------------------------------------------------------------
 -- Rules
@@ -61,6 +74,27 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 -- Unresolved design decisions
 ```
+
+---
+
+## Module context
+
+A `context` block declares the entity instances a module operates on. All rules in the module inherit these bindings.
+
+```
+context {
+    pipeline: HiringPipeline
+    calendar: InterviewCalendar
+}
+```
+
+Rules then reference `pipeline.status`, `calendar.available_slots`, etc. without ambiguity about what they refer to.
+
+Not every module needs a context block. Rules scoped by triggers on domain entities (e.g., `when: invitation: Invitation.expires_at <= now`) get their entities from the trigger binding. Module context is for specs where rules operate on shared instances that exist once per module scope, such as a pipeline, a catalog or a processing engine.
+
+Context bindings must reference entity types declared in the same module or imported via `use`. Imported module instances are accessed via qualified names (`scheduling/calendar`) and do not need to appear in the local context block. Modules that operate only on imported instances may omit the context block entirely.
+
+This is distinct from surface context, which binds a parametric scope for a boundary contract (e.g., `context assignment: SlotConfirmation`).
 
 ---
 
@@ -213,7 +247,7 @@ rule ProcessNode {
     ensures:
         if node.kind = Branch:
             -- node.children accessible here
-            for each child in node.children:
+            for child in node.children:
                 ProcessNode(child)
         else:
             -- node.kind = Leaf (exhaustive)
@@ -357,11 +391,30 @@ rule RuleName {
 | Clause | Purpose |
 |--------|---------|
 | `when` | What triggers this rule |
+| `for` | Iterate: apply the rule body for each element in a collection |
 | `let` | Local variable bindings (can appear anywhere after `when`) |
 | `requires` | Preconditions that must be true (rule fails if not met) |
 | `ensures` | What becomes true after the rule executes |
 
 Place `let` bindings where they make the rule most readable, typically just before the clause that first uses them.
+
+### Rule-level iteration
+
+A `for` clause applies the rule body once per element in a collection. The binding variable is available in all subsequent clauses.
+
+```
+rule CreateDailyDigest {
+    when: time_of_day = config.digest_time
+    for user in Users with notification_settings.digest_enabled = true:
+        let settings = user.notification_settings
+        requires: today in settings.digest_day_of_week
+        ensures: DigestBatch.created(user: user, ...)
+}
+```
+
+The `with` keyword filters the collection, consistent with projection syntax. The indented body contains the rule's `let`, `requires` and `ensures` clauses scoped to each element.
+
+This is the same `for x in collection:` construct used in ensures blocks and surfaces. The only difference is scope: at rule level it wraps the entire rule body.
 
 ### Trigger types
 
@@ -386,15 +439,15 @@ The variable before the colon binds the entity that triggered the transition.
 
 **Temporal** — time-based condition:
 ```
-when: invitation.expires_at <= now
-when: interview.slot.time.start - 1.hour <= now
-when: feedback_request.requested_at + 24.hours <= now
+when: invitation: Invitation.expires_at <= now
+when: interview: Interview.slot.time.start - 1.hour <= now
+when: request: FeedbackRequest.requested_at + 24.hours <= now
 ```
 
-Temporal triggers fire once when the condition becomes true. Always include a `requires` clause to prevent re-firing:
+Temporal triggers use explicit `var: Type` binding, the same as state transitions and entity creation. The binding names the entity instance and its type. Temporal triggers fire once when the condition becomes true. Always include a `requires` clause to prevent re-firing:
 ```
 rule InvitationExpires {
-    when: invitation.expires_at <= now
+    when: invitation: Invitation.expires_at <= now
     requires: invitation.status = pending  -- prevents re-firing
     ensures: invitation.status = expired
 }
@@ -402,8 +455,8 @@ rule InvitationExpires {
 
 **Derived condition becomes true:**
 ```
-when: interview.all_feedback_in
-when: slot.is_valid
+when: interview: Interview.all_feedback_in
+when: slot: InterviewSlot.is_valid
 ```
 
 **Entity creation** — fires when a new entity is created:
@@ -449,6 +502,16 @@ let is_modified =
     or proposed_times != suggestion.suggested_times
 ```
 
+### Discard bindings
+
+Use `_` where a binding is required syntactically but the value is not needed. Multiple `_` bindings in the same scope do not conflict.
+
+```
+when: _: LogProcessor.last_flush_check + flush_timeout_hours <= now
+when: SomeEvent(_, slot)
+for _ in items: total = total + 1
+```
+
 ### Postconditions (ensures)
 
 Postconditions describe what becomes true. They are declarative assertions about the resulting state, not imperative commands. All ensures clauses are evaluated against the *resulting* state, after all changes have been applied.
@@ -474,9 +537,17 @@ When creating entities that need to be referenced later in the same ensures bloc
 ```
 ensures:
     let slot = InterviewSlot.created(time: time, candidacy: candidacy, status: pending)
-    for each interviewer in interviewers:
+    for interviewer in interviewers:
         SlotConfirmation.created(slot: slot, interviewer: interviewer)
 ```
+
+**Entity removal:**
+```
+ensures: not exists target_membership
+ensures: not exists CommentMention{comment, user}
+```
+
+See [Existence](#existence) in the expression language for the full syntax including bulk removal and the distinction from soft delete.
 
 **Bulk updates:**
 ```
@@ -574,7 +645,7 @@ slots with status = confirmed
 requests with status in [submitted, escalated]
 
 -- Iteration
-for each slot in slots: ...
+for slot in slots: ...
 collection.each(item => item.status = cancelled)
 
 -- Set operations
@@ -614,6 +685,46 @@ invitation.status = pending and not invitation.is_expired
 not (a or b)  -- equivalent to: not a and not b
 ```
 
+### Existence
+
+The `exists` keyword checks whether an entity instance exists. Use `not exists` for negation.
+
+```
+-- Entity looked up via let binding
+let user = User{email}
+requires: exists user
+
+-- Join entity lookup
+requires: exists WorkspaceMembership{user, workspace}
+
+-- Negation
+requires: not exists User{email: email}
+requires: not exists ResourceInvitation{resource, email}
+```
+
+In `ensures` clauses, `not exists` asserts that an entity has been removed from the system:
+
+```
+-- Entity removal
+ensures: not exists target_membership
+ensures: not exists CommentMention{comment, user}
+
+-- Bulk removal
+ensures:
+    for d in workspace.deleted_documents:
+        not exists d
+```
+
+This is distinct from soft delete, which changes a field rather than removing the entity:
+
+```
+-- Soft delete (entity still exists, status changes)
+ensures: document.status = deleted
+
+-- Hard delete (entity no longer exists)
+ensures: not exists document
+```
+
 ---
 
 ## Deferred specifications
@@ -642,12 +753,58 @@ Open questions are surfaced by the specification checker as warnings, indicating
 
 ---
 
+## Config
+
+A `config` block declares configurable parameters for the specification. Each parameter has a name, type and default value.
+
+```
+config {
+    min_password_length: Integer = 12
+    max_login_attempts: Integer = 5
+    lockout_duration: Duration = 15.minutes
+    reset_token_expiry: Duration = 1.hour
+}
+```
+
+Rules reference config values with dot notation:
+
+```
+requires: password.length >= config.min_password_length
+ensures: token.expires_at = now + config.reset_token_expiry
+```
+
+External specs declare their own config blocks. Consuming specs configure them via the qualified name:
+
+```
+oauth/config {
+    session_duration: 8.hours
+    link_expiry: 15.minutes
+}
+```
+
+External config values are referenced as `oauth/config.session_duration`.
+
+For default entity instances (seed data, base configurations), use `default` declarations.
+
+---
+
 ## Defaults
+
+Default declarations create named entity instances.
 
 ```
 default InterviewType = { name: "All in one", duration: 75.minutes }
-default retry_limit = 2
-default invitation_expiry = 7.days
+
+default Role viewer = {
+    name: "viewer",
+    permissions: { "documents.read" }
+}
+
+default Role editor = {
+    name: "editor",
+    permissions: { "documents.write" },
+    inherits_from: viewer
+}
 ```
 
 ---
@@ -687,7 +844,7 @@ External specs' entities are used directly with qualified names:
 
 ```
 rule RequestFeedback {
-    when: interview.slot.time.start + 5.minutes <= now
+    when: interview: Interview.slot.time.start + 5.minutes <= now
     ensures: feedback/Request.created(
         subject: interview,
         respondents: interview.interviewers,
@@ -714,7 +871,7 @@ rule NotifyOnFeedbackSubmitted {
 
 ### Configuration
 
-Some specs need configuration. Config is just data:
+Imported specs expose their own config parameters. Consuming specs set values via the qualified name:
 
 ```
 use "github.com/allium-specs/google-oauth/abc123def" as oauth
@@ -724,6 +881,8 @@ oauth/config {
     link_expiry: 15.minutes
 }
 ```
+
+Reference external config values as `oauth/config.session_duration`. This uses the same `config` mechanism as local config blocks (see [Config](#config)).
 
 ### Breaking changes
 
@@ -790,8 +949,12 @@ surface SurfaceName {
 
     context item: EntityType [with predicate]
 
+    let binding = expression
+
     exposes:
         item.field [when condition]
+        for x in collection:
+            x.field [when condition]
         ...
 
     requires:
@@ -800,6 +963,8 @@ surface SurfaceName {
 
     provides:
         Capability(party, item, ...) [when condition]
+        for x in collection:
+            Capability(party, x, ...) [when condition]
         ...
 
     invariant: ConstraintName
@@ -809,7 +974,9 @@ surface SurfaceName {
         -- non-normative advice
 
     related:
-        OtherSurface(item.relationship) [for each x in collection] [when condition]
+        OtherSurface(item.relationship) [when condition]
+        for x in collection:
+            OtherSurface(x.relationship) [when condition]
         ...
 }
 ```
@@ -820,6 +987,7 @@ The names `party` and `item` are user-chosen variable names, not reserved keywor
 |--------|---------|
 | `for` | Who is on the other side of the boundary |
 | `context` | What entity or scope this surface applies to |
+| `let` | Local bindings, same as in rules |
 | `exposes` | What is visible across the boundary |
 | `requires` | What the external party must contribute |
 | `provides` | What the system offers |
@@ -886,15 +1054,25 @@ A valid Allium specification must satisfy:
 18. Discriminator field names are user-defined (e.g., `kind`, `node_type`), no reserved name
 19. The `variant` keyword is required for variant declarations
 
+**Context validity:**
+20. Context bindings must reference entity types declared in the module or imported via `use`
+21. Each binding name must be unique within the context block
+22. Unqualified instance references in rules must resolve to a context binding, a `let` binding, a trigger parameter or a default entity instance
+
+**Config validity:**
+23. Config parameters must have explicit types and default values
+24. Config parameter names must be unique within the config block
+25. References to `config.field` in rules must correspond to a declared parameter in the local config block or a qualified external config (`alias/config.field`)
+
 **Surface validity:**
-20. Actor types in `for` clauses should have corresponding `actor` declarations when the external party is an entity type
-21. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
-22. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
-23. All surfaces referenced in `related` must be defined
-24. Bindings in `for` and `context` clauses must be used consistently throughout the surface
-25. `when` conditions must reference valid fields reachable from the party or context bindings
-26. `for each` iterations must iterate over collection-typed fields
-27. Named `requires` and `provides` blocks must have unique names within the surface
+26. Actor types in `for` clauses should have corresponding `actor` declarations when the external party is an entity type
+27. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
+28. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
+29. All surfaces referenced in `related` must be defined
+30. Bindings in `for` and `context` clauses must be used consistently throughout the surface
+31. `when` conditions must reference valid fields reachable from the party or context bindings
+32. `for` iterations must iterate over collection-typed fields
+33. Named `requires` and `provides` blocks must have unique names within the surface
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -963,13 +1141,13 @@ interviewers.any(i => i.can_solo)
 ```
 -- Bad: can fire repeatedly
 rule InvitationExpires {
-    when: invitation.expires_at <= now
+    when: invitation: Invitation.expires_at <= now
     ensures: invitation.status = expired
 }
 
 -- Good: guard prevents re-firing
 rule InvitationExpires {
-    when: invitation.expires_at <= now
+    when: invitation: Invitation.expires_at <= now
     requires: invitation.status = pending
     ensures: invitation.status = expired
 }
@@ -993,8 +1171,8 @@ requires: attempts < 3
 ensures: deadline = now + 48.hours
 
 -- Good
-requires: attempts < max_attempts
-ensures: deadline = now + confirmation_deadline
+requires: attempts < config.max_attempts
+ensures: deadline = now + config.confirmation_deadline
 ```
 
 ---
@@ -1003,6 +1181,8 @@ ensures: deadline = now + confirmation_deadline
 
 | Term | Definition |
 |------|------------|
+| **Context (module)** | Entity instances a module operates on; inherited by all rules in the module |
+| **Context (surface)** | Parametric scope binding for a boundary contract |
 | **Entity** | A domain concept with identity and lifecycle |
 | **Value** | Structured data without identity, compared by structure |
 | **Sum Type** | A type constraint specifying an entity is exactly one of several variants, declared via a discriminator field (e.g., `kind: A \| B \| C`) |
@@ -1020,6 +1200,9 @@ ensures: deadline = now + confirmation_deadline
 | **Postcondition** | An assertion about what becomes true after a rule executes |
 | **Deferred Specification** | Complex logic defined in a separate file |
 | **Open Question** | An unresolved design decision |
-| **Default** | A configurable value used in rules |
+| **Config** | Configurable parameters for a specification, referenced via `config.field` |
+| **Default** | A named entity instance used as seed data or base configuration |
+| **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
+| **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **Surface** | A named boundary contract between two parties, specifying what each side exposes, requires and provides |

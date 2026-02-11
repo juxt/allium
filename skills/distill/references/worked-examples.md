@@ -172,7 +172,7 @@ def cleanup_expired_tokens():
    - `cleanup_expired_tokens` - temporal trigger
 
 4. **Extract preconditions from validation:**
-   - `if not user` becomes `requires: user.exists`
+   - `if not user` becomes `requires: exists user`
    - `len(new_password) < 12` becomes `requires: password.length >= 12`
    - `token.is_valid()` becomes `requires: token.is_valid`
 
@@ -225,7 +225,7 @@ rule RequestPasswordReset {
 
     let user = User{email}
 
-    requires: user.exists
+    requires: exists user
     requires: user.status in [active, locked]
 
     ensures: user.pending_reset_tokens.each(t => t.status = used)
@@ -233,7 +233,7 @@ rule RequestPasswordReset {
         let token = PasswordResetToken.created(
             user: user,
             created_at: now,
-            expires_at: now + config/reset_token_expiry,
+            expires_at: now + config.reset_token_expiry,
             status: pending
         )
         Email.sent(
@@ -247,7 +247,7 @@ rule CompletePasswordReset {
     when: UserResetsPassword(token, new_password)
 
     requires: token.is_valid
-    requires: new_password.length >= config/min_password_length
+    requires: new_password.length >= config.min_password_length
 
     let user = token.user
 
@@ -261,7 +261,7 @@ rule CompletePasswordReset {
 }
 
 rule ResetTokenExpires {
-    when: token.expires_at <= now
+    when: token: PasswordResetToken.expires_at <= now
     requires: token.status = pending
     ensures: token.status = expired
 }
@@ -548,7 +548,7 @@ export async function changePlan(req: Request, res: Response) {
    - `changePlan` - external trigger with downgrade validation
 
 5. **Extract the permission/limit pattern:**
-   - Check membership becomes `requires: membership.exists`
+   - Check membership becomes `requires: exists membership`
    - Check limit becomes `requires: workspace.can_add_project`
    - Return error with upgrade path becomes a separate rule for limit reached
 
@@ -612,7 +612,7 @@ rule CreateProject {
 
     let membership = WorkspaceMember{workspace, user}
 
-    requires: membership.exists
+    requires: exists membership
     requires: workspace.can_add_project
 
     ensures: Project.created(
@@ -631,7 +631,7 @@ rule CreateProjectLimitReached {
 
     let membership = WorkspaceMember{workspace, user}
 
-    requires: membership.exists
+    requires: exists membership
     requires: not workspace.can_add_project
 
     ensures: UserInformed(
@@ -651,6 +651,7 @@ rule ChangePlan {
     requires: user = workspace.owner
 
     let is_downgrade = new_plan.monthly_price < workspace.plan.monthly_price
+    let old_plan = workspace.plan
 
     requires: not is_downgrade
               or (workspace.project_count <= new_plan.max_projects
@@ -665,8 +666,8 @@ rule ChangePlan {
     ensures: workspace.plan = new_plan
     ensures: Email.sent(
         to: workspace.owner.email,
-        template: if is_downgrade then plan_downgraded else plan_upgraded,
-        data: { old_plan: workspace.plan, new_plan: new_plan }
+        template: if is_downgrade: plan_downgraded else: plan_upgraded,
+        data: { old_plan: old_plan, new_plan: new_plan }
     )
 }
 
@@ -921,7 +922,7 @@ entity Document {
     deleted_at: Timestamp?
     deleted_by: User?
 
-    retention_expires_at: deleted_at + config/retention_period
+    retention_expires_at: deleted_at + config.retention_period
     can_restore: status = deleted and retention_expires_at > now
 }
 
@@ -967,7 +968,7 @@ rule PermanentlyDelete {
     requires: document.status = deleted
     requires: membership.can_admin
 
-    ensures: document.permanently_deleted
+    ensures: not exists document
 }
 
 rule EmptyTrash {
@@ -977,13 +978,15 @@ rule EmptyTrash {
 
     requires: membership.can_admin
 
-    ensures: workspace.deleted_documents.each(d => d.permanently_deleted)
+    ensures:
+        for d in workspace.deleted_documents:
+            not exists d
 }
 
 rule RetentionExpires {
-    when: document.retention_expires_at <= now
+    when: document: Document.retention_expires_at <= now
     requires: document.status = deleted
-    ensures: document.permanently_deleted
+    ensures: not exists document
 }
 ```
 

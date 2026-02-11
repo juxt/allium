@@ -108,7 +108,7 @@ When you encounter a specific value (3 hours, 7 days, etc.), ask:
 ```
 -- Hardcoded design decision
 rule InvitationExpires {
-    when: invitation.created_at + 7.days <= now
+    when: invitation: Invitation.created_at + 7.days <= now
     ...
 }
 
@@ -118,7 +118,7 @@ config {
 }
 
 rule InvitationExpires {
-    when: invitation.created_at + config/invitation_expiry <= now
+    when: invitation: Invitation.created_at + config.invitation_expiry <= now
     ...
 }
 ```

@@ -90,14 +90,27 @@ variant Leaf : Node {
 
 Lowercase pipe values are enum literals (`status: pending | active`). Capitalised values are variant references (`kind: Branch | Leaf`). Type guards (`requires:` or `if` branches) narrow to a variant and unlock its fields.
 
+### Module context
+
+Declares the entity instances a module's rules operate on. All rules inherit these bindings. Not every module needs one: rules scoped by triggers on domain entities get their entities from the trigger. Module context is for specs where rules operate on shared instances that exist once per module scope.
+
+```
+context {
+    pipeline: HiringPipeline
+    calendar: InterviewCalendar
+}
+```
+
+Imported module instances are accessed via qualified names (`scheduling/calendar`) and do not appear in the local context block. Distinct from surface context, which binds a parametric scope for a boundary contract.
+
 ### Rule
 
 ```
 rule InvitationExpires {
-    when: invitation.expires_at <= now          -- trigger
-    requires: invitation.status = pending       -- precondition
+    when: invitation: Invitation.expires_at <= now
+    requires: invitation.status = pending
     let remaining = invitation.proposed_slots with status != cancelled
-    ensures: invitation.status = expired        -- postcondition
+    ensures: invitation.status = expired
     ensures: remaining.each(s => s.status = cancelled)
 }
 ```
@@ -106,10 +119,12 @@ rule InvitationExpires {
 
 - **External stimulus**: `when: CandidateSelectsSlot(invitation, slot)` — action from outside the system
 - **State transition**: `when: interview: Interview.status becomes scheduled` — entity changed state
-- **Temporal**: `when: invitation.expires_at <= now` — time-based condition (always add a `requires` guard against re-firing)
-- **Derived condition**: `when: interview.all_feedback_in` — derived value becomes true
+- **Temporal**: `when: invitation: Invitation.expires_at <= now` — time-based condition (always add a `requires` guard against re-firing)
+- **Derived condition**: `when: interview: Interview.all_feedback_in` — derived value becomes true
 - **Entity creation**: `when: batch: DigestBatch.created` — fires when a new entity is created
 - **Chained**: `when: AllConfirmationsResolved(candidacy)` — triggered by another rule completing
+
+All entity-scoped triggers use explicit `var: Type` binding. Use `_` as a discard binding where the name is not needed: `when: _: Invitation.expires_at <= now`, `when: SomeEvent(_, slot)`.
 
 ### Surface
 
@@ -147,10 +162,21 @@ use "github.com/allium-specs/google-oauth/abc123def" as oauth
 
 Qualified names reference entities across specs: `oauth/Session`. Coordinates are immutable (git SHAs or content hashes). Local specs use relative paths: `use "./candidacy.allium" as candidacy`.
 
+### Config
+
+```
+config {
+    invitation_expiry: Duration = 7.days
+    max_login_attempts: Integer = 5
+}
+```
+
+Rules reference config values as `config.invitation_expiry`. For default entity instances, use `default`:
+
 ### Defaults
 
 ```
-default invitation_expiry = 7.days
+default Role viewer = { name: "viewer", permissions: { "documents.read" } }
 ```
 
 ### Deferred specs

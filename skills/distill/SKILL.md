@@ -459,7 +459,7 @@ def send_reminders():
 Extract:
 ```
 rule InvitationExpires {
-    when: invitation.expires_at <= now
+    when: invitation: Invitation.expires_at <= now
     requires: invitation.status = pending
 
     ensures: invitation.status = expired
@@ -468,7 +468,7 @@ rule InvitationExpires {
 }
 
 rule InterviewReminder {
-    when: interview.slot.time - 1.hour <= now
+    when: interview: Interview.slot.time - 1.hour <= now
     requires: interview.status = scheduled
 
     ensures: Notification.sent(to: interview.interviewers, template: reminder)

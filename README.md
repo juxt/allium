@@ -97,18 +97,20 @@ entity CircuitBreaker {
     status: closed | open | half_open
     opened_at: Timestamp?
     failures: Failure for this circuit_breaker
-    recent_failures: failures with occurred_at > now - failure_window
-    failure_rate: recent_failures.count / window_sample_size
-    is_tripped: failure_rate >= failure_threshold
+    recent_failures: failures with occurred_at > now - config.failure_window
+    failure_rate: recent_failures.count / config.window_sample_size
+    is_tripped: failure_rate >= config.failure_threshold
 }
 
-default failure_threshold = 0.5
-default failure_window = 30.seconds
-default window_sample_size = 20
-default recovery_timeout = 10.seconds
+config {
+    failure_threshold: Decimal = 0.5
+    failure_window: Duration = 30.seconds
+    window_sample_size: Integer = 20
+    recovery_timeout: Duration = 10.seconds
+}
 
 rule CircuitOpens {
-    when: circuit_breaker.is_tripped
+    when: circuit_breaker: CircuitBreaker.is_tripped
     requires: circuit_breaker.status = closed
 
     ensures:
@@ -117,7 +119,7 @@ rule CircuitOpens {
 }
 
 rule CircuitProbes {
-    when: circuit_breaker.opened_at + recovery_timeout <= now
+    when: circuit_breaker: CircuitBreaker.opened_at + config.recovery_timeout <= now
     requires: circuit_breaker.status = open
 
     ensures: circuit_breaker.status = half_open
@@ -127,12 +129,14 @@ rule CircuitProbes {
 At the other end, an incident escalation rule captures operational policy that otherwise lives in runbooks, PagerDuty config and tribal knowledge, where drift between intent and implementation causes real damage:
 
 ```allium
-default exec_notify_threshold = 2
+config {
+    exec_notify_threshold: Integer = 2
+}
 
 deferred EscalationPolicy.at_level
 
 rule IncidentEscalates {
-    when: incident.declared_at + incident.sla_target <= now
+    when: incident: Incident.declared_at + incident.sla_target <= now
     requires: incident.status in [open, investigating]
 
     ensures:
@@ -141,7 +145,7 @@ rule IncidentEscalates {
             team: EscalationPolicy.at_level(incident.escalation_level),
             priority: immediate
         )
-        if incident.escalation_level >= exec_notify_threshold:
+        if incident.escalation_level >= config.exec_notify_threshold:
             ExecBriefingSent(incident: incident)
 }
 ```
@@ -222,7 +226,7 @@ A developer asks the LLM to check whether the code still matches the Allium.
 
 > ***> Can you check whether our authentication code matches the Allium?***
 >
-> ✻ I found a divergence. Your Allium says `LoginAttempt` requires `user.failed_attempts < max_login_attempts`, with a default of 5. But `auth/login.py` line 47 hardcodes the limit at 3 and doesn't reset the counter after a successful login. The Allium says `UserAuthenticates` ensures `user.failed_attempts = 0`.
+> ✻ I found a divergence. Your Allium says `LoginAttempt` requires `user.failed_attempts < config.max_login_attempts`, configured as 5. But `auth/login.py` line 47 hardcodes the limit at 3 and doesn't reset the counter after a successful login. The Allium says `UserAuthenticates` ensures `user.failed_attempts = 0`.
 >
 > ✻ Either the code drifted or the Allium is aspirational. Which should we trust?
 >
