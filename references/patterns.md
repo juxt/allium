@@ -1,6 +1,4 @@
-# Allium Pattern Library
-
-## Overview
+# Complete patterns
 
 This library contains reusable patterns for common SaaS scenarios. Each pattern demonstrates specific Allium language features and can be adapted to your domain.
 
@@ -42,11 +40,11 @@ entity User {
     status: pending | active | locked | deactivated
     failed_login_attempts: Integer
     locked_until: Timestamp?
-    
+
     -- Relationships
     sessions: Session for this user
     reset_tokens: PasswordResetToken for this user
-    
+
     -- Projections
     active_sessions: sessions with status = active
     pending_reset_tokens: reset_tokens with status = pending
@@ -60,7 +58,7 @@ entity Session {
     created_at: Timestamp
     expires_at: Timestamp
     status: active | expired | revoked
-    
+
     -- Derived
     is_valid: status = active and expires_at > now
 }
@@ -70,7 +68,7 @@ entity PasswordResetToken {
     created_at: Timestamp
     expires_at: Timestamp
     status: pending | used | expired
-    
+
     -- Derived
     is_valid: status = pending and expires_at > now
 }
@@ -81,10 +79,10 @@ entity PasswordResetToken {
 
 rule Register {
     when: UserRegisters(email, password)
-    
+
     requires: not User.exists(email: email)
     requires: password.length >= min_password_length
-    
+
     ensures: User.created(
         email: email,
         password_hash: hash(password),    -- black box
@@ -103,13 +101,13 @@ rule Register {
 
 rule LoginSuccess {
     when: UserLogsIn(email, password)
-    
+
     let user = User{email}
-    
+
     requires: user.exists
     requires: not user.is_locked
     requires: verify(password, user.password_hash)    -- black box
-    
+
     ensures: user.failed_login_attempts = 0
     ensures: Session.created(
         user: user,
@@ -121,13 +119,13 @@ rule LoginSuccess {
 
 rule LoginFailure {
     when: UserLogsIn(email, password)
-    
+
     let user = User{email}
-    
+
     requires: user.exists
     requires: not user.is_locked
     requires: not verify(password, user.password_hash)
-    
+
     ensures: user.failed_login_attempts = user.failed_login_attempts + 1
     ensures:
         if user.failed_login_attempts >= max_login_attempts:
@@ -138,11 +136,11 @@ rule LoginFailure {
 
 rule LoginAttemptWhileLocked {
     when: UserLogsIn(email, password)
-    
+
     let user = User{email}
-    
+
     requires: user.is_locked
-    
+
     ensures: UserInformed(
         user: user,
         about: account_locked,
@@ -152,9 +150,9 @@ rule LoginAttemptWhileLocked {
 
 rule LockoutExpires {
     when: user.locked_until <= now
-    
+
     requires: user.status = locked
-    
+
     ensures: user.status = active
     ensures: user.failed_login_attempts = 0
     ensures: user.locked_until = null
@@ -166,17 +164,17 @@ rule LockoutExpires {
 
 rule Logout {
     when: UserLogsOut(session)
-    
+
     requires: session.status = active
-    
+
     ensures: session.status = revoked
 }
 
 rule SessionExpires {
     when: session.expires_at <= now
-    
+
     requires: session.status = active
-    
+
     ensures: session.status = expired
 }
 
@@ -186,12 +184,12 @@ rule SessionExpires {
 
 rule RequestPasswordReset {
     when: UserRequestsPasswordReset(email)
-    
+
     let user = User{email}
-    
+
     requires: user.exists
     requires: user.status in [active, locked]
-    
+
     -- Invalidate any existing tokens
     ensures: user.pending_reset_tokens.each(t => t.status = expired)
 
@@ -211,21 +209,21 @@ rule RequestPasswordReset {
 
 rule CompletePasswordReset {
     when: UserResetsPassword(token, new_password)
-    
+
     requires: token.is_valid
     requires: new_password.length >= min_password_length
-    
+
     let user = token.user
-    
+
     ensures: token.status = used
     ensures: user.password_hash = hash(new_password)
     ensures: user.status = active
     ensures: user.failed_login_attempts = 0
     ensures: user.locked_until = null
-    
+
     -- Invalidate all existing sessions
     ensures: user.active_sessions.each(s => s.status = revoked)
-    
+
     ensures: Email.sent(
         to: user.email,
         template: password_changed
@@ -341,9 +339,9 @@ entity Role {
     name: String                    -- e.g., "viewer", "editor", "admin"
     permissions: Set<Permission>
     inherits_from: Role?            -- optional parent role
-    
+
     -- Derived: all permissions including inherited
-    effective_permissions: 
+    effective_permissions:
         permissions + (inherits_from?.effective_permissions ?? {})
 }
 
@@ -355,10 +353,10 @@ entity User {
 entity Workspace {
     name: String
     owner: User
-    
+
     -- Relationships
     memberships: WorkspaceMembership for this workspace
-    
+
     -- Projections
     members: memberships -> user
     admins: memberships with role.name = "admin" -> user
@@ -370,7 +368,7 @@ entity WorkspaceMembership {
     workspace: Workspace
     role: Role
     joined_at: Timestamp
-    
+
     -- Derived: check specific permissions
     can_read: "documents.read" in role.effective_permissions
     can_write: "documents.write" in role.effective_permissions
@@ -421,12 +419,12 @@ rule CreateWorkspace {
 
 rule AddMember {
     when: AddMemberToWorkspace(actor, workspace, new_user, role)
-    
+
     let actor_membership = WorkspaceMembership{actor, workspace}
-    
+
     requires: actor_membership.can_admin
     requires: not WorkspaceMembership{new_user, workspace}.exists
-    
+
     ensures: WorkspaceMembership.created(
         user: new_user,
         workspace: workspace,
@@ -442,38 +440,38 @@ rule AddMember {
 
 rule ChangeMemberRole {
     when: ChangeMemberRole(actor, workspace, target_user, new_role)
-    
+
     let actor_membership = WorkspaceMembership{actor, workspace}
     let target_membership = WorkspaceMembership{target_user, workspace}
-    
+
     requires: actor_membership.can_admin
     requires: target_membership.exists
     requires: target_user != workspace.owner    -- can't change owner's role
-    
+
     ensures: target_membership.role = new_role
 }
 
 rule RemoveMember {
     when: RemoveMemberFromWorkspace(actor, workspace, target_user)
-    
+
     let actor_membership = WorkspaceMembership{actor, workspace}
     let target_membership = WorkspaceMembership{target_user, workspace}
-    
+
     requires: actor_membership.can_admin
     requires: target_membership.exists
     requires: target_user != workspace.owner    -- can't remove owner
-    
+
     ensures: target_membership.deleted
 }
 
 rule LeaveWorkspace {
     when: UserLeavesWorkspace(user, workspace)
-    
+
     let membership = WorkspaceMembership{user, workspace}
-    
+
     requires: membership.exists
     requires: user != workspace.owner    -- owner can't leave
-    
+
     ensures: membership.deleted
 }
 
@@ -483,11 +481,11 @@ rule LeaveWorkspace {
 
 rule CreateDocument {
     when: CreateDocument(user, workspace, title, content)
-    
+
     let membership = WorkspaceMembership{user, workspace}
-    
+
     requires: membership.can_write
-    
+
     ensures: Document.created(
         workspace: workspace,
         created_by: user,
@@ -600,11 +598,11 @@ default invitation_expiry = 7.days
 entity Resource {
     name: String
     owner: User
-    
+
     -- Relationships
     shares: ResourceShare for this resource
     invitations: ResourceInvitation for this resource
-    
+
     -- Projections
     active_shares: shares with status = active
     pending_invitations: invitations with status = pending
@@ -616,7 +614,7 @@ entity ResourceShare {
     permission: view | edit | admin
     status: active | revoked
     created_at: Timestamp
-    
+
     -- Derived
     can_view: permission in [view, edit, admin]
     can_edit: permission in [edit, admin]
@@ -632,7 +630,7 @@ entity ResourceInvitation {
     created_at: Timestamp
     expires_at: Timestamp
     status: pending | accepted | declined | expired | revoked
-    
+
     -- Derived
     is_valid: status = pending and expires_at > now
 }
@@ -643,15 +641,15 @@ entity ResourceInvitation {
 
 rule InviteToResource {
     when: InviteToResource(inviter, resource, email, permission)
-    
+
     let inviter_share = ResourceShare{resource, inviter}
-    
+
     requires: inviter = resource.owner or inviter_share.can_invite
     requires: permission in [view, edit]    -- can't invite as admin unless owner
               or (permission = admin and inviter = resource.owner)
     requires: not ResourceShare{resource, User{email}}.exists    -- not already shared
     requires: not ResourceInvitation{resource, email}.is_valid   -- no pending invite
-    
+
     ensures: ResourceInvitation.created(
         resource: resource,
         email: email,
@@ -664,7 +662,7 @@ rule InviteToResource {
     ensures: Email.sent(
         to: email,
         template: resource_invitation,
-        data: { 
+        data: {
             resource: resource,
             inviter: inviter,
             permission: permission
@@ -678,10 +676,10 @@ rule InviteToResource {
 
 rule AcceptInvitationExistingUser {
     when: AcceptInvitation(invitation, user)
-    
+
     requires: invitation.is_valid
     requires: user.email = invitation.email
-    
+
     ensures: invitation.status = accepted
     ensures: ResourceShare.created(
         resource: invitation.resource,
@@ -736,28 +734,28 @@ rule AcceptInvitationNewUser {
 
 rule DeclineInvitation {
     when: DeclineInvitation(invitation)
-    
+
     requires: invitation.is_valid
-    
+
     ensures: invitation.status = declined
 }
 
 rule InvitationExpires {
     when: invitation.expires_at <= now
-    
+
     requires: invitation.status = pending
-    
+
     ensures: invitation.status = expired
 }
 
 rule RevokeInvitation {
     when: RevokeInvitation(actor, invitation)
-    
+
     let actor_share = ResourceShare{invitation.resource, actor}
-    
+
     requires: invitation.status = pending
     requires: actor = invitation.resource.owner or actor_share.can_admin
-    
+
     ensures: invitation.status = revoked
 }
 
@@ -767,13 +765,13 @@ rule RevokeInvitation {
 
 rule ChangeSharePermission {
     when: ChangeSharePermission(actor, share, new_permission)
-    
+
     let actor_share = ResourceShare{share.resource, actor}
-    
+
     requires: actor = share.resource.owner or actor_share.can_admin
     requires: share.user != share.resource.owner    -- can't change owner
     requires: share.status = active
-    
+
     ensures: share.permission = new_permission
 }
 
@@ -881,7 +879,7 @@ entity Document {
     status: active | deleted
     deleted_at: Timestamp?
     deleted_by: User?
-    
+
     -- Derived
     is_active: status = active
     retention_expires_at: deleted_at + retention_period
@@ -891,10 +889,10 @@ entity Document {
 -- Extend Workspace to show how projections filter
 entity Workspace {
     name: String
-    
+
     -- Relationships
     all_documents: Document for this workspace
-    
+
     -- Projections (what users typically see)
     documents: all_documents with status = active
     deleted_documents: all_documents with status = deleted
@@ -907,12 +905,12 @@ entity Workspace {
 
 rule DeleteDocument {
     when: DeleteDocument(actor, document)
-    
+
     let membership = WorkspaceMembership{actor, document.workspace}
-    
+
     requires: document.status = active
     requires: actor = document.created_by or membership.can_admin
-    
+
     ensures: document.status = deleted
     ensures: document.deleted_at = now
     ensures: document.deleted_by = actor
@@ -920,12 +918,12 @@ rule DeleteDocument {
 
 rule RestoreDocument {
     when: RestoreDocument(actor, document)
-    
+
     let membership = WorkspaceMembership{actor, document.workspace}
-    
+
     requires: document.can_restore
     requires: actor = document.deleted_by or membership.can_admin
-    
+
     ensures: document.status = active
     ensures: document.deleted_at = null
     ensures: document.deleted_by = null
@@ -933,20 +931,20 @@ rule RestoreDocument {
 
 rule PermanentlyDelete {
     when: PermanentlyDelete(actor, document)
-    
+
     let membership = WorkspaceMembership{actor, document.workspace}
-    
+
     requires: document.status = deleted
     requires: membership.can_admin
-    
+
     ensures: document.permanently_deleted    -- actually removed
 }
 
 rule RetentionExpires {
     when: document.retention_expires_at <= now
-    
+
     requires: document.status = deleted
-    
+
     ensures: document.permanently_deleted
 }
 
@@ -956,22 +954,22 @@ rule RetentionExpires {
 
 rule EmptyTrash {
     when: EmptyTrash(actor, workspace)
-    
+
     let membership = WorkspaceMembership{actor, workspace}
-    
+
     requires: membership.can_admin
-    
+
     ensures: workspace.deleted_documents.each(d => d.permanently_deleted)
 }
 
 rule RestoreAll {
     when: RestoreAllDeleted(actor, workspace)
-    
+
     let membership = WorkspaceMembership{actor, workspace}
-    
+
     requires: membership.can_admin
-    
-    ensures: workspace.restorable_documents.each(d => 
+
+    ensures: workspace.restorable_documents.each(d =>
         d.status = active,
         d.deleted_at = null,
         d.deleted_by = null
@@ -1413,16 +1411,16 @@ This pattern handles SaaS usage limits: different plans have different quotas, a
 
 entity Plan {
     name: String                    -- e.g., "free", "pro", "enterprise"
-    
+
     -- Limits (-1 = unlimited)
     max_documents: Integer
     max_storage_bytes: Integer
     max_team_members: Integer
     max_api_requests_per_day: Integer
-    
+
     -- Features
     features: Set<Feature>
-    
+
     -- Derived
     has_unlimited_documents: max_documents = -1
     has_unlimited_storage: max_storage_bytes = -1
@@ -1431,26 +1429,26 @@ entity Plan {
 entity Workspace {
     name: String
     plan: Plan
-    
+
     -- Relationships
     documents: Document for this workspace
     members: WorkspaceMembership for this workspace
     usage: WorkspaceUsage for this workspace
-    
+
     -- Derived limits
-    documents_remaining: 
-        if plan.has_unlimited_documents 
-        then unlimited 
+    documents_remaining:
+        if plan.has_unlimited_documents
+        then unlimited
         else plan.max_documents - documents.count
-    
+
     storage_remaining:
         if plan.has_unlimited_storage
         then unlimited
         else plan.max_storage_bytes - usage.storage_bytes_used
-    
+
     members_remaining:
         plan.max_team_members - members.count
-    
+
     -- Derived checks
     can_add_document: documents_remaining > 0 or documents_remaining = unlimited
     can_add_member: members_remaining > 0
@@ -1462,7 +1460,7 @@ entity WorkspaceUsage {
     storage_bytes_used: Integer
     api_requests_today: Integer
     last_reset_date: Date
-    
+
     -- Derived
     api_requests_remaining:
         workspace.plan.max_api_requests_per_day - api_requests_today
@@ -1470,7 +1468,7 @@ entity WorkspaceUsage {
 
 entity UsageEvent {
     workspace: Workspace
-    type: document_created | document_deleted | storage_added | 
+    type: document_created | document_deleted | storage_added |
           storage_removed | api_request | member_added | member_removed
     amount: Integer
     recorded_at: Timestamp
@@ -1504,7 +1502,7 @@ default Plan enterprise = {
     max_storage_bytes: -1,              -- unlimited
     max_team_members: -1,               -- unlimited
     max_api_requests_per_day: -1,       -- unlimited
-    features: { basic_editing, advanced_editing, api_access, integrations, 
+    features: { basic_editing, advanced_editing, api_access, integrations,
                 sso, audit_log, custom_branding }
 }
 
@@ -1514,9 +1512,9 @@ default Plan enterprise = {
 
 rule CreateDocument {
     when: CreateDocument(user, workspace, title)
-    
+
     requires: workspace.can_add_document
-    
+
     ensures: Document.created(workspace: workspace, title: title, created_by: user)
     ensures: UsageEvent.created(
         workspace: workspace,
@@ -1528,13 +1526,13 @@ rule CreateDocument {
 
 rule CreateDocumentLimitReached {
     when: CreateDocument(user, workspace, title)
-    
+
     requires: not workspace.can_add_document
-    
+
     ensures: UserInformed(
         user: user,
         about: limit_reached,
-        with: { 
+        with: {
             limit_type: documents,
             current: workspace.documents.count,
             max: workspace.plan.max_documents,
@@ -1545,10 +1543,10 @@ rule CreateDocumentLimitReached {
 
 rule AddTeamMember {
     when: AddMember(actor, workspace, new_member, role)
-    
+
     requires: workspace.can_add_member
     requires: WorkspaceMembership{actor, workspace}.can_admin
-    
+
     ensures: WorkspaceMembership.created(...)
     ensures: UsageEvent.created(
         workspace: workspace,
@@ -1560,17 +1558,17 @@ rule AddTeamMember {
 
 rule UseFeature {
     when: UseFeature(user, workspace, feature)
-    
+
     requires: workspace.can_use_feature(feature)
-    
+
     ensures: FeatureUsed(workspace: workspace, feature: feature, by: user)
 }
 
 rule UseFeatureNotAvailable {
     when: UseFeature(user, workspace, feature)
-    
+
     requires: not workspace.can_use_feature(feature)
-    
+
     ensures: UserInformed(
         user: user,
         about: feature_not_available,
@@ -1587,11 +1585,11 @@ rule UseFeatureNotAvailable {
 
 rule RecordApiRequest {
     when: ApiRequestReceived(workspace, endpoint)
-    
+
     let usage = workspace.usage
-    
+
     requires: usage.api_requests_remaining > 0
-    
+
     ensures: usage.api_requests_today = usage.api_requests_today + 1
     ensures: UsageEvent.created(
         workspace: workspace,
@@ -1603,14 +1601,14 @@ rule RecordApiRequest {
 
 rule ApiRateLimitExceeded {
     when: ApiRequestReceived(workspace, endpoint)
-    
+
     let usage = workspace.usage
-    
+
     requires: usage.api_requests_remaining <= 0
-    
+
     ensures: ApiResponse.returned(
         status: 429,
-        body: { 
+        body: {
             error: "rate_limit_exceeded",
             resets_at: tomorrow_midnight
         }
@@ -1620,9 +1618,9 @@ rule ApiRateLimitExceeded {
 rule ResetDailyApiUsage {
     when: date_changed
     for each: usage in WorkspaceUsage
-    
+
     requires: usage.last_reset_date < today
-    
+
     ensures: usage.api_requests_today = 0
     ensures: usage.last_reset_date = today
 }
@@ -1633,10 +1631,10 @@ rule ResetDailyApiUsage {
 
 rule UpgradePlan {
     when: UpgradePlan(workspace, new_plan)
-    
+
     requires: new_plan.max_documents >= workspace.plan.max_documents
               or new_plan.has_unlimited_documents
-    
+
     ensures: workspace.plan = new_plan
     ensures: Email.sent(
         to: workspace.owner.email,
@@ -1647,14 +1645,14 @@ rule UpgradePlan {
 
 rule DowngradePlan {
     when: DowngradePlan(workspace, new_plan)
-    
+
     -- Can only downgrade if under new plan's limits
     requires: workspace.documents.count <= new_plan.max_documents
               or new_plan.has_unlimited_documents
     requires: workspace.members.count <= new_plan.max_team_members
     requires: workspace.usage.storage_bytes_used <= new_plan.max_storage_bytes
               or new_plan.has_unlimited_storage
-    
+
     ensures: workspace.plan = new_plan
     ensures: Email.sent(
         to: workspace.owner.email,
@@ -1781,15 +1779,15 @@ entity Comment {
     created_at: Timestamp
     edited_at: Timestamp?
     status: active | deleted
-    
+
     -- Relationships
     mentions: CommentMention for this comment
     replies: Comment with reply_to = this
     reactions: CommentReaction for this comment
-    
+
     -- Projections
     active_replies: replies with status = active
-    
+
     -- Derived
     is_reply: reply_to != null
     is_edited: edited_at != null
@@ -1939,10 +1937,10 @@ rule EditComment {
 
 rule DeleteComment {
     when: DeleteComment(actor, comment)
-    
+
     requires: actor = comment.author or actor.is_admin
     requires: comment.status = active
-    
+
     ensures: comment.status = deleted
     -- Note: replies remain but show "deleted comment"
 }
@@ -1953,10 +1951,10 @@ rule DeleteComment {
 
 rule AddReaction {
     when: AddReaction(user, comment, emoji)
-    
+
     requires: comment.status = active
     requires: not CommentReaction{comment, user, emoji}.exists
-    
+
     ensures: CommentReaction.created(
         comment: comment,
         user: user,
@@ -1967,11 +1965,11 @@ rule AddReaction {
 
 rule RemoveReaction {
     when: RemoveReaction(user, comment, emoji)
-    
+
     let reaction = CommentReaction{comment, user, emoji}
-    
+
     requires: reaction.exists
-    
+
     ensures: reaction.deleted
 }
 
