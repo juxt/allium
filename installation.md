@@ -26,7 +26,7 @@ Allium is just markdown files. If your tool isn't listed above, or you prefer to
 
 ## Using Allium
 
-In Claude Code, type `/allium` and Allium takes it from there.
+In Claude Code, type `/allium` and Allium takes it from there. You can also go directly to a specific mode: `/allium:elicit` for building specs through conversation, `/allium:distill` for extracting specs from existing code.
 
 <div class="terminal">
   <div class="terminal-titlebar">
