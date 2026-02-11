@@ -90,7 +90,7 @@ rule IncidentEscalates {
 }
 ```
 
-The [language reference](https://github.com/juxt/allium/blob/main/SKILL.md) covers entities, rules, triggers, relationships, projections, derived values and surfaces.
+The [language reference](https://github.com/juxt/allium/blob/main/references/language-reference.md) covers entities, rules, triggers, relationships, projections, derived values and surfaces.
 
 ## A language without a runtime
 
@@ -114,6 +114,6 @@ entity User {
 
 Coordinates are immutable references such as git SHAs or content hashes, not version numbers. A model is immutable once published, so no version resolution or lock files are needed. You can respond to triggers from external specs, reference their entities and configure them for your application.
 
-The [patterns library](https://github.com/juxt/allium/blob/main/patterns.md) demonstrates composition across a variety of domains, and the [language reference](https://github.com/juxt/allium/blob/main/SKILL.md) covers the full modular specification syntax.
+The [patterns library](https://github.com/juxt/allium/blob/main/references/patterns.md) demonstrates composition across a variety of domains, and the [language reference](https://github.com/juxt/allium/blob/main/references/language-reference.md) covers the full modular specification syntax.
 
 The mechanism is there, but the ecosystem of shared specs is just getting started. If you build something reusable, we'd love to hear about it.

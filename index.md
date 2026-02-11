@@ -57,7 +57,7 @@ Manual coding embedded this discovery in the act of implementation. LLMs generat
 
 Two processes feed this growth: **elicitation** works forward from intent through structured conversations with stakeholders, while **distillation** works backward from implementation to capture what the system actually does, including behaviours that were never explicitly decided. Distillation reveals what you built; elicitation clarifies what you meant. When these diverge, you've found something worth investigating.
 
-See the [elicitation guide](https://github.com/juxt/allium/blob/main/elicitation.md) and the [distillation guide](https://github.com/juxt/allium/blob/main/distillation.md) for detailed approaches.
+See the [elicitation guide](https://github.com/juxt/allium/blob/main/skills/elicit/SKILL.md) and the [distillation guide](https://github.com/juxt/allium/blob/main/skills/distill/SKILL.md) for detailed approaches.
 
 ## On single sources of truth
 
