@@ -34,9 +34,9 @@ From an Allium specification, generate:
 - Type guard correctness: verify variant-specific fields are only accessible within appropriate type guards
 
 **Surface tests** (per surface):
-- Exposure tests: verify each item in `exposes`/`shows` is accessible to the specified party
-- Provides/actions availability tests: verify provided capabilities and actions appear when their `when` conditions are true
-- Provides/actions unavailability tests: verify provided capabilities and actions are hidden when `when` conditions are false
+- Exposure tests: verify each item in `exposes` is accessible to the specified party
+- Provides availability tests: verify provided operations appear when their `when` conditions are true
+- Provides unavailability tests: verify provided operations are hidden when `when` conditions are false
 - Requires tests: verify the surface rejects interaction when required contributions are missing
 - Related surface navigation: verify navigation to related surfaces works
 - Party restriction tests: verify the surface is not accessible to other party types
@@ -44,6 +44,6 @@ From an Allium specification, generate:
 
 **Cross-rule interaction tests** (per rule with entity-creating ensures):
 - Re-trigger sibling rules on the same parent while the created entity exists. Verify guards prevent duplicate creation or conflicting state.
-- For each surface action, generate unavailability tests for each conjunct in the corresponding rule's requires. One test per conjunct, each falsifying that conjunct, verifying the action is hidden or rejected.
+- For each surface `provides` entry, generate unavailability tests for each conjunct in the corresponding rule's requires. One test per conjunct, each falsifying that conjunct, verifying the operation is hidden or rejected.
 
 **Concurrency note:** Rules are assumed to be atomic, meaning a rule either completes entirely or not at all. If two rules could fire simultaneously on the same entity, test that the resulting state is consistent regardless of order.

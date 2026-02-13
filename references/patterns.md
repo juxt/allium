@@ -91,7 +91,7 @@ rule Register {
         status: active,
         failed_login_attempts: 0
     )
-    ensures: Email.sent(
+    ensures: Email.created(
         to: email,
         template: welcome
     )
@@ -133,7 +133,7 @@ rule LoginFailure {
         if user.failed_login_attempts >= config.max_login_attempts:
             user.status = locked
             user.locked_until = now + config.lockout_duration
-            Email.sent(to: user.email, template: account_locked)
+            Email.created(to: user.email, template: account_locked)
 }
 
 rule LoginAttemptWhileLocked {
@@ -203,7 +203,7 @@ rule RequestPasswordReset {
             expires_at: now + config.reset_token_expiry,
             status: pending
         )
-        Email.sent(
+        Email.created(
             to: email,
             template: password_reset,
             data: { token: token }
@@ -227,7 +227,7 @@ rule CompletePasswordReset {
     -- Invalidate all existing sessions
     ensures: user.active_sessions.each(s => s.status = revoked)
 
-    ensures: Email.sent(
+    ensures: Email.created(
         to: user.email,
         template: password_changed
     )
@@ -435,7 +435,7 @@ rule AddMember {
         role: role,
         joined_at: now
     )
-    ensures: Email.sent(
+    ensures: Email.created(
         to: new_user.email,
         template: added_to_workspace,
         data: { workspace, role }
@@ -505,7 +505,7 @@ rule ViewDocument {
 
     requires: membership.can_read
 
-    ensures: DocumentView.recorded(user: user, document: document, at: now)
+    ensures: DocumentView.created(user: user, document: document, at: now)
 }
 
 ------------------------------------------------------------
@@ -666,7 +666,7 @@ rule InviteToResource {
         expires_at: now + config.invitation_expiry,
         status: pending
     )
-    ensures: Email.sent(
+    ensures: Email.created(
         to: email,
         template: resource_invitation,
         data: {
@@ -695,7 +695,7 @@ rule AcceptInvitationExistingUser {
         status: active,
         created_at: now
     )
-    ensures: Notification.sent(
+    ensures: Notification.created(
         to: invitation.invited_by,
         template: invitation_accepted,
         data: { resource: invitation.resource, user: user }
@@ -728,7 +728,7 @@ rule AcceptInvitationNewUser {
             status: active,
             created_at: now
         )
-        Notification.sent(
+        Notification.created(
             to: invitation.invited_by,
             template: invitation_accepted,
             data: { resource: invitation.resource, user: user }
@@ -792,7 +792,7 @@ rule RevokeShare {
     requires: share.status = active
 
     ensures: share.status = revoked
-    ensures: Notification.sent(
+    ensures: Notification.created(
         to: share.user,
         template: access_revoked,
         data: { resource: share.resource }
@@ -1007,10 +1007,6 @@ This pattern handles in-app notifications with user-controlled email preferences
 ```
 -- notifications.allium
 
-config {
-    max_batch_size: Integer = 50
-}
-
 ------------------------------------------------------------
 -- Entities
 ------------------------------------------------------------
@@ -1041,7 +1037,7 @@ entity NotificationSetting {
 
     -- Global settings
     digest_enabled: Boolean
-    digest_day_of_week: Set<DayOfWeek>    -- e.g., { monday, wednesday, friday }
+    digest_day_of_week: Set<DayOfWeek>    -- domain type; define as enum in your spec
 }
 
 ------------------------------------------------------------
@@ -1212,7 +1208,7 @@ rule SendImmediateEmail {
     requires: notification.email_status = pending
     requires: preference = immediately
 
-    ensures: Email.sent(
+    ensures: Email.created(
         to: notification.user.email,
         template: notification_immediate,
         data: { notification: notification }
@@ -1256,7 +1252,7 @@ rule CreateDailyDigest {
 
     requires: user.notification_settings.digest_enabled
 
-    let pending = user.recent_pending_notifications.take(config.max_batch_size)
+    let pending = user.recent_pending_notifications
 
     requires: pending.count > 0
 
@@ -1276,7 +1272,7 @@ rule SendDigest {
     requires: batch.status = pending
     requires: batch.notifications.count > 0
 
-    ensures: Email.sent(
+    ensures: Email.created(
         to: batch.user.email,
         template: daily_digest,
         data: {
@@ -1354,7 +1350,7 @@ surface NotificationPreferences {
 - **Exhaustive kind checking**: `SendImmediateEmail` handles all variants explicitly
 - User preferences stored as entity
 - Temporal trigger for per-user digest scheduling (`when: user: User.next_digest_at <= now`)
-- Batching and limiting (`.take(config.max_batch_size)`)
+- Digest batching with temporal trigger
 - Surfaces with `related` clause linking notification centre to preferences
 
 **Why sum types here?**
@@ -1408,7 +1404,7 @@ entity Plan {
     max_api_requests_per_day: Integer
 
     -- Features
-    features: Set<Feature>
+    features: Set<Feature>          -- domain type; define in your spec
 
     -- Derived
     has_unlimited_documents: max_documents = -1
@@ -1582,7 +1578,7 @@ rule ApiRateLimitExceeded {
 
     requires: usage.api_requests_remaining <= 0
 
-    ensures: ApiResponse.returned(
+    ensures: ApiResponse.created(
         status: 429,
         body: {
             error: "rate_limit_exceeded",
@@ -1613,7 +1609,7 @@ rule UpgradePlan {
               or new_plan.has_unlimited_documents
 
     ensures: workspace.plan = new_plan
-    ensures: Email.sent(
+    ensures: Email.created(
         to: workspace.owner.email,
         template: plan_upgraded,
         data: { old_plan: old_plan, new_plan: new_plan }
@@ -1633,7 +1629,7 @@ rule DowngradePlan {
               or new_plan.has_unlimited_storage
 
     ensures: workspace.plan = new_plan
-    ensures: Email.sent(
+    ensures: Email.created(
         to: workspace.owner.email,
         template: plan_downgraded,
         data: { old_plan: old_plan, new_plan: new_plan }
@@ -2117,7 +2113,7 @@ rule CreateUserOnFirstLogin {
             timezone: identity.timezone ?? "UTC",
             locale: identity.locale ?? "en"
         )
-        Email.sent(
+        Email.created(
             to: user.email,
             template: welcome,
             data: { user: user, provider: identity.provider }
@@ -2298,7 +2294,7 @@ rule ActivateOnPaymentSuccess {
 
     ensures: sub.status = active
     ensures: sub.current_period_ends_at = invoice.period_end
-    ensures: Email.sent(
+    ensures: Email.created(
         to: org.owner.email,
         template: payment_confirmed,
         data: { amount: invoice.amount, next_billing: invoice.period_end }
@@ -2316,7 +2312,7 @@ rule HandlePaymentFailure {
     requires: exists org
 
     ensures: sub.status = past_due
-    ensures: Email.sent(
+    ensures: Email.created(
         to: org.owner.email,
         template: payment_failed,
         data: {
@@ -2343,7 +2339,7 @@ rule TrialEndingReminder {
     let org = sub.organisation
 
     ensures: sub.trial_reminder_sent = true
-    ensures: Email.sent(
+    ensures: Email.created(
         to: org.owner.email,
         template: trial_ending,
         data: {
@@ -2364,7 +2360,7 @@ rule HandleSubscriptionCancelled {
     requires: exists sub
 
     ensures: sub.status = cancelled
-    ensures: Email.sent(
+    ensures: Email.created(
         to: org.owner.email,
         template: subscription_cancelled,
         data: { reason: reason, access_until: sub.current_period_ends_at }

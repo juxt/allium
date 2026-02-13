@@ -126,6 +126,30 @@ rule InvitationExpires {
 
 All entity-scoped triggers use explicit `var: Type` binding. Use `_` as a discard binding where the name is not needed: `when: _: Invitation.expires_at <= now`, `when: SomeEvent(_, slot)`.
 
+### Rule-level iteration
+
+A `for` clause applies the rule body once per element in a collection:
+
+```
+rule CreateDailyDigest {
+    when: time_of_day = config.digest_time
+    for user in Users with notification_settings.digest_enabled = true:
+        let settings = user.notification_settings
+        requires: today in settings.digest_day_of_week
+        ensures: DigestBatch.created(user: user, ...)
+}
+```
+
+### Ensures patterns
+
+Ensures clauses have three forms:
+
+- **State changes**: `entity.field = value`
+- **Entity creation**: `Entity.created(...)` — the single canonical creation verb
+- **Trigger emission**: `TriggerName(params)` — emits an event for other rules to chain from
+
+Entity creation uses `.created()` exclusively. Domain meaning lives in entity names and rule names, not in creation verbs.
+
 ### Surface
 
 ```
@@ -148,38 +172,17 @@ surface InterviewerDashboard {
 }
 ```
 
-Surfaces define contracts at boundaries. The `for` clause names the external party, `context` scopes the entity. The remaining clauses come in two vocabularies:
-
-**Integration surfaces** (code-to-code boundaries): `exposes` (visible data), `requires` (contributions from the external party), `provides` (available capabilities), `related` (links to other surfaces).
-
-**Interaction surfaces** (user-facing boundaries): `shows` (visible data), `actions` (user-triggered operations with when-guards), `provides` (user-supplied input), `navigates_to` (links to separate views), `related` (inline panels within the same view), `timeout` (surface-scoped temporal triggers).
+Surfaces define contracts at boundaries. The `for` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data), `requires` (contributions from the external party), `provides` (available operations with optional when-guards), `invariant` (constraints that must hold), `guidance` (non-normative advice), `related` (inline panels), `navigates_to` (links to separate views), `timeout` (surface-scoped temporal triggers).
 
 Actor types used in `for` clauses need `actor` declarations with `identified_by` mappings.
 
 ### Surface-to-implementation contract
 
-The `shows`/`exposes` block is the field-level contract: the backend returns exactly these fields, the frontend consumes exactly these fields. Do not add fields not listed. Do not omit fields that are listed.
-
-Envelope derivation from surface context:
-- Context entity key names the response envelope (e.g., `context app: Application` → `{ application: { ... } }`)
-- No `actions` block, or all when-guards false → `can_edit: false`
-- At least one action's when-guard true → `can_edit: true`
-
-```
--- Surface
-surface AdminApplicationDetail {
-    context app: Application
-    shows: app.candidate.name, app.vacancy.title
-    actions: AdminRejectsApplication(viewer, app) when app.is_active
-}
-
--- Response shape
-{ application: { candidate_name: "...", vacancy_title: "...", can_edit: true } }
-```
+The `exposes` block is the field-level contract: the implementation returns exactly these fields, the consumer uses exactly these fields. Do not add fields not listed. Do not omit fields that are listed.
 
 ### Expressions
 
-Navigation: `interview.candidacy.candidate.email`. Collections: `slots.count`, `slot in invitation.slots`, `interviewers.any(i => i.can_solo)`, `collection.each(item => item.status = cancelled)`. Comparisons: `status = pending`, `count >= 2`, `status in [confirmed, declined]`. Boolean logic: `a and b`, `a or b`, `not a`.
+Navigation: `interview.candidacy.candidate.email`, `reply_to?.author` (optional), `timezone ?? "UTC"` (null coalescing). Collections: `slots.count`, `slot in invitation.slots`, `interviewers.any(i => i.can_solo)`, `collection.each(item => item.status = cancelled)`, `permissions + inherited` (set union), `old - new` (set difference). Comparisons: `status = pending`, `count >= 2`, `status in [confirmed, declined]`, `provider not in providers`. Boolean logic: `a and b`, `a or b`, `not a`.
 
 ### Modular specs
 

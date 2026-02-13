@@ -179,7 +179,7 @@ def cleanup_expired_tokens():
 5. **Extract postconditions from mutations:**
    - `token.used = True` becomes `ensures: token.status = used`
    - `user.set_password(...)` becomes `ensures: user.password_hash = hash(password)`
-   - `mail.send(msg)` becomes `ensures: Email.sent(...)`
+   - `mail.send(msg)` becomes `ensures: Email.created(...)`
 
 6. **Strip implementation details:**
    - Remove: `secrets.token_urlsafe(32)`, `generate_password_hash`, `db.session`
@@ -236,7 +236,7 @@ rule RequestPasswordReset {
             expires_at: now + config.reset_token_expiry,
             status: pending
         )
-        Email.sent(
+        Email.created(
             to: user.email,
             template: password_reset,
             data: { token: token }
@@ -257,7 +257,7 @@ rule CompletePasswordReset {
     ensures: user.failed_attempts = 0
     ensures: user.locked_until = null
     ensures: user.active_sessions.each(s => s.status = revoked)
-    ensures: Email.sent(to: user.email, template: password_changed)
+    ensures: Email.created(to: user.email, template: password_changed)
 }
 
 rule ResetTokenExpires {
@@ -563,7 +563,7 @@ entity Plan {
     max_storage_mb: Integer
     max_team_members: Integer
     monthly_price: Decimal
-    features: Set<Feature>
+    features: Set<Feature>          -- domain type; define in your spec
 
     has_unlimited_projects: max_projects = -1
     has_unlimited_storage: max_storage_mb = -1
@@ -664,7 +664,7 @@ rule ChangePlan {
                   or new_plan.has_unlimited_members)
 
     ensures: workspace.plan = new_plan
-    ensures: Email.sent(
+    ensures: Email.created(
         to: workspace.owner.email,
         template: if is_downgrade: plan_downgraded else: plan_upgraded,
         data: { old_plan: old_plan, new_plan: new_plan }

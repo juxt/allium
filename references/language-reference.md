@@ -219,7 +219,7 @@ Use sum types when variants have fundamentally different data or behaviour. Do n
 
 **Primitive types:**
 - `String` — text
-- `Integer` — whole numbers
+- `Integer` — whole numbers. Underscores are ignored in numeric literals for readability: `100_000_000`
 - `Decimal` — numbers with fractional parts (use for money, percentages)
 - `Boolean` — true/false
 - `Timestamp` — point in time
@@ -300,7 +300,13 @@ all_responded: pending_requests.count = 0
 
 -- Value derivations
 time_remaining: deadline - now
+
+-- Parameterised derived values
+can_use_feature(f): f in plan.features
+has_permission(p): p in role.effective_permissions
 ```
+
+Parameters are locally scoped to the expression. Parameterised derived values cannot reference module context or global state; they operate only on the entity's own fields and their parameter. No side effects.
 
 ---
 
@@ -353,6 +359,10 @@ rule CreateDailyDigest {
 The `with` keyword filters the collection, consistent with projection syntax. The indented body contains the rule's `let`, `requires` and `ensures` clauses scoped to each element.
 
 This is the same `for x in collection:` construct used in ensures blocks and surfaces. The only difference is scope: at rule level it wraps the entire rule body.
+
+### Multiple rules for the same trigger
+
+When multiple rules share a trigger, their `requires` clauses determine which fires. If preconditions overlap such that multiple rules could match simultaneously, this is a spec ambiguity. The specification checker should warn when rules with the same trigger have overlapping preconditions.
 
 ### Trigger types
 
@@ -454,14 +464,19 @@ for _ in items: total = total + 1
 
 Postconditions describe what becomes true. They are declarative assertions about the resulting state, not imperative commands. All ensures clauses are evaluated against the *resulting* state, after all changes have been applied.
 
-**State changes:**
+Ensures clauses fall into three patterns:
+
+**State changes** — modify an existing entity's fields:
 ```
 ensures: slot.status = booked
 ensures: invitation.status = accepted
 ensures: candidacy.retry_count = candidacy.retry_count + 1
+ensures: user.locked_until = null              -- clearing an optional field
 ```
 
-**Entity creation:**
+Setting an optional field to `null` asserts the field becomes absent. Only valid for fields typed as optional (`T?`).
+
+**Entity creation** — create a new entity using `.created()`:
 ```
 ensures: Interview.created(
     candidacy: invitation.candidacy,
@@ -469,7 +484,21 @@ ensures: Interview.created(
     interviewers: slot.confirmed_interviewers,
     status: scheduled
 )
+
+ensures: Email.created(
+    to: candidate.email,
+    template: interview_invitation,
+    data: { slots }
+)
+
+ensures: CalendarInvite.created(
+    attendees: interviewers + candidate,
+    time: slot.time,
+    duration: interview_type.duration
+)
 ```
+
+Entity creation uses `.created()` exclusively. Domain meaning lives in entity names and rule names, not in creation verbs. `Email.created(...)` not `Email.sent(...)`.
 
 When creating entities that need to be referenced later in the same ensures block, use explicit `let` binding:
 ```
@@ -478,6 +507,22 @@ ensures:
     for interviewer in interviewers:
         SlotConfirmation.created(slot: slot, interviewer: interviewer)
 ```
+
+A `let` binding within an ensures block is visible to all subsequent statements in that block, including nested `for` loops. It does not leak outside the ensures block.
+
+**Trigger emission** — emit a named event that other rules can chain from:
+```
+ensures: CandidateInformed(
+    candidate: candidacy.candidate,
+    about: slot_unavailable,
+    with: { available_alternatives: remaining_slots }
+)
+
+ensures: UserMentioned(user: mention.user, comment: comment, mentioned_by: author)
+ensures: FeatureUsed(workspace: workspace, feature: feature, by: user)
+```
+
+Trigger emissions are observable outcomes, not entity creation. They have no `.created()` call and are referenced by other rules' `when` clauses.
 
 **Entity removal:**
 ```
@@ -499,38 +544,8 @@ ensures:
         candidacy.status = pending_scheduling
     else:
         candidacy.status = scheduling_stalled
-        Notification.sent(...)
+        Notification.created(...)
 ```
-
-**Communications:**
-```
-ensures: Notification.sent(
-    to: interview.interviewers,
-    channel: slack,
-    template: interview_booked,
-    data: { candidate, time }
-)
-
-ensures: Email.sent(
-    to: candidate.email,
-    template: interview_invitation,
-    data: { slots }
-)
-
-ensures: CalendarInvite.created(
-    attendees: interviewers + candidate,
-    time: slot.time,
-    duration: interview_type.duration
-)
-
-ensures: CandidateInformed(
-    candidate: candidacy.candidate,
-    about: slot_unavailable,
-    with: { available_alternatives: remaining_slots }
-)
-```
-
-Communications are observable outcomes that matter at the behavioural level, without specifying UI/UX details.
 
 ---
 
@@ -550,6 +565,14 @@ candidacy.slots
 -- Chained navigation
 interview.candidacy.candidate.email
 feedback_request.interview.slot.time
+
+-- Optional navigation (short-circuits to null if left side is null)
+inherits_from?.effective_permissions
+reply_to?.author
+
+-- Null coalescing (provides default when left side is null)
+identity.timezone ?? "UTC"
+inherits_from?.effective_permissions ?? {}
 ```
 
 ### Join lookups
@@ -578,22 +601,33 @@ interviewer in interview.interviewers
 interviewers.any(i => i.can_solo)
 confirmations.all(c => c.status = confirmed)
 
--- Filtering (in projections)
+-- Filtering (in projections and expressions)
 slots with status = confirmed
 requests with status in [submitted, escalated]
 
--- Iteration
+-- Iteration (introduces a scope block)
 for slot in slots: ...
-collection.each(item => item.status = cancelled)
 
--- Set operations
+-- Bulk update shorthand (ensures-only, equivalent to for)
+collection.each(item => item.status = cancelled)
+restorable.each(d => d.status = active, d.deleted_at = null)
+
+-- Set mutation (ensures-only, modifies a relationship)
 interviewers.add(new_interviewer)
 interviewers.remove(leaving_interviewer)
+
+-- Set arithmetic (expression-level, produces a new set)
+all_permissions: permissions + inherited_permissions
+removed_mentions: old_mentions - new_mentions
 
 -- First/last (for ordered collections)
 attempts.first
 attempts.last
 ```
+
+`.each()` is a bulk update shorthand for ensures clauses. It is equivalent to `for item in collection: expr` and supports multiple comma-separated expressions. It is not a general-purpose iterator.
+
+`.add()` and `.remove()` are ensures-only mutations on a relationship. Set `+` and `-` are expression-level operations that produce new sets without mutating anything.
 
 ### Comparisons
 
@@ -604,6 +638,7 @@ count >= 2
 expires_at <= now
 time_until < 24.hours
 status in [confirmed, declined, expired]
+provider not in user.linked_providers
 ```
 
 ### Arithmetic
@@ -636,10 +671,20 @@ ensures:
         candidacy.status = pending_scheduling
     else:
         candidacy.status = scheduling_stalled
-        Notification.sent(...)
+        Notification.created(...)
 ```
 
-Both forms use the same `if condition: ... else: ...` syntax. The inline form returns a single value; the block form contains multiple clauses indented under each branch. Omit `else` when only the true branch has an effect.
+Both forms use the same `if condition: ... else: ...` syntax. The inline form is for single-value assignments only. If either branch needs multiple statements or entity creation, use block form. Omit `else` when only the true branch has an effect.
+
+`exists` can also be used as a condition in `if` expressions, not just in `requires`:
+
+```
+ensures:
+    if exists existing:
+        not exists existing
+    else:
+        CommentReaction.created(comment: comment, user: user, emoji: emoji)
+```
 
 ### Existence
 
@@ -680,6 +725,52 @@ ensures: document.status = deleted
 -- Hard delete (entity no longer exists)
 ensures: not exists document
 ```
+
+### Literals
+
+```
+-- Set literals
+permissions: { "documents.read", "documents.write" }
+features: { basic_editing, api_access }
+
+-- Object literals (in data parameters)
+data: { candidate, time }                    -- shorthand for { candidate: candidate, time: time }
+data: { slots: remaining_slots }             -- explicit key: value
+with: { unlocks_at: user.locked_until }
+```
+
+### Black box functions
+
+Black box functions represent domain logic too complex or algorithmic for the spec level. They appear in expressions and their behaviour is described by comments or deferred specifications.
+
+```
+hash(password)                              -- black box
+verify(password, user.password_hash)        -- black box
+parse_mentions(body)                        -- black box: extracts @username
+next_digest_time(user)                      -- black box: uses digest_day_of_week
+```
+
+Black box functions are pure (no side effects) and deterministic for the same inputs within a rule execution.
+
+### The `with` keyword
+
+`with` serves a single purpose across all contexts: it filters a collection or type by a predicate.
+
+```
+-- Projections
+slots with status = confirmed
+
+-- Surface context
+context assignment: SlotConfirmation with interviewer = viewer
+
+-- Actor identification
+User with role = admin
+
+-- Rule-level for
+for user in Users with digest_enabled = true:
+```
+
+Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... with: { data })`) is a parameter name, not the `with` keyword. The colon disambiguates.
 
 ---
 
@@ -821,7 +912,7 @@ rule AuditLogin {
 
 rule NotifyOnFeedbackSubmitted {
     when: feedback/Request.status becomes submitted
-    ensures: Notification.sent(to: Admin.all, template: feedback_received)
+    ensures: Notification.created(to: Admin.all, template: feedback_received)
 }
 ```
 
@@ -895,19 +986,6 @@ For integration surfaces where the external party is code rather than a person, 
 
 ### Surface structure
 
-Surface clauses use two vocabularies depending on the boundary type:
-
-| Abstract (integration) | Interaction (user-facing) | Purpose |
-|------------------------|---------------------------|---------|
-| `exposes` | `shows` | Visible data |
-| `requires` | `provides` (input) | External party contributions |
-| `provides` (capability) | `actions` | Available operations |
-| `related` | `related` | Inline panels |
-| — | `navigates_to` | Links to separate views |
-| — | `timeout` | Surface-scoped temporal triggers |
-
-**Integration surface** (code-to-code boundaries):
-
 ```
 surface SurfaceName {
     for party: ActorType [with predicate]
@@ -923,7 +1001,7 @@ surface SurfaceName {
         ...
 
     provides:
-        Capability(party, item, ...) [when condition]
+        Action(party, item, ...) [when condition]
         ...
 
     invariant: ConstraintName
@@ -932,61 +1010,32 @@ surface SurfaceName {
     related:
         OtherSurface(item.relationship) [when condition]
         ...
-}
-```
-
-**Interaction surface** (user-facing boundaries):
-
-```
-surface SurfaceName {
-    for viewer: ActorType
-    context item: EntityType [with predicate]
-    let binding = expression
-
-    shows:
-        item.field [when condition]
-        ...
-
-    provides:
-        field: Type [when condition]
-        ...
-
-    actions:
-        ActionName(viewer, item, ...) [when condition]
-        ...
-
-    related:
-        OtherSurface(item.relationship) [when condition]
 
     navigates_to:
-        OtherSurface(item.nav) [for x in collection]
+        OtherSurface(item.nav) [when condition]
 
     timeout:
         RuleName when temporal_condition
 }
 ```
 
-Variable names (`party`, `viewer`, `item`) are user-chosen, not reserved keywords. All clauses are optional.
+Variable names (`party`, `item`) are user-chosen, not reserved keywords. All clauses are optional.
 
 | Clause | Purpose |
 |--------|---------|
 | `for` | Who is on the other side of the boundary |
 | `context` | What entity or scope this surface applies to |
 | `let` | Local bindings, same as in rules |
-| `exposes` | Visible data (integration) |
-| `shows` | Visible data (interaction) |
-| `requires` | What the external party must contribute (integration) |
-| `provides` | System capabilities (integration) or user-supplied input (interaction) |
-| `actions` | User-triggered operations with when-guards (interaction) |
+| `exposes` | Visible data |
+| `requires` | What the external party must contribute |
+| `provides` | Available operations with optional when-guards |
 | `invariant` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Inline panels within the same view |
-| `navigates_to` | Links to separate views (interaction) |
-| `timeout` | Surface-scoped temporal triggers (interaction) |
+| `navigates_to` | Links to separate views |
+| `timeout` | Surface-scoped temporal triggers |
 
 ### Examples
-
-**Interaction surface** (user-facing, from the hiring-app):
 
 ```
 surface InterviewerPendingAssignments {
@@ -995,18 +1044,16 @@ surface InterviewerPendingAssignments {
     context assignment: InterviewAssignment
         with interviewer = viewer and status = pending
 
-    shows:
+    exposes:
         assignment.interview.scheduled_time
         assignment.interview.candidate.name
         assignment.interview.duration
 
-    actions:
+    provides:
         InterviewerConfirmsAssignment(viewer, assignment)
         InterviewerDeclinesAssignment(viewer, assignment, reason?)
 }
 ```
-
-**Integration surface** (code-to-code boundary, abstract vocabulary):
 
 ```
 surface InterviewerDashboard {
@@ -1029,6 +1076,26 @@ surface InterviewerDashboard {
     related:
         InterviewDetail(assignment.slot.interview)
             when assignment.slot.interview != null
+}
+```
+
+**Timeout example** — binding a temporal trigger to the surface's context:
+
+```
+surface InvitationView {
+    for recipient: Candidate
+
+    context invitation: ResourceInvitation with email = recipient.email
+
+    exposes:
+        invitation.resource.name
+        invitation.is_valid
+
+    provides:
+        AcceptInvitation(invitation, recipient) when invitation.is_valid
+
+    timeout:
+        InvitationExpires when invitation.expires_at <= now
 }
 ```
 
@@ -1077,8 +1144,8 @@ A valid Allium specification must satisfy:
 
 **Surface validity:**
 26. Actor types in `for` clauses should have corresponding `actor` declarations when the external party is an entity type
-27. All fields referenced in `exposes`/`shows` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
-28. All triggers referenced in `provides`/`actions` must be defined as external stimulus triggers in rules
+27. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
+28. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
 29. All surfaces referenced in `related`/`navigates_to` must be defined
 30. Bindings in `for` and `context` clauses must be used consistently throughout the surface
 31. `when` conditions must reference valid fields reachable from the party or context bindings
@@ -1097,7 +1164,9 @@ The checker should warn (but not error) on:
 - Actor declarations that are never used in any surface
 - Named `requires` blocks with no corresponding deferred specification or implementation
 - Rules whose ensures creates an entity for a parent, where sibling rules on the same parent don't guard against that entity's existence
-- Surface action when-guards weaker than the corresponding rule's requires
+- Surface `provides` when-guards weaker than the corresponding rule's requires
+- Rules with the same trigger and overlapping preconditions (spec ambiguity)
+- Parameterised derived values that reference fields outside the entity (scoping violation)
 
 ---
 
@@ -1206,10 +1275,13 @@ ensures: deadline = now + config.confirmation_deadline
 | **Relationship** | Navigation from one entity to related entities |
 | **Projection** | A filtered view of a relationship |
 | **Derived Value** | A computed value based on other fields |
+| **Parameterised Derived Value** | A derived value that takes arguments, e.g. `can_use_feature(f): f in plan.features` |
 | **Rule** | A specification of behaviour triggered by some condition |
 | **Trigger** | The condition that causes a rule to fire |
+| **Trigger Emission** | An ensures clause that emits a named event for other rules to chain from |
 | **Precondition** | A requirement that must be true for a rule to execute |
 | **Postcondition** | An assertion about what becomes true after a rule executes |
+| **Black Box Function** | Domain logic referenced but not defined in the spec; pure and deterministic |
 | **External Entity** | An entity managed by another specification; referenced but not governed here |
 | **Config** | Configurable parameters for a specification, referenced via `config.field` |
 | **Default** | A named entity instance used as seed data or base configuration |
@@ -1218,4 +1290,4 @@ ensures: deadline = now + config.confirmation_deadline
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
-| **Surface** | A boundary contract between two parties specifying what each side shows/exposes and provides |
+| **Surface** | A boundary contract between two parties specifying what each side exposes, requires and provides |
