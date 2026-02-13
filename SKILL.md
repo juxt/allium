@@ -148,7 +148,34 @@ surface InterviewerDashboard {
 }
 ```
 
-Surfaces define contracts at boundaries. The `for` clause names the external party, `context` scopes the entity, `exposes` declares visible data, `requires` declares what the external party must contribute, `provides` declares available capabilities and `related` links to other surfaces. Actor types used in `for` clauses need `actor` declarations with `identified_by` mappings.
+Surfaces define contracts at boundaries. The `for` clause names the external party, `context` scopes the entity. The remaining clauses come in two vocabularies:
+
+**Integration surfaces** (code-to-code boundaries): `exposes` (visible data), `requires` (contributions from the external party), `provides` (available capabilities), `related` (links to other surfaces).
+
+**Interaction surfaces** (user-facing boundaries): `shows` (visible data), `actions` (user-triggered operations with when-guards), `provides` (user-supplied input), `navigates_to` (links to separate views), `related` (inline panels within the same view), `timeout` (surface-scoped temporal triggers).
+
+Actor types used in `for` clauses need `actor` declarations with `identified_by` mappings.
+
+### Surface-to-implementation contract
+
+The `shows`/`exposes` block is the field-level contract: the backend returns exactly these fields, the frontend consumes exactly these fields. Do not add fields not listed. Do not omit fields that are listed.
+
+Envelope derivation from surface context:
+- Context entity key names the response envelope (e.g., `context app: Application` → `{ application: { ... } }`)
+- No `actions` block, or all when-guards false → `can_edit: false`
+- At least one action's when-guard true → `can_edit: true`
+
+```
+-- Surface
+surface AdminApplicationDetail {
+    context app: Application
+    shows: app.candidate.name, app.vacancy.title
+    actions: AdminRejectsApplication(viewer, app) when app.is_active
+}
+
+-- Response shape
+{ application: { candidate_name: "...", vacancy_title: "...", can_edit: true } }
+```
 
 ### Expressions
 
@@ -171,7 +198,7 @@ config {
 }
 ```
 
-Rules reference config values as `config.invitation_expiry`. For default entity instances, use `default`:
+Rules reference config values as `config.invitation_expiry`. For default entity instances, use `default`.
 
 ### Defaults
 

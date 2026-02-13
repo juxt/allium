@@ -161,9 +161,7 @@ Value types have no identity, are immutable and are embedded within entities. En
 
 ### Sum types
 
-Sum types (discriminated unions) specify that an entity is exactly one of several alternatives, never both, never neither. The type system enforces the constraint.
-
-**Basic syntax:**
+Sum types (discriminated unions) specify that an entity is exactly one of several alternatives.
 
 ```
 entity Node {
@@ -181,101 +179,41 @@ variant Leaf : Node {
 }
 ```
 
-The sum type declaration has three parts:
-1. **Discriminator field**: A field whose type is a pipe-separated list of variant names (e.g., `kind: Branch | Leaf`). The field name can be anything descriptive.
-2. **Variant declarations**: Declared using the `variant` keyword with `: BaseEntity` syntax.
-3. **Variant-specific fields**: Fields that only exist when that variant is active.
+A sum type has three parts: a **discriminator field** whose type is a pipe-separated list of variant names, **variant declarations** using `variant X : BaseEntity`, and **variant-specific fields** that only exist for that variant. Variants inherit all fields from the base entity; the discriminator is set automatically on creation.
 
-**Distinguishing sum types from enums:**
+**Distinguishing sum types from enums:** lowercase values are enum literals (`status: pending | active`), capitalised values are variant references (`kind: Branch | Leaf`). The validator checks that capitalised names correspond to `variant` declarations.
 
-- **Lowercase** values are enum literals: `status: pending | active | completed`
-- **Capitalised** values are variant references: `kind: Branch | Leaf`
+**Creating variant instances** — always via the variant name, not the base:
 
-The validator checks that capitalised names correspond to `variant` declarations extending the base entity.
-
-**Field inheritance:**
-
-Variants inherit all fields from the base entity:
 ```
-entity Notification {
-    user: User                       -- inherited by all variants
-    created_at: Timestamp            -- inherited by all variants
-    kind: MentionNotification | ShareNotification
-}
-
-variant MentionNotification : Notification {
-    comment: Comment                 -- variant-specific
-    mentioned_by: User               -- variant-specific
-}
+ensures: MentionNotification.created(user: recipient, comment: comment, mentioned_by: author)
+-- Not: Notification.created(...)  -- Error: must specify which variant
 ```
 
-A `MentionNotification` instance has `user`, `created_at`, `kind`, `comment` and `mentioned_by` fields. The discriminator is set automatically.
+**Type guards** narrow an entity to a specific variant, enabling access to its fields. They appear in `requires` clauses (guarding the entire rule) and `if` expressions (guarding a branch):
 
-**Creating variant instances:**
-
-Always create via the variant name, not the base:
 ```
--- Correct: create via variant
-ensures: MentionNotification.created(
-    user: recipient,
-    comment: comment,
-    mentioned_by: author,
-    created_at: now
-)
-
--- Invalid: cannot create base entity directly when it has a sum type discriminator
-ensures: Notification.created(...)   -- Error: must specify which variant
-```
-
-**Type guards:**
-
-A type guard narrows an entity to a specific variant, enabling access to that variant's fields. They appear in two places:
-
-1. **In `requires` clauses**, guarding the entire rule:
-```
+-- requires guard: entire rule assumes Leaf
 rule ProcessLeaf {
     when: ProcessNode(node)
-    requires: node.kind = Leaf       -- type guard: entire rule assumes Leaf
+    requires: node.kind = Leaf
     ensures: Results.created(data: node.data + node.log)
 }
-```
 
-2. **In `if` expressions**, guarding a branch:
-```
+-- if guard: branch-level narrowing
 rule ProcessNode {
     when: ProcessNode(node)
     ensures:
         if node.kind = Branch:
-            -- node.children accessible here
-            for child in node.children:
-                ProcessNode(child)
+            for child in node.children: ProcessNode(child)
         else:
-            -- node.kind = Leaf (exhaustive)
-            -- node.data and node.log accessible here
             Results.created(data: node.data + node.log)
 }
 ```
 
-Accessing variant-specific fields outside a type guard is an error:
-```
-rule Invalid {
-    when: ProcessNode(node)
-    ensures: node.children.count    -- Error: node.children only accessible when kind = Branch
-}
-```
+Accessing variant-specific fields outside a type guard is an error. Sum types guarantee exhaustiveness (all variants declared upfront), mutual exclusivity (exactly one variant), type safety (variant fields only within guards) and automatic discrimination (set on creation).
 
-**Semantic guarantees:**
-
-- **Exhaustiveness**: All possible variants are declared upfront in the discriminator field
-- **Mutual exclusivity**: An entity is exactly one variant
-- **Type safety**: Variant-specific fields are only accessible within type guards
-- **Automatic discrimination**: The discriminator field is set automatically on creation
-
-**When to use sum types:**
-
-Use when an entity has fundamentally different behaviour or data based on its kind, you need to prevent invalid state combinations, the variants are mutually exclusive by definition, or you want exhaustiveness checking in conditional logic.
-
-Do not use when simple status enums suffice, the variants share most of their structure (consider optional fields), or the distinction is purely implementation-level.
+Use sum types when variants have fundamentally different data or behaviour. Do not use when simple status enums suffice or variants share most of their structure.
 
 ### Field types
 
@@ -685,6 +623,24 @@ invitation.status = pending and not invitation.is_expired
 not (a or b)  -- equivalent to: not a and not b
 ```
 
+### Conditional expressions
+
+```
+-- Inline (single values)
+email_status: if settings.email_on_mention = never: skipped else: pending
+thread_depth: if is_reply: reply_to.thread_depth + 1 else: 0
+
+-- Block (multiple outcomes)
+ensures:
+    if candidacy.retry_count < 2:
+        candidacy.status = pending_scheduling
+    else:
+        candidacy.status = scheduling_stalled
+        Notification.sent(...)
+```
+
+Both forms use the same `if condition: ... else: ...` syntax. The inline form returns a single value; the block form contains multiple clauses indented under each branch. Omit `else` when only the true branch has an effect.
+
 ### Existence
 
 The `exists` keyword checks whether an entity instance exists. Use `not exists` for negation.
@@ -793,7 +749,7 @@ For default entity instances (seed data, base configurations), use `default` dec
 Default declarations create named entity instances.
 
 ```
-default InterviewType = { name: "All in one", duration: 75.minutes }
+default InterviewType all_in_one = { name: "All in one", duration: 75.minutes }
 
 default Role viewer = {
     name: "viewer",
@@ -886,11 +842,7 @@ Reference external config values as `oauth/config.session_duration`. This uses t
 
 ### Breaking changes
 
-Breaking changes should be avoided. Instead:
-- **Accrete**: Add new fields, triggers, states. Do not remove or rename.
-- **New name for new thing**: If a breaking change is necessary, publish under a new name (`google-oauth-2`) rather than a new version.
-
-Consumers update at their own pace. Old coordinates remain valid forever.
+Avoid breaking changes: accrete (add new fields, triggers, states; never remove or rename). If a breaking change is necessary, publish under a new name rather than a new version. Consumers update at their own pace; old coordinates remain valid forever.
 
 ### Local specs
 
@@ -943,18 +895,27 @@ For integration surfaces where the external party is code rather than a person, 
 
 ### Surface structure
 
+Surface clauses use two vocabularies depending on the boundary type:
+
+| Abstract (integration) | Interaction (user-facing) | Purpose |
+|------------------------|---------------------------|---------|
+| `exposes` | `shows` | Visible data |
+| `requires` | `provides` (input) | External party contributions |
+| `provides` (capability) | `actions` | Available operations |
+| `related` | `related` | Inline panels |
+| — | `navigates_to` | Links to separate views |
+| — | `timeout` | Surface-scoped temporal triggers |
+
+**Integration surface** (code-to-code boundaries):
+
 ```
 surface SurfaceName {
     for party: ActorType [with predicate]
-
     context item: EntityType [with predicate]
-
     let binding = expression
 
     exposes:
         item.field [when condition]
-        for x in collection:
-            x.field [when condition]
         ...
 
     requires:
@@ -963,39 +924,89 @@ surface SurfaceName {
 
     provides:
         Capability(party, item, ...) [when condition]
-        for x in collection:
-            Capability(party, x, ...) [when condition]
         ...
 
     invariant: ConstraintName
-        -- description
-
-    guidance:
-        -- non-normative advice
+    guidance: -- non-normative advice
 
     related:
         OtherSurface(item.relationship) [when condition]
-        for x in collection:
-            OtherSurface(x.relationship) [when condition]
         ...
 }
 ```
 
-The names `party` and `item` are user-chosen variable names, not reserved keywords. All clauses are optional. Use what the boundary needs.
+**Interaction surface** (user-facing boundaries):
+
+```
+surface SurfaceName {
+    for viewer: ActorType
+    context item: EntityType [with predicate]
+    let binding = expression
+
+    shows:
+        item.field [when condition]
+        ...
+
+    provides:
+        field: Type [when condition]
+        ...
+
+    actions:
+        ActionName(viewer, item, ...) [when condition]
+        ...
+
+    related:
+        OtherSurface(item.relationship) [when condition]
+
+    navigates_to:
+        OtherSurface(item.nav) [for x in collection]
+
+    timeout:
+        RuleName when temporal_condition
+}
+```
+
+Variable names (`party`, `viewer`, `item`) are user-chosen, not reserved keywords. All clauses are optional.
 
 | Clause | Purpose |
 |--------|---------|
 | `for` | Who is on the other side of the boundary |
 | `context` | What entity or scope this surface applies to |
 | `let` | Local bindings, same as in rules |
-| `exposes` | What is visible across the boundary |
-| `requires` | What the external party must contribute |
-| `provides` | What the system offers |
+| `exposes` | Visible data (integration) |
+| `shows` | Visible data (interaction) |
+| `requires` | What the external party must contribute (integration) |
+| `provides` | System capabilities (integration) or user-supplied input (interaction) |
+| `actions` | User-triggered operations with when-guards (interaction) |
 | `invariant` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
-| `related` | Navigation to other surfaces |
+| `related` | Inline panels within the same view |
+| `navigates_to` | Links to separate views (interaction) |
+| `timeout` | Surface-scoped temporal triggers (interaction) |
 
-### Example
+### Examples
+
+**Interaction surface** (user-facing, from the hiring-app):
+
+```
+surface InterviewerPendingAssignments {
+    for viewer: Interviewer
+
+    context assignment: InterviewAssignment
+        with interviewer = viewer and status = pending
+
+    shows:
+        assignment.interview.scheduled_time
+        assignment.interview.candidate.name
+        assignment.interview.duration
+
+    actions:
+        InterviewerConfirmsAssignment(viewer, assignment)
+        InterviewerDeclinesAssignment(viewer, assignment, reason?)
+}
+```
+
+**Integration surface** (code-to-code boundary, abstract vocabulary):
 
 ```
 surface InterviewerDashboard {
@@ -1066,9 +1077,9 @@ A valid Allium specification must satisfy:
 
 **Surface validity:**
 26. Actor types in `for` clauses should have corresponding `actor` declarations when the external party is an entity type
-27. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
-28. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
-29. All surfaces referenced in `related` must be defined
+27. All fields referenced in `exposes`/`shows` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
+28. All triggers referenced in `provides`/`actions` must be defined as external stimulus triggers in rules
+29. All surfaces referenced in `related`/`navigates_to` must be defined
 30. Bindings in `for` and `context` clauses must be used consistently throughout the surface
 31. `when` conditions must reference valid fields reachable from the party or context bindings
 32. `for` iterations must iterate over collection-typed fields
@@ -1085,6 +1096,8 @@ The checker should warn (but not error) on:
 - Items in `provides` with `when` conditions that can never be true
 - Actor declarations that are never used in any surface
 - Named `requires` blocks with no corresponding deferred specification or implementation
+- Rules whose ensures creates an entity for a parent, where sibling rules on the same parent don't guard against that entity's existence
+- Surface action when-guards weaker than the corresponding rule's requires
 
 ---
 
@@ -1185,11 +1198,10 @@ ensures: deadline = now + config.confirmation_deadline
 | **Context (surface)** | Parametric scope binding for a boundary contract |
 | **Entity** | A domain concept with identity and lifecycle |
 | **Value** | Structured data without identity, compared by structure |
-| **Sum Type** | A type constraint specifying an entity is exactly one of several variants, declared via a discriminator field (e.g., `kind: A \| B \| C`) |
-| **Discriminator** | A field on a base entity whose type is a pipe-separated list of variant names; automatically set when creating variants |
-| **Variant** | One of the alternatives in a sum type, declared with the `variant` keyword (e.g., `variant A : Base { ... }`) |
-| **Type Guard** | A condition (`requires:` or `if` branch) that narrows an entity to a specific variant, enabling access to variant-specific fields |
-| **External Entity** | An entity managed by another specification |
+| **Sum Type** | Entity constrained to exactly one of several variants via a discriminator field |
+| **Discriminator** | Field whose pipe-separated capitalised values name the variants |
+| **Variant** | One alternative in a sum type, declared with `variant X : Base { ... }` |
+| **Type Guard** | Condition (`requires:` or `if`) that narrows to a variant, unlocking its fields |
 | **Field** | Data stored on an entity or value |
 | **Relationship** | Navigation from one entity to related entities |
 | **Projection** | A filtered view of a relationship |
@@ -1198,11 +1210,12 @@ ensures: deadline = now + config.confirmation_deadline
 | **Trigger** | The condition that causes a rule to fire |
 | **Precondition** | A requirement that must be true for a rule to execute |
 | **Postcondition** | An assertion about what becomes true after a rule executes |
-| **Deferred Specification** | Complex logic defined in a separate file |
-| **Open Question** | An unresolved design decision |
+| **External Entity** | An entity managed by another specification; referenced but not governed here |
 | **Config** | Configurable parameters for a specification, referenced via `config.field` |
 | **Default** | A named entity instance used as seed data or base configuration |
+| **Deferred Specification** | Complex logic defined in a separate file |
+| **Open Question** | An unresolved design decision |
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
-| **Surface** | A named boundary contract between two parties, specifying what each side exposes, requires and provides |
+| **Surface** | A boundary contract between two parties specifying what each side shows/exposes and provides |

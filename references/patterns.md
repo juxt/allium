@@ -141,6 +141,7 @@ rule LoginAttemptWhileLocked {
 
     let user = User{email}
 
+    requires: exists user
     requires: user.is_locked
 
     ensures: UserInformed(
@@ -1266,7 +1267,7 @@ rule CreateDailyDigest {
         status: pending
     )
     ensures: pending.each(n => n.email_status = digested)
-    ensures: user.next_digest_at = next_digest_time(user)    -- black box
+    ensures: user.next_digest_at = next_digest_time(user)    -- black box; uses digest_day_of_week
 }
 
 rule SendDigest {
