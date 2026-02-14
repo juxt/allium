@@ -1126,7 +1126,7 @@ actor AuthenticatedUser {
 }
 ```
 
-The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships.
+The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships. When an actor type is used in a `facing` clause, the binding variable has the entity type from the actor's `identified_by` expression. For example, `facing viewer: Interviewer` where `Interviewer` has `identified_by: User with role = interviewer` binds `viewer` as type `User`.
 
 When an actor's identity depends on a scope that varies per surface, the `identified_by` expression may use `context`, which binds to the surface's `context` entity at the point of use:
 
@@ -1467,5 +1467,5 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
-| **Precondition (surface `requires`)** | What the external party must contribute to the surface (data declarations, not boolean expressions). Distinct from rule preconditions. |
+| **Contribution (surface `requires`)** | Data the external party must supply to the surface (bare names, not boolean expressions). Distinct from rule preconditions. |
 | **Surface** | A boundary contract between two parties specifying what each side exposes, requires and provides |
