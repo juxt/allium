@@ -637,7 +637,7 @@ rule CreateProjectLimitReached {
     ensures: UserInformed(
         user: user,
         about: limit_reached,
-        with: {
+        data: {
             limit_type: projects,
             current: workspace.project_count,
             max: workspace.plan.max_projects
@@ -682,7 +682,7 @@ rule DowngradeBlocked {
     ensures: UserInformed(
         user: user,
         about: downgrade_blocked,
-        with: {
+        data: {
             reason: projects,
             current: workspace.project_count,
             limit: new_plan.max_projects

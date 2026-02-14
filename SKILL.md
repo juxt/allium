@@ -133,7 +133,7 @@ A `for` clause applies the rule body once per element in a collection:
 ```
 rule ProcessDigests {
     when: schedule: DigestSchedule.next_run_at <= now
-    for user in Users with notification_setting.digest_enabled = true:
+    for user in Users with notification_setting.digest_enabled:
         let settings = user.notification_setting
         ensures: DigestBatch.created(user: user, ...)
 }
@@ -178,7 +178,7 @@ surface InterviewerDashboard {
 
 Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `expects` (contributions from the external party), `provides` (available operations with optional when-guards), `invariant` (constraints that must hold), `guidance` (non-normative advice), `related` (inline panels), `navigates_to` (links to separate views), `timeout` (surface-scoped temporal triggers).
 
-The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, the `facing` clause may name a logical role without a formal declaration.
+The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, declare an actor type with a minimal `identified_by` expression.
 
 ### Surface-to-implementation contract
 

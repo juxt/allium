@@ -149,7 +149,7 @@ rule LoginAttemptWhileLocked {
     ensures: UserInformed(
         user: user,
         about: account_locked,
-        with: { unlocks_at: user.locked_until }
+        data: { unlocks_at: user.locked_until }
     )
 }
 
@@ -1436,19 +1436,19 @@ This pattern handles SaaS usage limits: different plans have different quotas, a
 entity Plan {
     name: String                    -- e.g., "free", "pro", "enterprise"
 
-    -- Limits (-1 = unlimited)
-    max_documents: Integer
-    max_storage_bytes: Integer
-    max_team_members: Integer
-    max_api_requests_per_day: Integer
+    -- Limits (null = unlimited)
+    max_documents: Integer?
+    max_storage_bytes: Integer?
+    max_team_members: Integer?
+    max_api_requests_per_day: Integer?
 
     -- Features
     features: Set<Feature>          -- domain type; define in your spec
 
     -- Derived
-    has_unlimited_documents: max_documents = -1
-    has_unlimited_storage: max_storage_bytes = -1
-    has_unlimited_members: max_team_members = -1
+    has_unlimited_documents: max_documents = null
+    has_unlimited_storage: max_storage_bytes = null
+    has_unlimited_members: max_team_members = null
 }
 
 entity Workspace {
@@ -1474,9 +1474,11 @@ entity WorkspaceUsage {
     api_requests_today: Integer
     next_reset_at: Timestamp
 
-    -- Derived
+    -- Derived (null when plan has no limit)
     api_requests_remaining:
         workspace.plan.max_api_requests_per_day - api_requests_today
+    has_api_quota: workspace.plan.max_api_requests_per_day != null
+    is_over_api_quota: has_api_quota and api_requests_remaining <= 0
 }
 
 entity UsageEvent {
@@ -1511,12 +1513,10 @@ default Plan pro = {
 
 default Plan enterprise = {
     name: "enterprise",
-    max_documents: -1,                  -- unlimited
-    max_storage_bytes: -1,              -- unlimited
-    max_team_members: -1,               -- unlimited
-    max_api_requests_per_day: -1,       -- unlimited
     features: { basic_editing, advanced_editing, api_access, integrations,
                 sso, audit_log, custom_branding }
+    -- max_documents, max_storage_bytes, max_team_members,
+    -- max_api_requests_per_day all null (unlimited)
 }
 
 ------------------------------------------------------------
@@ -1545,7 +1545,7 @@ rule CreateDocumentLimitReached {
     ensures: UserInformed(
         user: user,
         about: limit_reached,
-        with: {
+        data: {
             limit_type: documents,
             current: workspace.documents.count,
             max: workspace.plan.max_documents,
@@ -1585,7 +1585,7 @@ rule UseFeatureNotAvailable {
     ensures: UserInformed(
         user: user,
         about: feature_not_available,
-        with: {
+        data: {
             feature: feature,
             available_on: plans_with_feature(feature)
         }
@@ -1601,7 +1601,7 @@ rule RecordApiRequest {
 
     let usage = workspace.usage
 
-    requires: usage.api_requests_remaining > 0
+    requires: not usage.is_over_api_quota
 
     ensures: usage.api_requests_today = usage.api_requests_today + 1
     ensures: UsageEvent.created(
@@ -1617,7 +1617,7 @@ rule ApiRateLimitExceeded {
 
     let usage = workspace.usage
 
-    requires: usage.api_requests_remaining <= 0
+    requires: usage.is_over_api_quota
 
     ensures: ApiResponse.created(
         status: 429,
@@ -1694,7 +1694,7 @@ rule DowngradeBlocked {
     ensures: UserInformed(
         user: workspace.owner,
         about: downgrade_blocked,
-        with: {
+        data: {
             over_documents: over_documents,
             over_members: over_members,
             over_storage: over_storage
@@ -1751,7 +1751,7 @@ surface APIAccess {
 
     provides:
         ApiRequestReceived(consumer, endpoint)
-            when consumer.usage.api_requests_remaining > 0
+            when not consumer.usage.is_over_api_quota
 
     invariant: RateLimitEnforcement
         -- Requests beyond the daily limit receive HTTP 429 with
@@ -2195,7 +2195,7 @@ rule BlockSuspendedUserLogin {
     ensures: UserInformed(
         user: user,
         about: account_suspended,
-        with: { contact: "support@example.com" }
+        data: { contact: "support@example.com" }
     )
 }
 
@@ -2210,7 +2210,7 @@ rule NotifySessionExpiring {
     ensures: UserInformed(
         user: user,
         about: session_expiring,
-        with: { time_remaining: session.time_remaining }
+        data: { time_remaining: session.time_remaining }
     )
 }
 
@@ -2373,7 +2373,7 @@ rule HandlePaymentFailure {
     ensures: UserInformed(
         user: org.owner,
         about: payment_failed,
-        with: { reason: failure_reason }
+        data: { reason: failure_reason }
     )
 }
 

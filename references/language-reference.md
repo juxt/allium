@@ -405,7 +405,7 @@ A `for` clause applies the rule body once per element in a collection. The bindi
 ```
 rule ProcessDigests {
     when: schedule: DigestSchedule.next_run_at <= now
-    for user in Users with notification_setting.digest_enabled = true:
+    for user in Users with notification_setting.digest_enabled:
         let settings = user.notification_setting
         ensures: DigestBatch.created(user: user, ...)
 }
@@ -589,7 +589,7 @@ A `let` binding within an ensures block is visible to all subsequent statements 
 ensures: CandidateInformed(
     candidate: candidacy.candidate,
     about: slot_unavailable,
-    with: { available_alternatives: remaining_slots }
+    data: { available_alternatives: remaining_slots }
 )
 
 ensures: UserMentioned(user: mention.user, comment: comment, mentioned_by: author)
@@ -847,7 +847,7 @@ features: { basic_editing, api_access }
 -- Object literals (anonymous records, used in creation parameters and trigger emissions)
 data: { candidate: candidate, time: time }
 data: { slots: remaining_slots }
-with: { unlocks_at: user.locked_until }
+data: { unlocks_at: user.locked_until }
 ```
 
 Object literals are anonymous record types. They carry named fields but have no declared type. Use them for ad-hoc data in entity creation parameters and trigger emission payloads where defining a named type would add ceremony without clarity.
@@ -883,24 +883,20 @@ context assignment: SlotConfirmation with interviewer = viewer
 User with role = admin
 
 -- Iteration
-for user in Users with notification_setting.digest_enabled = true:
+for user in Users with notification_setting.digest_enabled:
 
 -- Surface let binding (filtering an entity collection)
 let comments = Comments with parent = parent and status = active
 ```
 
-`with` predicates use explicit comparisons. For boolean fields, write `with notification_setting.digest_enabled = true` rather than `with notification_setting.digest_enabled`. This contrasts with `requires`, which accepts bare boolean expressions: `requires: user.notification_setting.digest_enabled`.
-
-`with` predicates support the same expression language as `requires` clauses: field navigation (including chained), comparisons, arithmetic, boolean combinators (`and`, `or`, `not`) and `in` for set membership.
-
-Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... with: { data: data })`) is a parameter name, not the `with` keyword. The colon disambiguates.
+`with` predicates support the same expression language as `requires` clauses: field navigation (including chained), comparisons, arithmetic, boolean combinators (`and`, `or`, `not`), bare boolean expressions and `in` for set membership. `with notification_setting.digest_enabled` and `with notification_setting.digest_enabled = true` are equivalent.
 
 ### Entity collections
 
 The pluralised type name refers to all instances of that entity:
 
 ```
-for user in Users with notification_setting.digest_enabled = true:
+for user in Users with notification_setting.digest_enabled:
     ...
 ```
 
@@ -1151,7 +1147,7 @@ surface WorkspaceManagement {
 
 An actor declaration that uses `context` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `context` expecting a Workspace, the surface's context must bind a Workspace.
 
-The `facing` clause accepts either an actor type or an entity type directly. Use actor declarations when the boundary has specific identity requirements (e.g., `WorkspaceAdmin` requires admin membership). Use entity types directly when any instance of that entity can interact (e.g., `facing visitor: User` for a public-facing surface). For integration surfaces where the external party is code rather than a person, the `facing` clause may name a logical role without a formal actor declaration.
+The `facing` clause accepts either an actor type or an entity type directly. Use actor declarations when the boundary has specific identity requirements (e.g., `WorkspaceAdmin` requires admin membership). Use entity types directly when any instance of that entity can interact (e.g., `facing visitor: User` for a public-facing surface). For integration surfaces where the external party is code rather than a person, declare an actor type with a minimal `identified_by` expression rather than leaving the type undeclared.
 
 ### Surface structure
 
@@ -1322,7 +1318,6 @@ A valid Allium specification must satisfy:
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
 33. `for` iterations must iterate over collection-typed fields or bindings and are valid in any block scope (including `exposes`, `provides`, `ensures`, rule-level `for` clauses and surface `let` bindings)
-34. _(removed)_
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1334,7 +1329,6 @@ The checker should warn (but not error) on:
 - Surfaces that reference fields not used by any rule (may indicate dead code)
 - Items in `provides` with `when` conditions that can never be true
 - Actor declarations that are never used in any surface
-- _(removed)_
 - Rules whose ensures creates an entity for a parent, where sibling rules on the same parent don't guard against that entity's existence
 - Surface `provides` when-guards weaker than the corresponding rule's requires
 - Rules with the same trigger and overlapping preconditions (spec ambiguity)
@@ -1359,7 +1353,7 @@ let request = FeedbackRequest{interview, interviewer}
 ensures: Button.displayed(label: "Confirm", onClick: ...)
 
 -- Good
-ensures: CandidateInformed(about: options_available, with: { slots: slots })
+ensures: CandidateInformed(about: options_available, data: { slots: slots })
 ```
 
 **Algorithm in rules:**
@@ -1416,6 +1410,27 @@ status: draft | pending | active | paused | resumed | completed |
 -- Good
 status: pending | active | completed | cancelled
 is_archived: Boolean
+```
+
+**`becomes` doesn't fire on creation:**
+```
+-- Bad: won't fire when Interview is created with status = scheduled
+rule NotifyOnScheduled {
+    when: interview: Interview.status becomes scheduled
+    ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
+}
+
+-- Good: handle creation and transition separately
+rule NotifyOnScheduled {
+    when: interview: Interview.status becomes scheduled
+    ensures: Email.created(to: interview.candidate.email, template: interview_rescheduled)
+}
+
+rule NotifyOnCreatedScheduled {
+    when: interview: Interview.created
+    requires: interview.status = scheduled
+    ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
+}
 ```
 
 **Magic numbers in rules:**
