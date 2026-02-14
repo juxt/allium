@@ -150,7 +150,7 @@ Ensures clauses have four forms:
 
 Entity creation uses `.created()` exclusively. Domain meaning lives in entity names and rule names, not in creation verbs.
 
-In state change assignments, the right-hand expression references pre-rule field values. Conditions within ensures blocks (`if` guards, creation parameters) reference the resulting state.
+In state change assignments, the right-hand expression references pre-rule field values. Conditions within ensures blocks (`if` guards, creation parameters, trigger emission parameters) reference the resulting state.
 
 ### Surface
 

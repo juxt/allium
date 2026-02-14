@@ -525,7 +525,7 @@ for _ in items: Counted(batch)
 
 Postconditions describe what becomes true. They are declarative assertions about the resulting state, not imperative commands.
 
-In state change assignments (`entity.field = expression`), the expression on the right references pre-rule field values. This avoids circular definitions: `user.count = user.count + 1` means the resulting count equals the original count plus one. Conditions within ensures blocks (`if` guards, creation parameters) reference the resulting state as defined by the state changes. A `let` binding within an ensures block introduces a name visible to all subsequent statements in that block.
+In state change assignments (`entity.field = expression`), the expression on the right references pre-rule field values. This avoids circular definitions: `user.count = user.count + 1` means the resulting count equals the original count plus one. Conditions within ensures blocks (`if` guards, creation parameters, trigger emission parameters) reference the resulting state as defined by the state changes. A `let` binding within an ensures block introduces a name visible to all subsequent statements in that block.
 
 Worked example: suppose `account.balance` is 100 before the rule fires.
 
@@ -883,10 +883,10 @@ context assignment: SlotConfirmation with interviewer = viewer
 User with role = admin
 
 -- Iteration
-for user in Users with digest_enabled = true:
+for user in Users with notification_setting.digest_enabled = true:
 ```
 
-`with` predicates use explicit comparisons. For boolean fields, write `with digest_enabled = true` rather than `with digest_enabled`. This contrasts with `requires`, which accepts bare boolean expressions: `requires: user.digest_enabled`.
+`with` predicates use explicit comparisons. For boolean fields, write `with notification_setting.digest_enabled = true` rather than `with notification_setting.digest_enabled`. This contrasts with `requires`, which accepts bare boolean expressions: `requires: user.notification_setting.digest_enabled`.
 
 `with` predicates support the same expression language as `requires` clauses: field navigation (including chained), comparisons, arithmetic, boolean combinators (`and`, `or`, `not`) and `in` for set membership.
 
@@ -897,7 +897,7 @@ Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... 
 The pluralised type name refers to all instances of that entity:
 
 ```
-for user in Users with digest_enabled = true:
+for user in Users with notification_setting.digest_enabled = true:
     ...
 ```
 
@@ -918,10 +918,14 @@ deferred SlotRecovery.initiate          -- see: slot-recovery.allium
 
 This allows the main specification to remain succinct while acknowledging that detail exists elsewhere.
 
-Deferred specifications are invoked at call sites using dot notation:
+Deferred specifications are invoked at call sites using dot notation. They can appear as standalone ensures clauses or as expressions that return a value:
 
 ```
+-- Standalone invocation (the deferred spec handles the outcome)
 ensures: InterviewerMatching.suggest(candidacy)
+
+-- Expression usage (the deferred spec returns a value)
+ensures: OnCallPaged(team: EscalationPolicy.at_level(level), priority: immediate)
 ```
 
 Unlike black box functions, which model opaque external computations, deferred specifications represent Allium logic that is fully specified elsewhere. The deferred declaration signals that the detail exists and is maintained separately.
@@ -1312,7 +1316,7 @@ A valid Allium specification must satisfy:
 30. All surfaces referenced in `related`/`navigates_to` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides` and rule-level `for` clauses)
+33. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides`, `ensures` and rule-level `for` clauses)
 34. _(removed)_
 
 The checker should warn (but not error) on:
