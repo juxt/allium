@@ -179,7 +179,7 @@ surface InterviewerDashboard {
 }
 ```
 
-Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `expects` (contributions from the external party), `provides` (available operations with optional when-guards), `guarantee` (constraints that must hold), `guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (surface-scoped temporal triggers).
+Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `provides` (available operations with optional when-guards), `guarantee` (constraints that must hold), `guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (surface-scoped temporal triggers).
 
 The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, declare an actor type with a minimal `identified_by` expression. Actors that reference `within` in their `identified_by` expression must declare the expected context type: `within: Workspace`.
 

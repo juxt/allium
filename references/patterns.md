@@ -262,10 +262,6 @@ actor AuthenticatedUser {
 surface Authentication {
     facing visitor: User
 
-    expects:
-        email
-        password
-
     provides:
         UserLogsIn(email, password)
         UserRegisters(email, password)
@@ -287,9 +283,6 @@ surface PasswordReset {
     exposes:
         token.is_valid
         token.expires_at
-
-    expects:
-        new_password when token.is_valid
 
     provides:
         UserResetsPassword(token, new_password)
@@ -1757,9 +1750,6 @@ surface APIAccess {
     exposes:
         consumer.usage.api_requests_remaining
         consumer.plan.max_api_requests_per_day
-
-    expects:
-        api_key
 
     provides:
         ApiRequestReceived(consumer, endpoint)

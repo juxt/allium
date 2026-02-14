@@ -83,7 +83,7 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `expects`, `related`, `timeout`, `guarantee` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `related`, `timeout`, `guarantee` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
@@ -1103,7 +1103,7 @@ External entities in one spec may be internal entities in another. The boundary 
 
 ## Surfaces
 
-A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes, expects and provides.
+A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes and provides.
 
 Surfaces serve two purposes:
 - **Documentation**: Capture expectations about what each party sees, must contribute and can use
@@ -1171,10 +1171,6 @@ surface SurfaceName {
         item.field [when condition]
         ...
 
-    expects:
-        contribution [when condition]
-        ...
-
     provides:
         Action(party, item, ...) [when condition]
         ...
@@ -1199,14 +1195,11 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `context` | What entity or scope this surface applies to (one surface instance per matching entity; absent when no entity matches) |
 | `let` | Local bindings, same as in rules |
 | `exposes` | Visible data (supports `for` iteration over collections) |
-| `expects` | What the external party must contribute (surface-wide data the party must supply) |
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Associated surfaces reachable from this one; the parenthesised expression evaluates to the entity instance that the target surface's `context` clause binds to, and its type must match the target surface's context type |
 | `timeout` | Surface-scoped temporal triggers |
-
-Each entry in surface `expects` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`).
 
 ### Examples
 
@@ -1324,8 +1317,6 @@ A valid Allium specification must satisfy:
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
 33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
-34. Every name in `expects` must appear as a parameter name in at least one `provides` entry in the same surface
-35. `expects` names that appear in multiple `provides` entries must have the same parameter type across all entries; conflicting types make the surface contract ill-defined
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1344,6 +1335,7 @@ The checker should warn (but not error) on:
 - Actor `identified_by` expressions that are trivially always-true or always-false
 - Rules where all ensures clauses are conditional and at least one execution path produces no effects
 - Temporal triggers on optional fields (trigger will not fire when the field is null)
+- Comparing fields with different inline enum types across entities (may indicate unintended structural comparison; use a named enum to share values explicitly)
 
 ---
 
@@ -1499,5 +1491,4 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
-| **`expects`** | Surface clause declaring data the external party must supply (bare names, not boolean expressions) |
-| **Surface** | A boundary contract between two parties specifying what each side exposes, expects and provides |
+| **Surface** | A boundary contract between two parties specifying what each side exposes and provides |
