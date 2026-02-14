@@ -434,7 +434,7 @@ rule ProcessDigests {
 
 The `where` keyword filters the collection, consistent with projection syntax. The indented body contains the rule's `let`, `requires` and `ensures` clauses scoped to each element.
 
-This is the same `for x in collection:` construct used in ensures blocks and surfaces. The only difference is scope: at rule level it wraps the entire rule body.
+This is the same `for x in collection:` construct used in ensures blocks and surfaces. The body inherits the constraints of its enclosing context: at rule level it wraps `let`, `requires` and `ensures` clauses; inside an ensures block it wraps postconditions (state changes, entity creation, trigger emissions, removal assertions); inside a surface it wraps the items permitted by the enclosing clause (`exposes`, `provides` or `related`).
 
 ### Multiple rules for the same trigger
 
@@ -1391,6 +1391,7 @@ The checker should warn (but not error) on:
 - Temporal triggers on optional fields (trigger will not fire when the field is null)
 - Surfaces that use a raw entity type in `facing` when actor declarations exist for that entity type (may indicate a missing access restriction)
 - `transitions_to` triggers on values that entities can be created with (the rule will not fire on creation; consider `becomes` if the rule should also fire on creation)
+- Multiple fields on the same entity with identical inline enum literals (suggests extraction to a named enum; will error if the fields are later compared)
 
 ---
 
