@@ -258,7 +258,7 @@ actor AuthenticatedUser {
 surface Authentication {
     facing visitor: User
 
-    requires:
+    expects:
         email
         password
 
@@ -284,7 +284,7 @@ surface PasswordReset {
         token.is_valid
         token.expires_at
 
-    requires:
+    expects:
         new_password when token.is_valid
 
     provides:
@@ -1746,7 +1746,7 @@ surface APIAccess {
         consumer.usage.api_requests_remaining
         consumer.plan.max_api_requests_per_day
 
-    requires:
+    expects:
         api_key
 
     provides:

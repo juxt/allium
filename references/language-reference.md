@@ -83,7 +83,7 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `requires` (in surfaces), `related`, `navigates_to`, `timeout` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `expects`, `related`, `navigates_to`, `timeout` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
@@ -1100,7 +1100,7 @@ External entities in one spec may be internal entities in another. The boundary 
 
 ## Surfaces
 
-A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes, requires and provides.
+A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes, expects and provides.
 
 Surfaces serve two purposes:
 - **Documentation**: Capture expectations about what each party sees, must contribute and can use
@@ -1165,7 +1165,7 @@ surface SurfaceName {
         item.field [when condition]
         ...
 
-    requires:
+    expects:
         contribution [when condition]
         ...
 
@@ -1196,7 +1196,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `context` | What entity or scope this surface applies to (one surface instance per matching entity; absent when no entity matches) |
 | `let` | Local bindings, same as in rules |
 | `exposes` | Visible data (supports `for` iteration over collections) |
-| `requires` | What the external party must contribute (surface-wide data the party must supply) |
+| `expects` | What the external party must contribute (surface-wide data the party must supply) |
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `invariant` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
@@ -1204,7 +1204,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `navigates_to` | Links to separate views |
 | `timeout` | Surface-scoped temporal triggers |
 
-Each entry in surface `requires` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`). This is distinct from rule `requires`, which uses boolean expressions as preconditions.
+Each entry in surface `expects` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`).
 
 ### Examples
 
@@ -1467,5 +1467,5 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
-| **Contribution (surface `requires`)** | Data the external party must supply to the surface (bare names, not boolean expressions). Distinct from rule preconditions. |
-| **Surface** | A boundary contract between two parties specifying what each side exposes, requires and provides |
+| **Contribution (surface `expects`)** | Data the external party must supply to the surface (bare names, not boolean expressions) |
+| **Surface** | A boundary contract between two parties specifying what each side exposes, expects and provides |
