@@ -908,18 +908,24 @@ Black box functions are pure (no side effects) and deterministic for the same in
 
 ### The `with` and `where` keywords
 
-Both keywords apply a predicate to select a subset. They differ in what they operate on: `with` defines which entities are related; `where` refines which of those you see.
+`with` declares how entities are connected. `where` selects from those connections.
 
-- **`with`** appears in relationship declarations. The input is the universe of all instances of an entity type and the predicate defines the structural link. A `with` clause must reference `this`.
-- **`where`** appears in projections, iteration, surface context, actor identification and surface `let` bindings. The input is an existing collection or entity type and the predicate filters it. A `where` clause must not reference `this`.
+A relationship declaration says "these are the InterviewSlots that belong to this Candidacy". A projection says "of those slots, show me the confirmed ones":
 
 ```
--- Relationships (with)
+-- Relationship: declares which InterviewSlots belong to this Candidacy
 slots: InterviewSlot with candidacy = this
 
--- Projections (where)
-slots where status = confirmed
+-- Projection: of those slots, keep the confirmed ones
+confirmed_slots: slots where status = confirmed
+```
 
+Because `with` defines a relationship from the universe of all instances, it needs `this` as an anchor — the predicate must reference the enclosing entity to establish the link. Because `where` filters an already-scoped collection, `this` would be meaningless and must not appear.
+
+- **`with`** appears in relationship declarations. The predicate defines the structural link and must reference `this`.
+- **`where`** appears in projections, iteration, surface context, actor identification and surface `let` bindings. The predicate filters an existing collection and must not reference `this`.
+
+```
 -- Surface context (where)
 context assignment: SlotConfirmation where interviewer = viewer
 
