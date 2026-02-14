@@ -83,7 +83,7 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `requires` (in surfaces) and `related` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `requires` (in surfaces), `related`, `navigates_to`, `timeout` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
@@ -403,7 +403,7 @@ Place `let` bindings where they make the rule most readable, typically just befo
 A `for` clause applies the rule body once per element in a collection. The binding variable is available in all subsequent clauses.
 
 ```
-rule CreateDailyDigest {
+rule ProcessDigests {
     when: schedule: DigestSchedule.next_run_at <= now
     for user in Users with notification_setting.digest_enabled = true:
         let settings = user.notification_setting
@@ -1154,7 +1154,7 @@ The `facing` clause accepts either an actor type or an entity type directly. Use
 
 ```
 surface SurfaceName {
-    facing party: ActorType [with predicate]
+    facing party: ActorType
     context item: EntityType [with predicate]
     let binding = expression
 

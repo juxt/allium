@@ -131,7 +131,7 @@ All entity-scoped triggers use explicit `var: Type` binding. Use `_` as a discar
 A `for` clause applies the rule body once per element in a collection:
 
 ```
-rule CreateDailyDigest {
+rule ProcessDigests {
     when: schedule: DigestSchedule.next_run_at <= now
     for user in Users with notification_setting.digest_enabled = true:
         let settings = user.notification_setting
