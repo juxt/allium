@@ -986,7 +986,7 @@ For default entity instances (seed data, base configurations), use `default` dec
 
 ## Defaults
 
-Default declarations create named entity instances.
+Default declarations create named entity instances that exist unconditionally. They are available to all rules and surfaces without requiring creation by any rule.
 
 ```
 default InterviewType all_in_one = { name: "All in one", duration: 75.minutes }
@@ -1201,7 +1201,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
-| `related` | Associated surfaces reachable from this one; the parenthesised argument provides the `context` binding for the target surface |
+| `related` | Associated surfaces reachable from this one; the parenthesised expression evaluates to the entity instance that the target surface's `context` clause binds to, and its type must match the target surface's context type |
 | `timeout` | Surface-scoped temporal triggers |
 
 Each entry in surface `expects` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`).
@@ -1282,7 +1282,7 @@ A valid Allium specification must satisfy:
 3. All relationships reference valid entities (singular names)
 4. All rules have at least one trigger and at least one ensures clause
 5. All triggers are valid (external stimulus, state transition, state reached, entity creation, temporal, derived or chained)
-6. All rules sharing a trigger name must use the same parameter list. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
+6. All rules sharing a trigger name must use the same parameter count and positional types. Parameter binding names may differ between rules. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
 
 **State machine validity:**
 7. All status values are reachable via some rule
@@ -1318,7 +1318,7 @@ A valid Allium specification must satisfy:
 27. Types in `facing` clauses must be either a declared `actor` type or a valid entity type (internal, external or imported)
 28. All fields referenced in `exposes` must be reachable from bindings declared in the surface (`facing`, `context`, `let`), via relationships, or be declared types from imported specifications
 29. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
-30. All surfaces referenced in `related` must be defined
+30. All surfaces referenced in `related` must be defined, and the type of the parenthesised expression must match the target surface's `context` type
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
 33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
