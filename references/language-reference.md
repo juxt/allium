@@ -9,7 +9,7 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- use declarations (optional)
 
 ------------------------------------------------------------
--- Context
+-- Given
 ------------------------------------------------------------
 
 -- Entity instances this module operates on (optional)
@@ -83,7 +83,7 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `expects`, `related`, `navigates_to`, `timeout`, `guarantee` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `expects`, `related`, `timeout`, `guarantee` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
@@ -93,12 +93,12 @@ Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `e
 
 ---
 
-## Module context
+## Module given
 
-A `context` block declares the entity instances a module operates on. All rules in the module inherit these bindings.
+A `given` block declares the entity instances a module operates on. All rules in the module inherit these bindings.
 
 ```
-context {
+given {
     pipeline: HiringPipeline
     calendar: InterviewCalendar
 }
@@ -106,11 +106,11 @@ context {
 
 Rules then reference `pipeline.status`, `calendar.available_slots`, etc. without ambiguity about what they refer to.
 
-Not every module needs a context block. Rules scoped by triggers on domain entities (e.g., `when: invitation: Invitation.expires_at <= now`) get their entities from the trigger binding. Module context is for specs where rules operate on shared instances that exist once per module scope, such as a pipeline, a catalog or a processing engine.
+Not every module needs a `given` block. Rules scoped by triggers on domain entities (e.g., `when: invitation: Invitation.expires_at <= now`) get their entities from the trigger binding. `given` is for specs where rules operate on shared instances that exist once per module scope, such as a pipeline, a catalog or a processing engine.
 
-Context bindings must reference entity types declared in the same module or imported via `use`. Imported module instances are accessed via qualified names (`scheduling/calendar`) and do not need to appear in the local context block. Modules that operate only on imported instances may omit the context block entirely.
+`given` bindings must reference entity types declared in the same module or imported via `use`. Imported module instances are accessed via qualified names (`scheduling/calendar`) and do not need to appear in the local `given` block. Modules that operate only on imported instances may omit the `given` block entirely.
 
-This is distinct from surface context, which binds a parametric scope for a boundary contract (e.g., `context assignment: SlotConfirmation`).
+This is distinct from surface `context`, which binds a parametric scope for a boundary contract (e.g., `context assignment: SlotConfirmation`).
 
 ---
 
@@ -362,7 +362,7 @@ can_use_feature(f): f in plan.features
 has_permission(p): p in role.effective_permissions
 ```
 
-Parameters are locally scoped to the expression. Parameterised derived values cannot reference module context or global state; they operate only on the entity's own fields and their parameter. No side effects.
+Parameters are locally scoped to the expression. Parameterised derived values cannot reference module `given` bindings or global state; they operate only on the entity's own fields and their parameter. No side effects.
 
 ---
 
@@ -938,8 +938,8 @@ Unlike black box functions, which model opaque external computations, deferred s
 Capture unresolved design decisions:
 
 ```
-open_question "Admin ownership - should admins be assigned to specific roles?"
-open_question "Multiple interview types - how is type assigned to candidacy?"
+open question "Admin ownership - should admins be assigned to specific roles?"
+open question "Multiple interview types - how is type assigned to candidacy?"
 ```
 
 Open questions are surfaced by the specification checker as warnings, indicating the spec is incomplete.
@@ -1178,9 +1178,6 @@ surface SurfaceName {
         OtherSurface(item.relationship) [when condition]
         ...
 
-    navigates_to:
-        OtherSurface(item.nav) [when condition]
-
     timeout:
         RuleName when temporal_condition
 }
@@ -1198,8 +1195,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
-| `related` | Inline panels within the same view |
-| `navigates_to` | Links to separate views |
+| `related` | Associated surfaces reachable from this one |
 | `timeout` | Surface-scoped temporal triggers |
 
 Each entry in surface `expects` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`).
@@ -1302,10 +1298,10 @@ A valid Allium specification must satisfy:
 19. Discriminator field names are user-defined (e.g., `kind`, `node_type`), no reserved name
 20. The `variant` keyword is required for variant declarations
 
-**Context validity:**
-21. Context bindings must reference entity types declared in the module or imported via `use`
-22. Each binding name must be unique within the context block
-23. Unqualified instance references in rules must resolve to a context binding, a `let` binding, a trigger parameter or a default entity instance
+**Given validity:**
+21. `given` bindings must reference entity types declared in the module or imported via `use`
+22. Each binding name must be unique within the `given` block
+23. Unqualified instance references in rules must resolve to a `given` binding, a `let` binding, a trigger parameter or a default entity instance
 
 **Config validity:**
 24. Config parameters must have explicit types and default values
@@ -1316,10 +1312,10 @@ A valid Allium specification must satisfy:
 27. Types in `facing` clauses must be either a declared `actor` type or a valid entity type (internal, external or imported)
 28. All fields referenced in `exposes` must be reachable from bindings declared in the surface (`facing`, `context`, `let`), via relationships, or be declared types from imported specifications
 29. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
-30. All surfaces referenced in `related`/`navigates_to` must be defined
+30. All surfaces referenced in `related` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `ensures`, `related`, `navigates_to`)
+33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1452,8 +1448,8 @@ ensures: deadline = now + config.confirmation_deadline
 
 | Term | Definition |
 |------|------------|
-| **Context (module)** | Entity instances a module operates on; inherited by all rules in the module |
-| **Context (surface)** | Parametric scope binding for a boundary contract |
+| **Given (module)** | Entity instances a module operates on, declared with `given { ... }`; inherited by all rules in the module |
+| **Context (surface)** | Parametric scope binding for a boundary contract, declared with `context` inside a surface |
 | **Entity** | A domain concept with identity and lifecycle |
 | **Value** | Structured data without identity, compared by structure |
 | **Sum Type** | Entity constrained to exactly one of several variants via a discriminator field |
