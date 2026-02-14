@@ -336,14 +336,9 @@ This pattern implements hierarchical roles where higher roles inherit permission
 -- Entities
 ------------------------------------------------------------
 
-entity Permission {
-    name: String                    -- e.g., "documents.read", "documents.write"
-    description: String
-}
-
 entity Role {
     name: String                    -- e.g., "viewer", "editor", "admin"
-    permissions: Set<Permission>
+    permissions: Set<String>        -- e.g., { "documents.read", "documents.write" }
     inherits_from: Role?            -- optional parent role
 
     -- Derived: all permissions including inherited
@@ -496,6 +491,32 @@ rule LeaveWorkspace {
 }
 
 ------------------------------------------------------------
+-- Managing permissions on roles
+------------------------------------------------------------
+
+rule GrantPermission {
+    when: GrantPermission(actor, workspace, role, permission)
+
+    let actor_membership = WorkspaceMembership{user: actor, workspace: workspace}
+
+    requires: actor_membership.can_admin
+    requires: permission not in role.effective_permissions
+
+    ensures: role.permissions.add(permission)
+}
+
+rule RevokePermission {
+    when: RevokePermission(actor, workspace, role, permission)
+
+    let actor_membership = WorkspaceMembership{user: actor, workspace: workspace}
+
+    requires: actor_membership.can_admin
+    requires: permission in role.permissions    -- only direct, not inherited
+
+    ensures: role.permissions.remove(permission)
+}
+
+------------------------------------------------------------
 -- Using permissions in other rules
 ------------------------------------------------------------
 
@@ -594,7 +615,8 @@ surface WorkspaceDocuments {
 - Null-safe navigation (`inherits_from?.effective_permissions ?? {}`)
 - Join entity lookup (`WorkspaceMembership{user: actor, workspace: workspace}`)
 - Permission checks in `requires` clauses
-- Membership with `in` operator for set membership
+- String set membership with `in` operator
+- `.add()` and `.remove()` for set mutation in ensures clauses
 - `not exists` as an outcome (removes the entity)
 - Surfaces with role-based actors and permission-gated actions
 - `related` clause for cross-surface navigation
@@ -1975,6 +1997,7 @@ rule RemoveReaction {
 
     let reaction = CommentReaction{comment, user, emoji}
 
+    requires: comment.status = active
     requires: exists reaction
 
     ensures: not exists reaction
@@ -2462,7 +2485,7 @@ rule CancelSubscription {
 - Configuration blocks for external specs (`oauth/config { ... }`)
 - Responding to external triggers (`when: oauth/AuthenticationSucceeded(...)`)
 - Trigger emissions for cross-pattern notification (`UserInformed(...)`)
-- Responding to external state transitions (`when: stripe/Subscription.status becomes cancelled`)
+- Responding to external state transitions (`when: session: oauth/Session.status becomes expiring`)
 - Using external entities (`oauth/Session`, `stripe/Customer`)
 - Linking application entities to external entities (`stripe_customer: stripe/Customer?`)
 - Triggering external actions (`ensures: stripe/CreateSubscription(...)`)

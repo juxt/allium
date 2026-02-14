@@ -527,6 +527,17 @@ Postconditions describe what becomes true. They are declarative assertions about
 
 In state change assignments (`entity.field = expression`), the expression on the right references pre-rule field values. This avoids circular definitions: `user.count = user.count + 1` means the resulting count equals the original count plus one. Conditions within ensures blocks (`if` guards, creation parameters) reference the resulting state as defined by the state changes. A `let` binding within an ensures block introduces a name visible to all subsequent statements in that block.
 
+Worked example: suppose `account.balance` is 100 before the rule fires.
+
+```
+ensures: account.balance = account.balance + 50       -- RHS reads pre-rule value: 100 + 50 = 150
+ensures:
+    if account.balance > 120:                          -- condition reads resulting state: 150 > 120, true
+        Notification.created(account: account, type: high_balance)
+```
+
+The assignment reads 100 (the pre-rule value). The `if` guard reads 150 (the resulting state after the assignment).
+
 Ensures clauses have four forms:
 
 **State changes** — modify an existing entity's fields:
@@ -877,6 +888,8 @@ for user in Users with digest_enabled = true:
 
 `with` predicates use explicit comparisons. For boolean fields, write `with digest_enabled = true` rather than `with digest_enabled`. This contrasts with `requires`, which accepts bare boolean expressions: `requires: user.digest_enabled`.
 
+`with` predicates support the same expression language as `requires` clauses: field navigation (including chained), comparisons, arithmetic, boolean combinators (`and`, `or`, `not`) and `in` for set membership.
+
 Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... with: { data: data })`) is a parameter name, not the `with` keyword. The colon disambiguates.
 
 ### Entity collections
@@ -904,6 +917,14 @@ deferred SlotRecovery.initiate          -- see: slot-recovery.allium
 ```
 
 This allows the main specification to remain succinct while acknowledging that detail exists elsewhere.
+
+Deferred specifications are invoked at call sites using dot notation:
+
+```
+ensures: InterviewerMatching.suggest(candidacy)
+```
+
+Unlike black box functions, which model opaque external computations, deferred specifications represent Allium logic that is fully specified elsewhere. The deferred declaration signals that the detail exists and is maintained separately.
 
 ---
 
@@ -1165,11 +1186,11 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | Clause | Purpose |
 |--------|---------|
 | `facing` | Who is on the other side of the boundary |
-| `context` | What entity or scope this surface applies to |
+| `context` | What entity or scope this surface applies to (one surface instance per matching entity; absent when no entity matches) |
 | `let` | Local bindings, same as in rules |
 | `exposes` | Visible data (supports `for` iteration over collections) |
-| `requires` | What the external party must contribute |
-| `provides` | Available operations with optional when-guards |
+| `requires` | What the external party must contribute (surface-wide data the party must supply) |
+| `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `invariant` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Inline panels within the same view |
@@ -1252,7 +1273,7 @@ A valid Allium specification must satisfy:
 3. All relationships reference valid entities (singular names)
 4. All rules have at least one trigger and at least one ensures clause
 5. All triggers are valid (external stimulus, state transition, entity creation, temporal, derived or chained)
-6. All rules sharing a trigger name must use the same parameter list
+6. All rules sharing a trigger name must use the same parameter list. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
 
 **State machine validity:**
 7. All status values are reachable via some rule
@@ -1292,7 +1313,7 @@ A valid Allium specification must satisfy:
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
 33. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides` and rule-level `for` clauses)
-34. Named `requires` and `provides` blocks must have unique names within the surface
+34. _(removed)_
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1304,7 +1325,7 @@ The checker should warn (but not error) on:
 - Surfaces that reference fields not used by any rule (may indicate dead code)
 - Items in `provides` with `when` conditions that can never be true
 - Actor declarations that are never used in any surface
-- Named `requires` blocks with no corresponding deferred specification or implementation
+- _(removed)_
 - Rules whose ensures creates an entity for a parent, where sibling rules on the same parent don't guard against that entity's existence
 - Surface `provides` when-guards weaker than the corresponding rule's requires
 - Rules with the same trigger and overlapping preconditions (spec ambiguity)
