@@ -462,6 +462,8 @@ when: interview: Interview.all_feedback_in
 when: slot: InterviewSlot.is_valid
 ```
 
+Derived condition triggers fire when the value transitions from false to true, the same semantics as temporal triggers. If the derived value could revert to false and become true again, include a `requires` clause to prevent re-firing, just as with temporal triggers.
+
 **Entity creation** — fires when a new entity is created:
 ```
 when: batch: DigestBatch.created
@@ -867,7 +869,7 @@ Black box functions are pure (no side effects) and deterministic for the same in
 
 ### The `with` keyword
 
-`with` filters a collection or type by a predicate. It appears in relationships, projections, surface context, actor identification, iteration and surface `let` bindings.
+`with` applies a predicate to select a subset. It appears in relationships, projections, surface context, actor identification, iteration and surface `let` bindings. The underlying operation is always predicated subsetting, but the input differs: in a relationship declaration (`InterviewSlot with candidacy = this`), the input is the universe of all instances of that entity type and the predicate defines the structural link. In all other positions (projections, iteration, surface context, surface `let` bindings), the input is an existing collection and the predicate filters it.
 
 ```
 -- Relationships
@@ -1124,28 +1126,28 @@ actor AuthenticatedUser {
 
 The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships. When an actor type is used in a `facing` clause, the binding variable has the entity type from the actor's `identified_by` expression. For example, `facing viewer: Interviewer` where `Interviewer` has `identified_by: User with role = interviewer` binds `viewer` as type `User`.
 
-When an actor's identity depends on a scope that varies per surface, the `identified_by` expression may use `context`, which binds to the surface's `context` entity at the point of use:
+When an actor's identity depends on a scope that varies per surface, the `identified_by` expression may use `scope`, which binds to the surface's `context` entity at the point of use:
 
 ```
 actor WorkspaceAdmin {
-    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin = true
+    identified_by: User with WorkspaceMembership{user: this, workspace: scope}.can_admin = true
 }
 ```
 
 Two keywords are available inside `identified_by`:
 
 - `this` — the entity instance being tested (here, the User). Same semantics as `this` in entity declarations.
-- `context` — the entity bound by the `context` clause of the surface that uses this actor. Each surface provides its own binding.
+- `scope` — the entity bound by the `context` clause of the surface that uses this actor. Each surface provides its own binding.
 
 ```
 surface WorkspaceManagement {
     facing admin: WorkspaceAdmin
-    context workspace: Workspace    -- 'context' in WorkspaceAdmin resolves to this workspace
+    context workspace: Workspace    -- 'scope' in WorkspaceAdmin resolves to this workspace
     ...
 }
 ```
 
-An actor declaration that uses `context` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `context` expecting a Workspace, the surface's context must bind a Workspace.
+An actor declaration that uses `scope` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `scope` expecting a Workspace, the surface's context must bind a Workspace.
 
 The `facing` clause accepts either an actor type or an entity type directly. Use actor declarations when the boundary has specific identity requirements (e.g., `WorkspaceAdmin` requires admin membership). Use entity types directly when any instance of that entity can interact (e.g., `facing visitor: User` for a public-facing surface). For integration surfaces where the external party is code rather than a person, declare an actor type with a minimal `identified_by` expression rather than leaving the type undeclared.
 
@@ -1450,7 +1452,6 @@ ensures: deadline = now + config.confirmation_deadline
 
 | Term | Definition |
 |------|------------|
-| **`context` (actor)** | Keyword in `identified_by` that resolves to the surface's context entity at the point of use |
 | **Context (module)** | Entity instances a module operates on; inherited by all rules in the module |
 | **Context (surface)** | Parametric scope binding for a boundary contract |
 | **Entity** | A domain concept with identity and lifecycle |
@@ -1477,6 +1478,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **Open Question** | An unresolved design decision |
 | **Entity Collection** | Pluralised type name referring to all instances of that entity (e.g., `Users` for all `User` instances) |
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
+| **`scope`** | Keyword in actor `identified_by` expressions that resolves to the surface's context entity at the point of use |
 | **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
 | **Enum** | A named set of values, reusable across fields and entities |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
