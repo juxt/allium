@@ -605,7 +605,7 @@ ensures: UserMentioned(user: mention.user, comment: comment, mentioned_by: autho
 ensures: FeatureUsed(workspace: workspace, feature: feature, by: user)
 ```
 
-Trigger emissions are observable outcomes, not entity creation. They have no `.created()` call and are referenced by other rules' `when` clauses.
+Trigger emissions are observable outcomes, not entity creation. They have no `.created()` call and are referenced by other rules' `when` clauses. Parameter values follow normal expression resolution: bound names are resolved first, then enum literals if the parameter has a declared type on the receiving rule. Bare identifiers that resolve to neither a binding nor an enum literal are a checker warning.
 
 **Entity removal:**
 ```
@@ -1205,7 +1205,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
-| `related` | Associated surfaces reachable from this one |
+| `related` | Associated surfaces reachable from this one; the parenthesised argument provides the `context` binding for the target surface |
 | `timeout` | Surface-scoped temporal triggers |
 
 Each entry in surface `expects` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`).
