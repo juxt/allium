@@ -47,8 +47,8 @@ entity Candidacy {
     slots: InterviewSlot with candidacy = this           -- one-to-many
 
     -- Projections
-    confirmed_slots: slots with status = confirmed
-    pending_slots: slots with status = pending
+    confirmed_slots: slots where status = confirmed
+    pending_slots: slots where status = pending
 
     -- Derived
     is_ready: confirmed_slots.count >= 3
@@ -109,7 +109,7 @@ Imported module instances are accessed via qualified names (`scheduling/calendar
 rule InvitationExpires {
     when: invitation: Invitation.expires_at <= now
     requires: invitation.status = pending
-    let remaining = invitation.proposed_slots with status != cancelled
+    let remaining = invitation.proposed_slots where status != cancelled
     ensures: invitation.status = expired
     ensures:
         for s in remaining:
@@ -136,7 +136,7 @@ A `for` clause applies the rule body once per element in a collection:
 ```
 rule ProcessDigests {
     when: schedule: DigestSchedule.next_run_at <= now
-    for user in Users with notification_setting.digest_enabled:
+    for user in Users where notification_setting.digest_enabled:
         let settings = user.notification_setting
         ensures: DigestBatch.created(user: user, ...)
 }
@@ -163,7 +163,7 @@ In state change assignments, the right-hand expression references pre-rule field
 surface InterviewerDashboard {
     facing viewer: Interviewer
 
-    context assignment: SlotConfirmation with interviewer = viewer
+    context assignment: SlotConfirmation where interviewer = viewer
 
     exposes:
         assignment.slot.time

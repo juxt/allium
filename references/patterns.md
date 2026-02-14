@@ -50,8 +50,8 @@ entity User {
     reset_tokens: PasswordResetToken with user = this
 
     -- Projections
-    active_sessions: sessions with status = active
-    pending_reset_tokens: reset_tokens with status = pending
+    active_sessions: sessions where status = active
+    pending_reset_tokens: reset_tokens where status = pending
 
     -- Derived
     is_locked: status = locked and locked_until > now
@@ -252,7 +252,7 @@ rule ResetTokenExpires {
 ------------------------------------------------------------
 
 actor AuthenticatedUser {
-    identified_by: User with active_sessions.count > 0
+    identified_by: User where active_sessions.count > 0
 }
 
 ------------------------------------------------------------
@@ -358,7 +358,7 @@ entity Workspace {
 
     -- Projections
     members: memberships -> user
-    admins: memberships with role.name = "admin" -> user
+    admins: memberships where role.name = "admin" -> user
 }
 
 entity Document {
@@ -548,17 +548,17 @@ rule ViewDocument {
 
 actor WorkspaceAdmin {
     within: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_admin = true
+    identified_by: User where WorkspaceMembership{user: this, workspace: within}.can_admin = true
 }
 
 actor WorkspaceEditor {
     within: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_write = true
+    identified_by: User where WorkspaceMembership{user: this, workspace: within}.can_write = true
 }
 
 actor WorkspaceViewer {
     within: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_read = true
+    identified_by: User where WorkspaceMembership{user: this, workspace: within}.can_read = true
 }
 
 ------------------------------------------------------------
@@ -649,8 +649,8 @@ entity Resource {
     invitations: ResourceInvitation with resource = this
 
     -- Projections
-    active_shares: shares with status = active
-    pending_invitations: invitations with status = pending
+    active_shares: shares where status = active
+    pending_invitations: invitations where status = pending
 }
 
 entity ResourceShare {
@@ -872,7 +872,7 @@ surface ResourceSharing {
 surface InvitationResponse {
     facing recipient: User
 
-    context invitation: ResourceInvitation with email = recipient.email
+    context invitation: ResourceInvitation where email = recipient.email
 
     exposes:
         invitation.resource.name
@@ -941,9 +941,9 @@ entity Workspace {
     all_documents: Document with workspace = this
 
     -- Projections (what users typically see)
-    documents: all_documents with status = active
-    deleted_documents: all_documents with status = deleted
-    restorable_documents: all_documents with can_restore = true
+    documents: all_documents where status = active
+    deleted_documents: all_documents where status = deleted
+    restorable_documents: all_documents where can_restore = true
 }
 
 ------------------------------------------------------------
@@ -1029,7 +1029,7 @@ rule RestoreAll {
 **Key language features shown:**
 - `status` field with clear lifecycle
 - Nullable timestamps (`deleted_at: Timestamp?`)
-- Projections filtering by status (`documents: all_documents with status = active`)
+- Projections filtering by status (`documents: all_documents where status = active`)
 - Derived values using config (`retention_expires_at: deleted_at + config.retention_period`)
 - Temporal trigger for automatic cleanup (`when: document: Document.retention_expires_at <= now`)
 - `not exists` for permanent removal, as distinct from soft delete
@@ -1060,9 +1060,9 @@ entity User {
     notifications: Notification with user = this
 
     -- Projections
-    unread_notifications: notifications with status = unread
-    pending_email_notifications: notifications with email_status = pending
-    recent_pending_notifications: notifications with email_status = pending and created_at >= now - 24.hours
+    unread_notifications: notifications where status = unread
+    pending_email_notifications: notifications where email_status = pending
+    recent_pending_notifications: notifications where email_status = pending and created_at >= now - 24.hours
 }
 
 entity NotificationSetting {
@@ -1371,7 +1371,7 @@ surface NotificationCentre {
 surface NotificationPreferences {
     facing user: User
 
-    context settings: NotificationSetting with user = user
+    context settings: NotificationSetting where user = user
 
     exposes:
         settings.email_on_mention
@@ -1712,7 +1712,7 @@ rule DowngradeBlocked {
 
 actor WorkspaceOwner {
     within: Workspace
-    identified_by: User with this = within.owner
+    identified_by: User where this = within.owner
 }
 
 ------------------------------------------------------------
@@ -1811,7 +1811,7 @@ entity Comment {
     reactions: CommentReaction with comment = this
 
     -- Projections
-    active_replies: replies with status = active
+    active_replies: replies where status = active
 
     -- Derived
     is_reply: reply_to != null
@@ -2027,7 +2027,7 @@ surface CommentThread {
 
     context parent: Commentable
 
-    let comments = Comments with parent = parent and status = active
+    let comments = Comments where parent = parent and status = active
 
     exposes:
         for comment in comments:
@@ -2120,7 +2120,7 @@ entity User {
     identities: oauth/Identity with user = this
 
     -- Projections
-    active_sessions: sessions with status = active
+    active_sessions: sessions where status = active
 
     -- Derived
     is_authenticated: active_sessions.count > 0

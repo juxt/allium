@@ -160,8 +160,8 @@ entity Candidacy {
     slots: InterviewSlot with candidacy = this
 
     -- Projections (filtered subsets)
-    confirmed_slots: slots with status = confirmed
-    pending_slots: slots with status = pending
+    confirmed_slots: slots where status = confirmed
+    pending_slots: slots where status = pending
 
     -- Derived (computed values)
     is_ready: confirmed_slots.count >= 3
@@ -335,13 +335,13 @@ Named filtered views of relationships:
 
 ```
 -- Simple status filter
-confirmed_slots: slots with status = confirmed
+confirmed_slots: slots where status = confirmed
 
 -- Multiple conditions
-active_requests: feedback_requests with status = pending and requested_at > cutoff
+active_requests: feedback_requests where status = pending and requested_at > cutoff
 
 -- Projection with mapping
-confirmed_interviewers: confirmations with status = confirmed -> interviewer
+confirmed_interviewers: confirmations where status = confirmed -> interviewer
 ```
 
 The `-> field` syntax extracts a field from each matching entity. When the extracted field is optional (`T?`), null values are excluded from the result: the projection produces `Set<T>`, not `Set<T?>`.
@@ -407,13 +407,13 @@ A `for` clause applies the rule body once per element in a collection. The bindi
 ```
 rule ProcessDigests {
     when: schedule: DigestSchedule.next_run_at <= now
-    for user in Users with notification_setting.digest_enabled:
+    for user in Users where notification_setting.digest_enabled:
         let settings = user.notification_setting
         ensures: DigestBatch.created(user: user, ...)
 }
 ```
 
-The `with` keyword filters the collection, consistent with projection syntax. The indented body contains the rule's `let`, `requires` and `ensures` clauses scoped to each element.
+The `where` keyword filters the collection, consistent with projection syntax. The indented body contains the rule's `let`, `requires` and `ensures` clauses scoped to each element.
 
 This is the same `for x in collection:` construct used in ensures blocks and surfaces. The only difference is scope: at rule level it wraps the entire rule body.
 
@@ -706,8 +706,8 @@ interviewers.any(i => i.can_solo)
 confirmations.all(c => c.status = confirmed)
 
 -- Filtering (in projections and expressions)
-slots with status = confirmed
-requests with status in {submitted, escalated}
+slots where status = confirmed
+requests where status in {submitted, escalated}
 
 -- Iteration (introduces a scope block)
 for slot in slots: ...
@@ -857,7 +857,7 @@ data: { slots: remaining_slots }
 data: { unlocks_at: user.locked_until }
 ```
 
-Object literals are anonymous record types. They carry named fields but have no declared type. Use them for ad-hoc data in entity creation parameters and trigger emission payloads where defining a named type would add ceremony without clarity.
+Object literals are anonymous record types. They carry named fields but have no declared type. Use them for ad-hoc data in entity creation parameters and trigger emission payloads where defining a named type would add ceremony without clarity. Object literals always require explicit `key: value` pairs; `{ x }` is a set literal containing `x`, not an object with shorthand.
 
 ### Black box functions
 
@@ -872,38 +872,41 @@ next_digest_time(user)                      -- black box: uses digest_day_of_wee
 
 Black box functions are pure (no side effects) and deterministic for the same inputs within a rule execution.
 
-### The `with` keyword
+### The `with` and `where` keywords
 
-`with` applies a predicate to select a subset. It appears in relationships, projections, surface context, actor identification, iteration and surface `let` bindings. The underlying operation is always predicated subsetting, but the input differs: in a relationship declaration (`InterviewSlot with candidacy = this`), the input is the universe of all instances of that entity type and the predicate defines the structural link. In all other positions (projections, iteration, surface context, surface `let` bindings), the input is an existing collection and the predicate filters it.
+Both keywords apply a predicate to select a subset. They differ in what they operate on:
+
+- **`with`** appears in relationship declarations. The input is the universe of all instances of an entity type and the predicate defines the structural link. A `with` clause must reference `this`.
+- **`where`** appears in projections, iteration, surface context, actor identification and surface `let` bindings. The input is an existing collection or entity type and the predicate filters it. A `where` clause must not reference `this`.
 
 ```
--- Relationships
+-- Relationships (with)
 slots: InterviewSlot with candidacy = this
 
--- Projections
-slots with status = confirmed
+-- Projections (where)
+slots where status = confirmed
 
--- Surface context
-context assignment: SlotConfirmation with interviewer = viewer
+-- Surface context (where)
+context assignment: SlotConfirmation where interviewer = viewer
 
--- Actor identification
-User with role = admin
+-- Actor identification (where)
+User where role = admin
 
--- Iteration
-for user in Users with notification_setting.digest_enabled:
+-- Iteration (where)
+for user in Users where notification_setting.digest_enabled:
 
--- Surface let binding (filtering an entity collection)
-let comments = Comments with parent = parent and status = active
+-- Surface let binding (where)
+let comments = Comments where parent = parent and status = active
 ```
 
-`with` predicates support the same expression language as `requires` clauses: field navigation (including chained), comparisons, arithmetic, boolean combinators (`and`, `or`, `not`), bare boolean expressions and `in` for set membership. `with notification_setting.digest_enabled` and `with notification_setting.digest_enabled = true` are equivalent.
+Both `with` and `where` predicates support the same expression language as `requires` clauses: field navigation (including chained), comparisons, arithmetic, boolean combinators (`and`, `or`, `not`), bare boolean expressions and `in` for set membership. `where notification_setting.digest_enabled` and `where notification_setting.digest_enabled = true` are equivalent.
 
 ### Entity collections
 
 The pluralised type name refers to all instances of that entity:
 
 ```
-for user in Users with notification_setting.digest_enabled:
+for user in Users where notification_setting.digest_enabled:
     ...
 ```
 
@@ -1064,7 +1067,7 @@ rule AuditLogin {
 rule NotifyOnFeedbackSubmitted {
     when: feedback/Request.status transitions_to submitted
     ensures:
-        for admin in Users with role = admin:
+        for admin in Users where role = admin:
             Notification.created(to: admin, template: feedback_received)
 }
 ```
@@ -1117,26 +1120,26 @@ When a surface has a specific external party, declare actor types:
 
 ```
 actor Interviewer {
-    identified_by: User with role = interviewer
+    identified_by: User where role = interviewer
 }
 
 actor Admin {
-    identified_by: User with role = admin
+    identified_by: User where role = admin
 }
 
 actor AuthenticatedUser {
-    identified_by: User with active_sessions.count > 0
+    identified_by: User where active_sessions.count > 0
 }
 ```
 
-The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships. When an actor type is used in a `facing` clause, the binding variable has the entity type from the actor's `identified_by` expression. For example, `facing viewer: Interviewer` where `Interviewer` has `identified_by: User with role = interviewer` binds `viewer` as type `User`.
+The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType where condition`, where the condition uses the entity's own fields, derived values and relationships. When an actor type is used in a `facing` clause, the binding variable has the entity type from the actor's `identified_by` expression. For example, `facing viewer: Interviewer` where `Interviewer` has `identified_by: User where role = interviewer` binds `viewer` as type `User`.
 
 When an actor's identity depends on a context that varies per surface, declare the expected context type with a `within` clause and reference it in `identified_by`:
 
 ```
 actor WorkspaceAdmin {
     within: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_admin = true
+    identified_by: User where WorkspaceMembership{user: this, workspace: within}.can_admin = true
 }
 ```
 
@@ -1164,7 +1167,7 @@ The `facing` clause accepts either an actor type or an entity type directly. Use
 ```
 surface SurfaceName {
     facing party: ActorType
-    context item: EntityType [with predicate]
+    context item: EntityType [where predicate]
     let binding = expression
 
     exposes:
@@ -1208,7 +1211,7 @@ surface InterviewerPendingAssignments {
     facing viewer: Interviewer
 
     context assignment: InterviewAssignment
-        with interviewer = viewer and status = pending
+        where interviewer = viewer and status = pending
 
     exposes:
         assignment.interview.scheduled_time
@@ -1225,7 +1228,7 @@ surface InterviewerPendingAssignments {
 surface InterviewerDashboard {
     facing viewer: Interviewer
 
-    context assignment: SlotConfirmation with interviewer = viewer
+    context assignment: SlotConfirmation where interviewer = viewer
 
     exposes:
         assignment.slot.time
@@ -1251,7 +1254,7 @@ surface InterviewerDashboard {
 surface InvitationView {
     facing recipient: Candidate
 
-    context invitation: ResourceInvitation with email = recipient.email
+    context invitation: ResourceInvitation where email = recipient.email
 
     exposes:
         invitation.resource.name
@@ -1283,7 +1286,7 @@ A valid Allium specification must satisfy:
 **Structural validity:**
 1. All referenced entities and values exist (internal, external or imported)
 2. All entity fields have defined types
-3. All relationships reference valid entities (singular names) and include a backreference to `this` in their `with` predicate. A `with` clause on an unbound type name (relationship declaration) must reference `this`; a `with` clause on a bound collection (projection, iteration, surface context, surface `let`) must not
+3. All relationships reference valid entities (singular names) and include a backreference to `this` in their `with` predicate. `with` is used for relationship declarations and must reference `this`; `where` is used for filtering (projections, iteration, surface context, actor identification, surface `let`) and must not reference `this`
 4. All rules have at least one trigger and at least one ensures clause
 5. All triggers are valid (external stimulus, state transition, state becomes, entity creation, temporal, derived or chained)
 6. All rules sharing a trigger name must use the same parameter count and positional types. Parameter binding names may differ between rules. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
