@@ -826,7 +826,7 @@ let preference =
 
 Each `else if` adds a branch. The final `else` provides a fallback.
 
-`exists` can also be used as a condition in `if` expressions, not just in `requires`:
+`exists` can also be used as a condition in `if` expressions, not just in `requires`. When `exists x` is used as an `if` condition, `x` is guaranteed non-null within the `if` body and can be accessed safely:
 
 ```
 ensures:
