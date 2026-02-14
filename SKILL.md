@@ -118,7 +118,8 @@ rule InvitationExpires {
 ### Trigger types
 
 - **External stimulus**: `when: CandidateSelectsSlot(invitation, slot)` — action from outside the system
-- **State transition**: `when: interview: Interview.status becomes scheduled` — entity changed state
+- **State transition**: `when: interview: Interview.status becomes scheduled` — entity changed state (transition only, not creation)
+- **State reached**: `when: interview: Interview.status reaches scheduled` — entity has this value, whether by creation or transition
 - **Temporal**: `when: invitation: Invitation.expires_at <= now` — time-based condition (always add a `requires` guard against re-firing)
 - **Derived condition**: `when: interview: Interview.all_feedback_in` — derived value becomes true
 - **Entity creation**: `when: batch: DigestBatch.created` — fires when a new entity is created
@@ -178,7 +179,7 @@ surface InterviewerDashboard {
 
 Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `expects` (contributions from the external party), `provides` (available operations with optional when-guards), `guarantee` (constraints that must hold), `guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (surface-scoped temporal triggers).
 
-The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, declare an actor type with a minimal `identified_by` expression.
+The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, declare an actor type with a minimal `identified_by` expression. Actors that reference `scope` in their `identified_by` expression must declare the expected scope type: `scope: Workspace`.
 
 ### Surface-to-implementation contract
 

@@ -440,6 +440,13 @@ when: confirmation: SlotConfirmation.status becomes confirmed
 
 The variable before the colon binds the entity that triggered the transition. `becomes` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields.
 
+**State reached** — entity has a value, whether by creation or transition:
+```
+when: interview: Interview.status reaches scheduled
+```
+
+`reaches` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. It is equivalent to writing a `becomes` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `reaches` when the rule should apply regardless of how the entity arrived at the state. Use `becomes` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
+
 **Temporal** — time-based condition:
 ```
 when: invitation: Invitation.expires_at <= now
@@ -1126,28 +1133,31 @@ actor AuthenticatedUser {
 
 The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships. When an actor type is used in a `facing` clause, the binding variable has the entity type from the actor's `identified_by` expression. For example, `facing viewer: Interviewer` where `Interviewer` has `identified_by: User with role = interviewer` binds `viewer` as type `User`.
 
-When an actor's identity depends on a scope that varies per surface, the `identified_by` expression may use `scope`, which binds to the surface's `context` entity at the point of use:
+When an actor's identity depends on a scope that varies per surface, declare the expected scope type with a `scope` clause and reference it in `identified_by`:
 
 ```
 actor WorkspaceAdmin {
+    scope: Workspace
     identified_by: User with WorkspaceMembership{user: this, workspace: scope}.can_admin = true
 }
 ```
 
+The `scope` clause declares the entity type this actor requires from the surface's `context` binding. This makes the dependency explicit: the checker can verify that any surface using this actor provides a compatible context.
+
 Two keywords are available inside `identified_by`:
 
 - `this` — the entity instance being tested (here, the User). Same semantics as `this` in entity declarations.
-- `scope` — the entity bound by the `context` clause of the surface that uses this actor. Each surface provides its own binding.
+- `scope` — the entity bound by the `context` clause of the surface that uses this actor, constrained to the type declared in the actor's `scope` clause.
 
 ```
 surface WorkspaceManagement {
     facing admin: WorkspaceAdmin
-    context workspace: Workspace    -- 'scope' in WorkspaceAdmin resolves to this workspace
+    context workspace: Workspace    -- matches WorkspaceAdmin's scope: Workspace
     ...
 }
 ```
 
-An actor declaration that uses `scope` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `scope` expecting a Workspace, the surface's context must bind a Workspace.
+An actor declaration with a `scope` clause can only be used in surfaces that declare a `context` clause. The surface's context type must match the actor's declared scope type.
 
 The `facing` clause accepts either an actor type or an entity type directly. Use actor declarations when the boundary has specific identity requirements (e.g., `WorkspaceAdmin` requires admin membership). Use entity types directly when any instance of that entity can interact (e.g., `facing visitor: User` for a public-facing surface). For integration surfaces where the external party is code rather than a person, declare an actor type with a minimal `identified_by` expression rather than leaving the type undeclared.
 
@@ -1275,7 +1285,7 @@ A valid Allium specification must satisfy:
 2. All entity fields have defined types
 3. All relationships reference valid entities (singular names)
 4. All rules have at least one trigger and at least one ensures clause
-5. All triggers are valid (external stimulus, state transition, entity creation, temporal, derived or chained)
+5. All triggers are valid (external stimulus, state transition, state reached, entity creation, temporal, derived or chained)
 6. All rules sharing a trigger name must use the same parameter list. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
 
 **State machine validity:**
@@ -1331,6 +1341,8 @@ The checker should warn (but not error) on:
 - Surface `provides` when-guards weaker than the corresponding rule's requires
 - Rules with the same trigger and overlapping preconditions (spec ambiguity)
 - Parameterised derived values that reference fields outside the entity (scoping violation)
+- Actor `identified_by` expressions that are trivially always-true or always-false
+- Rules where all ensures clauses are conditional and at least one execution path produces no effects
 
 ---
 
@@ -1418,8 +1430,14 @@ rule NotifyOnScheduled {
     ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
 }
 
--- Good: handle creation and transition separately
+-- Good: use reaches when the rule should fire regardless of how the state was reached
 rule NotifyOnScheduled {
+    when: interview: Interview.status reaches scheduled
+    ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
+}
+
+-- Also good: handle creation and transition separately when the response differs
+rule NotifyOnRescheduled {
     when: interview: Interview.status becomes scheduled
     ensures: Email.created(to: interview.candidate.email, template: interview_rescheduled)
 }
@@ -1474,7 +1492,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **Open Question** | An unresolved design decision |
 | **Entity Collection** | Pluralised type name referring to all instances of that entity (e.g., `Users` for all `User` instances) |
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
-| **`scope`** | Keyword in actor `identified_by` expressions that resolves to the surface's context entity at the point of use |
+| **`scope`** | Clause in actor declarations that names the required context type; also a keyword in `identified_by` expressions that resolves to the surface's context entity |
 | **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
 | **Enum** | A named set of values, reusable across fields and entities |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
