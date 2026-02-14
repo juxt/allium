@@ -1325,6 +1325,7 @@ A valid Allium specification must satisfy:
 32. `when` conditions must reference valid fields reachable from the party or context bindings
 33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
 34. Every name in `expects` must appear as a parameter name in at least one `provides` entry in the same surface
+35. `expects` names that appear in multiple `provides` entries must have the same parameter type across all entries; conflicting types make the surface contract ill-defined
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1343,7 +1344,6 @@ The checker should warn (but not error) on:
 - Actor `identified_by` expressions that are trivially always-true or always-false
 - Rules where all ensures clauses are conditional and at least one execution path produces no effects
 - Temporal triggers on optional fields (trigger will not fire when the field is null)
-- `expects` names that appear in multiple `provides` entries where the corresponding trigger parameters have different types
 
 ---
 
