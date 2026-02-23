@@ -8,19 +8,19 @@ Allium is a behavioural specification language for describing what systems shoul
 
 ## File structure
 
-Every `.allium` file starts with `-- allium: 1`. Sections follow a fixed order: given, external entities, value types, enumerations, entities and variants, config, defaults, rules, actor declarations, surfaces, deferred specifications, open questions. Omit empty sections. Section headers use comment dividers (`----`).
+Every `.allium` file starts with `-- allium: N` where N is the current language version. Sections follow a fixed order: use declarations, given, external entities, value types, enumerations, entities and variants, config, defaults, rules, actor declarations, surfaces, deferred specifications, open questions. Omit empty sections. Section headers use comment dividers (`----`).
 
 ## Syntax distinctions that trip up models
 
 **`with` vs `where`** — `with` declares relationships (`slots: InterviewSlot with candidacy = this`), `where` filters projections (`confirmed_slots: slots where status = confirmed`). Swapping them is a type error.
 
-**`transitions_to` vs `becomes`** — `transitions_to` changes a field value on an existing entity. `becomes` transforms an entity into a different variant. They are not interchangeable.
+**`transitions_to` vs `becomes`** — Both are trigger types. `transitions_to` fires when a field changes to a value from a different value, not on initial creation. `becomes` fires both on creation with that value and on transition to it. Use `becomes` when the rule should apply regardless of how the entity reached the state.
 
 **Capitalised vs lowercase pipe values** — Capitalised values are variant references (`kind: Branch | Leaf`), lowercase values are enum literals (`status: pending | active`). The validator checks that capitalised names correspond to `variant` declarations.
 
 **`.created()` for entity creation** — New entities are expressed as `EntityName.created(field: value)` in `ensures` clauses. Variant instances must use the variant name, not the base entity.
 
-**Temporal triggers need `requires` guards** — A trigger like `when: token: Token.expires_at <= now` fires continuously unless guarded. Always pair with `requires: token.status = active` or equivalent to prevent re-firing.
+**Temporal triggers need `requires` guards** — Temporal triggers fire once when the condition becomes true, but without a guard they can re-fire if the entity remains in a qualifying state. Always pair with `requires: token.status = active` or equivalent to prevent re-firing.
 
 **`now` evaluation model** — In derived values, `now` re-evaluates on each read (volatile). In `ensures` clauses, `now` is bound to rule execution timestamp (snapshot). In temporal triggers, `now` is the evaluation timestamp with fire-once semantics.
 
