@@ -53,7 +53,7 @@ At the top of a distilled spec, document what is included and excluded:
 --   - Greenhouse sync (use greenhouse library spec)
 ```
 
-The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the version number from the root Allium skill's `version` frontmatter field.
+The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the current language version number.
 
 ## Finding the right level of abstraction
 
@@ -855,7 +855,11 @@ If any remain, ask: "Would a stakeholder include this in a requirements doc?"
 - [ ] Cross-referenced related specs for conflicting terms
 - [ ] Duplicate models in code flagged as technical debt to remove
 
+## After distillation
+
+The extracted spec is a starting point. For targeted changes as requirements evolve, use the `tend` agent. For checking ongoing alignment between the spec and implementation, use the `weed` agent.
+
 ## References
 
-- [Language reference](../../references/language-reference.md) — full Allium syntax
-- [Worked examples](./references/worked-examples.md) — complete code-to-spec examples in Python, TypeScript and Java
+- [Language reference](../../references/language-reference.md), full Allium syntax
+- [Worked examples](./references/worked-examples.md), complete code-to-spec examples in Python, TypeScript and Java

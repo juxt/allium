@@ -38,7 +38,7 @@ Capture scope at the start of every spec:
 -- Dependencies: User entity defined in core.allium
 ```
 
-The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the version number from the root Allium skill's `version` frontmatter field.
+The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the current language version number.
 
 ## Finding the right level of abstraction
 
@@ -329,7 +329,11 @@ A comment noting that two terms are equivalent is not a resolution. It guarantee
 
 **After session.** Write up specification draft. Send for review. Note questions for next session.
 
+## After elicitation
+
+For targeted changes where you already know what you want, use the `tend` agent. For substantial additions that need structured discovery (new feature areas, complex entity relationships, unclear requirements), elicit is still the right tool even if a spec already exists. Checking alignment between specs and implementation belongs to the `weed` agent.
+
 ## References
 
-- [Language reference](../../references/language-reference.md) — full Allium syntax
-- [Recognising library spec opportunities](./references/library-spec-signals.md) — signals, questions and decision framework for identifying library specs during elicitation
+- [Language reference](../../references/language-reference.md), full Allium syntax
+- [Recognising library spec opportunities](./references/library-spec-signals.md), signals, questions and decision framework for identifying library specs during elicitation
