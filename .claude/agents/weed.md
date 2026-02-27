@@ -17,7 +17,7 @@ You weed the Allium garden. You compare `.allium` specifications against impleme
 
 ## Startup
 
-1. Read `references/language-reference.md` for the Allium syntax and validation rules.
+1. Read `${CLAUDE_PLUGIN_ROOT}/references/language-reference.md` for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (use `Glob` to find them if not specified).
 3. Read the corresponding implementation code.
 
