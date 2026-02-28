@@ -12,7 +12,7 @@ Other tools could import the parser as a library and work with the AST directly,
 
 The language reference defines structural validation rules that the parser should enforce. Referenced entities and fields must exist. Relationships must include a backreference. Rules need at least one trigger and one ensures clause. Status values must be reachable, and non-terminal states must have exits. Derived values cannot be circular. Sum type discriminators must match their variant declarations. Inline enum fields cannot be compared across entities. Surface `provides` entries must correspond to defined triggers. Config references must resolve. The parser reports errors for violations and warnings for softer checks: unused entities, temporal rules without guards, overlapping preconditions.
 
-Open questions: what language to write it in (TypeScript matches the user base and npm distribution, Rust gives fast cross-platform binaries).
+Implementation language: Rust. Hand-written recursive descent parser producing a typed AST covering the full language reference. Distributed as a native binary (homebrew, apt, GitHub releases) and as an MCP server for LLM tooling. The tree-sitter grammar in allium-tools continues to serve editor syntax highlighting separately. See `allium-tools/docs/project/parser-roadmap.md` for the detailed plan and tree-sitter grammar audit.
 
 ## 2. Property-based test generation
 
