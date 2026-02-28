@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/allium-check.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/.claude/hooks/allium-check.mjs\""
           }
         ]
       }
