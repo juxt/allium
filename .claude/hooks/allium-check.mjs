@@ -14,12 +14,19 @@ if (!filePath || extname(filePath) !== ".allium") {
 }
 
 try {
-  execFileSync("allium", ["check", filePath], { stdio: "inherit" });
+  execFileSync("allium", ["check", filePath], {
+    encoding: "utf-8",
+    stdio: "pipe",
+  });
 } catch (e) {
-  // If the binary isn't found, degrade gracefully
   if (e.code === "ENOENT") {
     process.exit(0);
   }
-  // Validation failed — non-zero exit feeds diagnostics back to the model
+  // Write checker diagnostics to stderr — the hook framework
+  // surfaces stderr to the model on non-zero exit.
+  const output = (e.stderr || "") + (e.stdout || "");
+  if (output) {
+    process.stderr.write(output);
+  }
   process.exit(1);
 }
