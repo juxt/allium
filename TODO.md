@@ -1,18 +1,10 @@
 # Tooling roadmap
 
-Allium has consistent syntax, naming conventions and validation rules, but nothing reads it except humans and LLMs. A parser changes that. Once a parser exists, deterministic tooling becomes possible: test generation, model checking, runtime validation, static analysis. The parser is the prerequisite for all of it.
+A Rust parser (`allium-tools/crates/allium-parser`) reads `.allium` files and produces a typed AST covering the full v2 language. The CLI outputs JSON, making it consumable by any downstream tool. The tree-sitter grammar in allium-tools serves editor syntax highlighting separately. The remaining items build on the parser.
 
-These five items are ordered by dependency and priority. The parser comes first because everything else builds on it.
+## 1. Structural validator
 
-## 1. Parser and structural validator
-
-The parser reads `.allium` files and produces a typed abstract syntax tree: entities with their fields, types, relationships, projections and derived values. Rules with their triggers, preconditions, postconditions and local bindings. Surfaces with their contracts. Actors, config blocks, defaults, module references, deferred specifications and open questions. Variants, value types and named enumerations. The full language.
-
-Other tools could import the parser as a library and work with the AST directly, or consume its output via a CLI. The right distribution model depends on the implementation language: a Rust parser is most useful as a CLI with structured output; a TypeScript parser is most useful as a library that other Node tools import.
-
-The language reference defines structural validation rules that the parser should enforce. Referenced entities and fields must exist. Relationships must include a backreference. Rules need at least one trigger and one ensures clause. Status values must be reachable, and non-terminal states must have exits. Derived values cannot be circular. Sum type discriminators must match their variant declarations. Inline enum fields cannot be compared across entities. Surface `provides` entries must correspond to defined triggers. Config references must resolve. The parser reports errors for violations and warnings for softer checks: unused entities, temporal rules without guards, overlapping preconditions.
-
-Implementation language: Rust. Hand-written recursive descent parser producing a typed AST covering the full language reference. Distributed as a native binary (homebrew, apt, GitHub releases) and as an MCP server for LLM tooling. The tree-sitter grammar in allium-tools continues to serve editor syntax highlighting separately. See `allium-tools/docs/project/parser-roadmap.md` for the detailed plan and tree-sitter grammar audit.
+The parser produces the AST; the structural validator enforces the language reference's validation rules against it. Referenced entities and fields must exist. Relationships must include a backreference. Rules need at least one trigger and one ensures clause. Status values must be reachable, and non-terminal states must have exits. Derived values cannot be circular. Sum type discriminators must match their variant declarations. Inline enum fields cannot be compared across entities. Surface `provides` entries must correspond to defined triggers. Config references must resolve. Errors for violations, warnings for softer checks: unused entities, temporal rules without guards, overlapping preconditions.
 
 ## 2. Property-based test generation
 
