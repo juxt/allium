@@ -24,7 +24,13 @@ Every `.allium` file starts with `-- allium: N` where N is the current language 
 
 **`now` evaluation model** — In derived values, `now` re-evaluates on each read (volatile). In `ensures` clauses, `now` is bound to rule execution timestamp (snapshot). In temporal triggers, `now` is the evaluation timestamp with fire-once semantics.
 
-**Naming conventions** — PascalCase for entities, variants, rules, triggers, actors, surfaces. snake_case for fields, config parameters, derived values, enum literals.
+**Naming conventions** — PascalCase for entities, variants, rules, triggers, actors, surfaces, obligation block names, invariant names. snake_case for fields, config parameters, derived values, enum literals.
+
+**`expects`/`offers` vs `exposes`/`provides`** — `exposes` and `provides` are colon-delimited clause lists (data visibility, available actions). `expects` and `offers` are brace-delimited named blocks (obligation contracts with typed signatures and invariants). Do not use a colon after `expects` or `offers`; they take a PascalCase name and `{ ... }`.
+
+**`invariant:` vs `guarantee:`** — `guarantee:` is a surface-level assertion about the boundary as a whole. `invariant:` is a named assertion scoped to an obligation block, describing a property of the operations within that block. They are distinct constructs.
+
+**Obligation block contents** — Only typed signatures, `invariant:` declarations and `guidance:` blocks are permitted inside obligation blocks. Type declarations (entity, value, enum, variant) must be declared at module level and referenced by name.
 
 ## Anti-patterns
 

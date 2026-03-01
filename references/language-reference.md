@@ -5,7 +5,7 @@
 An Allium specification file (`.allium`) begins with a language version marker, followed by these sections in order:
 
 ```
--- allium: 1
+-- allium: 2
 -- Comments use double-dash
 -- use declarations (optional)
 
@@ -84,11 +84,11 @@ An Allium specification file (`.allium`) begins with a language version marker, 
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `related`, `timeout`, `guarantee` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `related`, `timeout`, `guarantee`, `guidance` and `invariant` are delimited by consistent indentation relative to the parent clause. Named blocks opened by a keyword and PascalCase name followed by `{ ... }` (`expects`, `offers`) use brace delimiters. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
-- **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names (`InterviewSlot`, `CandidateSelectsSlot`)
+- **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names, obligation block names, invariant names (`InterviewSlot`, `CandidateSelectsSlot`, `DeterministicEvaluation`, `Purity`)
 - **snake_case**: field names, config parameters, derived values, enum literals, relationship names (`expires_at`, `max_login_attempts`, `pending`)
 - **Entity collections**: natural English plurals of the entity name (`Users`, `Documents`, `Candidacies`)
 
@@ -1147,7 +1147,7 @@ External entities in one spec may be internal entities in another. The boundary 
 
 ## Surfaces
 
-A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes and provides.
+A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes, provides and (for programmatic boundaries) expects or offers.
 
 Surfaces serve two purposes:
 - **Documentation**: Capture expectations about what each party sees, must contribute and can use
@@ -1219,6 +1219,23 @@ surface SurfaceName {
         Action(party, item, ...) [when condition]
         ...
 
+    expects BlockName {
+        operation: (param: Type) -> ReturnType
+
+        invariant: PropertyName
+            -- Description of the property.
+
+        guidance:
+            -- Non-normative implementation advice.
+    }
+
+    offers BlockName {
+        operation: (param: Type) -> ReturnType
+
+        invariant: PropertyName
+            -- Description of the property.
+    }
+
     guarantee: ConstraintName
     guidance: -- non-normative advice
 
@@ -1240,6 +1257,8 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `let` | Local bindings, same as in rules |
 | `exposes` | Visible data (supports `for` iteration over collections) |
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
+| `expects` | Named obligation block: what the counterpart must supply (typed signatures, invariants, guidance) |
+| `offers` | Named obligation block: what this surface supplies to the counterpart (typed signatures, invariants, guidance) |
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Associated surfaces reachable from this one; the parenthesised expression evaluates to the entity instance that the target surface's `context` clause binds to, and its type must match the target surface's context type |
@@ -1288,6 +1307,41 @@ surface InterviewerDashboard {
             when assignment.slot.interview != null
 }
 ```
+
+**Obligation block example** — `expects` and `offers` declare programmatic integration contracts. Each named block contains typed signatures, invariant declarations and optional guidance. Types referenced in signatures must be declared at module level.
+
+```
+surface DomainIntegration {
+    exposes:
+        EntityKey
+        EventOutcome
+
+    expects DeterministicEvaluation {
+        evaluate: (event: T, entities: EntityMap) -> EventOutcome
+
+        invariant: Determinism
+            -- For identical inputs, evaluate must produce
+            -- byte-identical outputs across all instances.
+
+        invariant: Purity
+            -- No I/O, no clock, no mutable state outside arguments.
+    }
+
+    offers EventSubmitter {
+        submit: (idempotency_key: String, event: T) -> Future<ByteArray?>
+
+        invariant: AtMostOnceProcessing
+            -- Within the TTL window, duplicate submissions
+            -- receive the cached response.
+    }
+}
+```
+
+Obligation blocks may not contain entity, value, enum or variant declarations. Their contents are limited to typed signatures, `invariant:` declarations and `guidance:` blocks.
+
+**Invariant declarations** — an `invariant:` inside an obligation block is a named, scoped assertion about a property of the operations in that block. It carries a PascalCase name and a prose description. Invariant names must be unique within their obligation block and across obligation blocks within the same surface.
+
+`invariant:` is distinct from `guarantee:`. A `guarantee:` is a surface-level assertion about the boundary contract as a whole. An `invariant:` describes a property scoped to a specific obligation block. The same `invariant:` construct will appear at other scopes (top-level, entity-level) in future language versions; the syntax will be identical, with scope determining what the invariant ranges over.
 
 **Timeout example** — a `timeout` clause references an existing temporal rule by name and binds it to the surface's context. The rule name must correspond to a rule with a temporal trigger defined elsewhere in the spec. The `when` condition is optional: include it to restate the temporal expression for readability, or omit it when the rule name is self-explanatory. When present, the checker verifies the `when` condition matches the referenced rule's trigger.
 
@@ -1373,6 +1427,15 @@ A valid Allium specification must satisfy:
 34. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
 35. Rule names referenced in `timeout` clauses must correspond to a defined rule with a temporal trigger. If a `when` condition is present, it must match the referenced rule's temporal trigger expression
 
+**Obligation block validity:**
+36. Obligation blocks (`expects`, `offers`) must have a PascalCase name followed by a brace-delimited block body
+37. Obligation block bodies may contain only typed signatures, `invariant:` declarations and `guidance:` blocks. Entity, value, enum and variant declarations are prohibited inside obligation blocks
+38. Obligation block names must be unique within their enclosing surface, across both `expects` and `offers` blocks
+39. Types referenced in obligation block signatures must be declared at module level or imported via `use`
+40. `invariant:` declarations within obligation blocks must have a PascalCase name and a prose description
+41. Invariant names must be unique within their enclosing obligation block and across obligation blocks within the same surface
+42. Same-named obligation blocks across composed surfaces are a structural error
+
 The checker should warn (but not error) on:
 - External entities without known governing specification
 - Open questions
@@ -1393,6 +1456,9 @@ The checker should warn (but not error) on:
 - Surfaces that use a raw entity type in `facing` when actor declarations exist for that entity type (may indicate a missing access restriction)
 - `transitions_to` triggers on values that entities can be created with (the rule will not fire on creation; consider `becomes` if the rule should also fire on creation)
 - Multiple fields on the same entity with identical inline enum literals (suggests extraction to a named enum; will error if the fields are later compared)
+- Obligation blocks with no invariants (may indicate an incomplete contract)
+- Invariant descriptions that resemble formal Allium expressions (informational: expression-bearing invariants will be supported in a future version)
+- `expects:` or `offers:` with a colon and no block name inside a surface (likely colon-form confusion; suggest `expects BlockName { ... }`)
 
 ---
 
@@ -1548,4 +1614,8 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
-| **Surface** | A boundary contract between two parties specifying what each side exposes and provides |
+| **Surface** | A boundary contract between two parties specifying what each side exposes, provides, expects and offers |
+| **Obligation block** | A named contract element within a surface, declared with `expects` (what the counterpart must supply) or `offers` (what this surface supplies). Contains typed signatures, invariants and guidance |
+| **`expects`** | Surface clause declaring a named set of operations and properties the counterpart must implement |
+| **`offers`** | Surface clause declaring a named set of operations and properties this surface provides to the counterpart |
+| **Invariant** | A named, scoped assertion about a property. In obligation blocks, describes a property of the operations within the block. Carries a PascalCase name and prose description; formal expressions reserved for a future version. Distinct from `guarantee`, which asserts properties of the boundary as a whole |

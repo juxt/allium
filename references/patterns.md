@@ -14,6 +14,7 @@ Patterns elide common cross-cutting entities (`Email`, `Notification`, `AuditLog
 | Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers, surfaces |
 | Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications, surfaces |
 | Integrating Library Specs | External spec references, configuration, responding to external triggers |
+| Framework Integration Contract | Obligation blocks (`expects`/`offers`), invariants, programmatic surfaces |
 
 ---
 
@@ -637,6 +638,12 @@ config {
 }
 
 ------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum Permission { view | edit | admin }
+
+------------------------------------------------------------
 -- Entities
 ------------------------------------------------------------
 
@@ -656,7 +663,7 @@ entity Resource {
 entity ResourceShare {
     resource: Resource
     user: User
-    permission: view | edit | admin
+    permission: Permission
     status: active | revoked
     created_at: Timestamp
 
@@ -670,7 +677,7 @@ entity ResourceShare {
 entity ResourceInvitation {
     resource: Resource
     email: String
-    permission: view | edit | admin
+    permission: Permission
     invited_by: User
     created_at: Timestamp
     expires_at: Timestamp
@@ -890,6 +897,7 @@ surface InvitationResponse {
 ```
 
 **Key language features shown:**
+- Named enum (`Permission`) shared across `ResourceShare` and `ResourceInvitation`
 - Complex permission logic in `requires`
 - Distinct trigger names for different parameter shapes (`ExistingUserAcceptsInvitation` vs `NewUserAcceptsInvitation`)
 - Invitation lifecycle (pending → accepted/declined/expired/revoked)
@@ -1046,6 +1054,16 @@ This pattern handles in-app notifications with user-controlled email preferences
 ```
 -- notifications.allium
 
+config {
+    digest_window: Duration = 24.hours
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum EmailFrequency { immediately | daily_digest | never }
+
 ------------------------------------------------------------
 -- Entities
 ------------------------------------------------------------
@@ -1062,17 +1080,17 @@ entity User {
     -- Projections
     unread_notifications: notifications where status = unread
     pending_email_notifications: notifications where email_status = pending
-    recent_pending_notifications: notifications where email_status = pending and created_at >= now - 24.hours
+    recent_pending_notifications: notifications where email_status = pending and created_at >= now - config.digest_window
 }
 
 entity NotificationSetting {
     user: User
 
     -- Per-type email preferences
-    email_on_mention: immediately | daily_digest | never
-    email_on_comment: immediately | daily_digest | never
-    email_on_share: immediately | daily_digest | never
-    email_on_assignment: immediately | daily_digest | never
+    email_on_mention: EmailFrequency
+    email_on_comment: EmailFrequency
+    email_on_share: EmailFrequency
+    email_on_assignment: EmailFrequency
 
     -- Global settings
     digest_enabled: Boolean
@@ -1113,7 +1131,7 @@ variant ReplyNotification : Notification {
 variant ShareNotification : Notification {
     resource: Resource
     shared_by: User
-    permission: view | edit | admin
+    permission: Permission
 }
 
 -- Someone assigned a task to the user
@@ -1391,6 +1409,7 @@ surface NotificationPreferences {
 - **Variant declarations**: Each notification kind uses `variant X : Notification` syntax
 - **Variant-specific creation rules**: Each variant has its own creation rule with appropriate fields
 - **Exhaustive kind checking**: `SendImmediateEmail` handles all variants explicitly
+- Named enum (`EmailFrequency`) shared across preference fields
 - User preferences stored as entity
 - Temporal trigger for per-user digest scheduling (`when: user: User.next_digest_at <= now`)
 - Digest batching with temporal trigger
@@ -1634,6 +1653,8 @@ rule ApiRateLimitExceeded {
 
 rule ResetDailyApiUsage {
     when: usage: WorkspaceUsage.next_reset_at <= now
+
+    requires: usage.api_requests_today > 0    -- prevents re-firing when already reset
 
     ensures: usage.api_requests_today = 0
     ensures: usage.next_reset_at = usage.next_reset_at + 1.day
@@ -1944,16 +1965,18 @@ rule EditComment {
     ensures: comment.edited_at = now
 
     -- Remove old mentions that are no longer present
-    ensures: for user in removed_mentions:
-        not exists CommentMention{comment, user}
+    ensures:
+        for user in removed_mentions:
+            not exists CommentMention{comment, user}
 
     -- Add new mentions
-    ensures: for user in added_mentions:
-        CommentMention.created(
-            comment: comment,
-            user: user,
-            notified: false
-        )
+    ensures:
+        for user in added_mentions:
+            CommentMention.created(
+                comment: comment,
+                user: user,
+                notified: false
+            )
 }
 
 ------------------------------------------------------------
@@ -2290,6 +2313,10 @@ stripe/config {
     trial_period: 14.days
 }
 
+config {
+    trial_reminder_lead: Duration = 3.days
+}
+
 ------------------------------------------------------------
 -- Application Entities
 ------------------------------------------------------------
@@ -2381,7 +2408,7 @@ rule HandlePaymentFailure {
 
 -- When trial is ending, remind user
 rule TrialEndingReminder {
-    when: sub: Subscription.trial_ends_at - 3.days <= now
+    when: sub: Subscription.trial_ends_at - config.trial_reminder_lead <= now
 
     requires: sub.status = trialing
     requires: not sub.trial_reminder_sent
@@ -2393,7 +2420,7 @@ rule TrialEndingReminder {
         to: org.owner.email,
         template: trial_ending,
         data: {
-            days_remaining: 3,
+            days_remaining: config.trial_reminder_lead,
             plan: sub.plan,
             has_payment_method: org.has_payment_method
         }
@@ -2496,6 +2523,336 @@ When creating or choosing library specs:
 3. **Observable triggers**: Library specs should emit triggers for all significant events so consuming specs can respond
 4. **Minimal coupling**: Library specs shouldn't depend on your application entities - the linkage goes one way
 5. **Clear boundaries**: The library spec handles its domain (OAuth flow, payment processing); your spec handles application concerns (user creation, access control)
+
+---
+
+## Pattern 9: Framework Integration Contract
+
+**Demonstrates:** Obligation blocks (`expects`/`offers`), invariants, programmatic surfaces, typed signatures
+
+This pattern specifies the contract between an event-sourcing framework and its domain modules. The framework expects each module to supply a deterministic evaluation function; in return, the framework offers event submission and state snapshot services. Unlike user-facing surfaces that use `exposes` and `provides`, framework-to-module boundaries use `expects` and `offers` to describe programmatic obligations.
+
+```
+-- event-sourcing-integration.allium
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value EntityKey {
+    kind: String
+    id: String
+}
+
+value EventOutcome {
+    entity_key: EntityKey
+    new_state: ByteArray
+    side_effects: List<SideEffect>
+}
+
+value SideEffect {
+    kind: emit_event | schedule_timeout | request_snapshot
+    payload: ByteArray
+}
+
+value SnapshotRequest {
+    entity_key: EntityKey
+    as_of: Timestamp
+}
+
+value Snapshot {
+    entity_key: EntityKey
+    state: ByteArray
+    version: Integer
+    taken_at: Timestamp
+}
+
+------------------------------------------------------------
+-- Entities
+------------------------------------------------------------
+
+entity DomainModule {
+    name: String
+    version: String
+    status: registered | active | suspended
+
+    -- Relationships
+    event_types: EventTypeRegistration with module = this
+
+    -- Projections
+    active_event_types: event_types where status = active
+}
+
+entity EventTypeRegistration {
+    module: DomainModule
+    event_name: String
+    schema_hash: String
+    status: active | deprecated
+    registered_at: Timestamp
+}
+
+entity EventSubmission {
+    module: DomainModule
+    idempotency_key: String
+    event_name: String
+    payload: ByteArray
+    status: pending | accepted
+    submitted_at: Timestamp
+    processed_at: Timestamp?
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    submission_ttl: Duration = 24.hours
+    max_payload_bytes: Integer = 1_000_000
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule RegisterModule {
+    when: RegisterModule(module_name, version, event_types)
+
+    requires: not exists DomainModule{name: module_name}
+
+    ensures:
+        let module = DomainModule.created(
+            name: module_name,
+            version: version,
+            status: registered
+        )
+        for event_name in event_types:
+            EventTypeRegistration.created(
+                module: module,
+                event_name: event_name,
+                schema_hash: hash(event_name + version),
+                status: active,
+                registered_at: now
+            )
+}
+
+rule ActivateModule {
+    when: module: DomainModule.status becomes registered
+
+    requires: module.event_types.count > 0
+
+    ensures: module.status = active
+}
+
+rule SubmitEvent {
+    when: SubmitEvent(module, idempotency_key, event_name, payload)
+
+    let existing = EventSubmission{module: module, idempotency_key: idempotency_key}
+
+    requires: module.status = active
+    requires: not exists existing
+    requires: exists EventTypeRegistration{module: module, event_name: event_name, status: active}
+    requires: length(payload) <= config.max_payload_bytes
+
+    ensures: EventSubmission.created(
+        module: module,
+        idempotency_key: idempotency_key,
+        event_name: event_name,
+        payload: payload,
+        status: pending,
+        submitted_at: now
+    )
+}
+
+rule ProcessSubmission {
+    when: submission: EventSubmission.status becomes pending
+
+    ensures: submission.status = accepted
+    ensures: submission.processed_at = now
+}
+
+rule ExpireOldSubmissions {
+    when: submission: EventSubmission.submitted_at + config.submission_ttl <= now
+
+    requires: submission.status in {pending, accepted}
+
+    ensures: not exists submission
+}
+
+rule DeprecateEventType {
+    when: DeprecateEventType(module, event_name)
+
+    let registration = EventTypeRegistration{module: module, event_name: event_name}
+
+    requires: exists registration
+    requires: registration.status = active
+
+    ensures: registration.status = deprecated
+}
+
+rule SuspendModule {
+    when: SuspendModule(admin, module, reason)
+
+    requires: module.status = active
+
+    ensures: module.status = suspended
+    ensures: AuditLog.created(
+        event: module_suspended,
+        timestamp: now,
+        metadata: { module: module.name, reason: reason, by: admin }
+    )
+}
+
+rule ReactivateModule {
+    when: ReactivateModule(admin, module)
+
+    requires: module.status = suspended
+    requires: module.event_types.count > 0
+
+    ensures: module.status = active
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor FrameworkRuntime {
+    identified_by: DomainModule where status = active
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- User-facing surface for module administration
+surface ModuleAdministration {
+    facing admin: User
+
+    exposes:
+        for module in DomainModules:
+            module.name
+            module.version
+            module.status
+            module.active_event_types.count
+
+    provides:
+        RegisterModule(module_name, version, event_types)
+        for module in DomainModules where status = active:
+            SuspendModule(admin, module, reason)
+            for registration in module.active_event_types:
+                DeprecateEventType(module, registration.event_name)
+        for module in DomainModules where status = suspended:
+            ReactivateModule(admin, module)
+}
+
+-- Programmatic surface: the framework-to-module integration contract
+surface EventSourcingIntegration {
+    facing runtime: FrameworkRuntime
+
+    context module: DomainModule where status = active
+
+    expects DeterministicEvaluation {
+        evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
+
+        invariant: Determinism
+            -- For identical inputs (event_name, payload, current_state),
+            -- evaluate must produce byte-identical EventOutcome values
+            -- across all instances and invocations.
+
+        invariant: Purity
+            -- evaluate must not perform I/O, read the system clock,
+            -- access mutable state outside its arguments, or depend
+            -- on the order of previous invocations.
+
+        invariant: TotalFunction
+            -- evaluate must return a valid EventOutcome for every
+            -- combination of registered event_name, well-formed payload
+            -- and current_state. It must not throw or fail to terminate.
+
+        guidance:
+            -- Implementations should avoid allocating during evaluation
+            -- where possible, as the framework may invoke evaluate
+            -- at high frequency during replay.
+    }
+
+    offers EventSubmitter {
+        submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
+
+        invariant: AtMostOnceProcessing
+            -- Within the submission TTL window (config.submission_ttl),
+            -- a given idempotency key is accepted at most once.
+            -- Duplicate submissions are rejected.
+
+        invariant: OrderPreservation
+            -- Events submitted by a single module are processed in
+            -- submission order. No ordering guarantee exists across
+            -- modules.
+    }
+
+    offers StateSnapshots {
+        request_snapshot: (entity_key: EntityKey) -> Snapshot
+        get_snapshot: (request: SnapshotRequest) -> Snapshot?
+
+        invariant: SnapshotConsistency
+            -- A snapshot reflects the state after applying all events
+            -- up to and including the snapshot's version number.
+            -- No partial application.
+    }
+
+    guarantee: ModuleBoundaryIsolation
+        -- Events and state from one module are never visible to
+        -- another module's evaluate function. Cross-module
+        -- communication happens only through side effects processed
+        -- by the framework.
+}
+```
+
+**Key language features shown:**
+- `expects` block declaring what the counterpart must implement, with typed signatures
+- `offers` blocks declaring what the surface provides to the counterpart
+- `invariant:` declarations with PascalCase names and prose descriptions scoped to their obligation block
+- Multiple obligation blocks within a single surface (one `expects`, two `offers`)
+- `guarantee:` at surface level, distinct from block-scoped `invariant:` (boundary-wide vs block-scoped assertions)
+- `guidance:` inside an obligation block for non-normative implementation advice
+- Mixed surface: `ModuleAdministration` uses traditional `exposes`/`provides` for human actors; `EventSourcingIntegration` uses `expects`/`offers` for programmatic integration
+- Actor declaration for a code-level party (`FrameworkRuntime` identified by an active module)
+
+### When to use obligation blocks
+
+Use `expects`/`offers` when the boundary is between code and code rather than between a user and an application. Common scenarios:
+
+- **Framework-to-plugin contracts**: the framework expects evaluation logic, offers lifecycle services
+- **Service-to-adapter boundaries**: the service expects a storage adapter, offers a query interface
+- **Cross-context integration**: one bounded context expects event handlers, offers event streams
+- **SDK contracts**: the SDK expects configuration and callbacks, offers client operations
+
+Do not use obligation blocks for user-facing surfaces. If the external party is a person interacting through a UI, use `exposes` (what they see) and `provides` (what actions they can take). Obligation blocks describe what code must implement, not what users can do.
+
+### Obligation blocks vs provides
+
+`provides:` lists actions that an actor can invoke, each corresponding to a rule's external stimulus trigger. `offers Name { }` declares a set of typed operations that the surface owner supplies to the counterpart as an API. The distinction:
+
+- `provides: SubmitEvent(module, key, name, payload)` — an action the actor triggers; a rule fires in response
+- `offers EventSubmitter { submit: (...) -> EventSubmission }` — a typed operation the surface makes available; the implementation is the surface owner's responsibility
+
+Both describe things the surface supplies, but `provides` connects to the rule system while `offers` describes a programmatic contract with typed signatures and invariants.
+
+### Invariant vs guarantee
+
+`guarantee:` asserts a property of the surface boundary as a whole. `invariant:` asserts a property scoped to the operations within a specific obligation block.
+
+```
+-- Surface-level: applies across the entire boundary
+guarantee: ModuleBoundaryIsolation
+    -- Events from one module are never visible to another module.
+
+-- Block-level: applies to the operations in this block only
+expects DeterministicEvaluation {
+    invariant: Purity
+        -- evaluate must not perform I/O or access mutable state.
+}
+```
+
+Use `guarantee:` for cross-cutting properties that span the whole surface. Use `invariant:` for properties tied to specific operations within an obligation block.
 
 ---
 

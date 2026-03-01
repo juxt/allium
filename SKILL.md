@@ -1,7 +1,7 @@
 ---
 name: allium
 description: An LLM-native language for sharpening intent alongside implementation. Velocity through clarity.
-version: 1
+version: 2
 auto_trigger:
   - file_patterns: ["**/*.allium"]
   - keywords: ["allium", "allium spec", "allium specification", ".allium file"]
