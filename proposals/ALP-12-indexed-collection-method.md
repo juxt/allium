@@ -62,3 +62,24 @@ for item in payloads.indexed:
 1. Should `.indexed` be valid on `where`-filtered projections, and if so, do indices reflect pre-filter or post-filter positions?
 2. Is the structural return type acceptable, or should the language define a named value type (e.g. `IndexedItem`) in the reference?
 3. Are there collection operations that should be prohibited after `.indexed` (beyond the validator's existing type checks)?
+
+## Committee review
+
+**Status: rejected.** The panel agreed unanimously that the problem is real but the proposed solution has a missing prerequisite: Allium has no formal concept of ordered collections, and `.indexed` is meaningless without one.
+
+### Key objections
+
+- **No formal concept of ordered collections.** Allium collections are relationally defined sets (`EntityName with relationship = this`). They have no inherent order. `.indexed` assigns positional indices to elements of a set, which is meaningless without a defined ordering. The validator cannot enforce the "ordered collections only" restriction because the language has no way to distinguish ordered from unordered collections. Six panellists identified this independently.
+- **No domain-level use cases demonstrated.** None of the nine patterns in the patterns file uses positional indexing. The motivating example (Kafka offsets) is an infrastructure concern. When ordering matters in a domain, it is expressed through explicit fields with domain names (`sequence_number`, `priority`, `rank`), which carry meaning that a generic `index` erases.
+- **Implicit structural return type.** `.indexed` would introduce the first implicit structural type in a language where all types are explicitly declared. If the feature is eventually adopted, the return type should be a named built-in value type (`IndexedElement<T>`), not an implicit record.
+
+### Resubmission guidance
+
+The panel converged on a two-step path:
+
+1. **Propose ordered collections first.** A separate ALP should introduce ordered sequences as a first-class concept, making ordering a property of the collection declaration (e.g. `steps: ordered Step with workflow = this`). This ALP should define what makes a collection ordered, how ordering interacts with `where` projections, and what collection operations are valid on ordered vs unordered collections.
+2. **Then resubmit `.indexed`.** Once ordered collections exist, `.indexed` becomes a natural method on ordered collections with well-defined semantics. The resubmission should address the return type (named value type vs implicit structural type) and demonstrate domain-level use cases alongside infrastructure ones.
+
+### Reservation
+
+The readability advocate noted the risk of indefinite deferral: if ordered collections prove hard to design, the current workaround (explicit index fields) persists. The domain modelling advocate countered that explicit index fields are not a workaround but the correct domain modelling approach when ordering is a domain concept.
