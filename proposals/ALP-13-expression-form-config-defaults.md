@@ -94,3 +94,32 @@ Config blocks with expression-form defaults are no longer purely declarative. Th
 1. Should expression-form defaults support boolean expressions (e.g. `enabled: Boolean = core/config.feature_flag and env/config.is_production`), or should they be restricted to arithmetic?
 2. Should parenthesised sub-expressions be permitted for explicit precedence (`(base + 1) * 2`), or should expressions be flat?
 3. Is the type compatibility table above complete, or should it include other type combinations (e.g. `Integer + Duration` producing `Duration`)?
+
+## Committee review
+
+**Status: adopted with amendments.**
+
+All nine panellists supported the proposal. No panellist objected. The proposal successfully addressed all four questions deferred from ALP-10.
+
+### Amendments
+
+1. **Permit parenthesised sub-expressions.** Parentheses are part of the existing expression language; excluding them from config defaults creates an artificial context-dependent restriction. Without parentheses, some expressions cannot be written (`(a + b) * c` has no flat equivalent). Required for compositional completeness.
+
+2. **Complete the type compatibility table.** Two gaps:
+   - `Integer / Integer` produces `Integer`. Integer division uses truncation toward zero, consistent with the existing expression language.
+   - `Decimal` type interactions must be added: `Decimal +/-/*// Decimal -> Decimal`, `Decimal * Integer -> Decimal`, `Decimal / Integer -> Decimal`, `Integer * Decimal -> Decimal`, mirroring the Duration rows. `Decimal * Decimal` produces `Decimal`. `Duration * Decimal` should be specified or explicitly excluded.
+
+3. **Arithmetic-only is a design boundary, not a starting point.** The restriction to arithmetic operators reflects the domain reality that config relationships are quantitative. Boolean config parameters are toggles that rarely derive from other toggles. Whether to extend config expressions to boolean logic is a separate design question warranting its own ALP if a concrete need arises. The proposal should not frame arithmetic-only as provisional.
+
+### Answers to committee questions
+
+1. **Boolean expressions.** Restricted to arithmetic only. The arithmetic boundary reflects the quantitative nature of config relationships. If boolean config expressions are needed, they warrant their own proposal.
+2. **Parenthesised sub-expressions.** Permitted (see amendment 1).
+3. **Type compatibility table.** Incomplete as written. Needs integer division semantics and `Decimal` type interactions (see amendment 2).
+
+### Resolution of ALP-10 deferred questions
+
+1. **Type semantics.** Addressed. The type compatibility table specifies mixed-type arithmetic precisely, with amendments to complete it.
+2. **Local references.** Addressed. Both local and qualified references are permitted, avoiding the irregularity the ALP-10 panel identified. The acyclicity rule extends uniformly to both.
+3. **Grammar impact.** Addressed. The grammar change is contained: the config default production extends to accept expressions with the same operator precedence as the existing language.
+4. **Conceptual boundary.** Addressed. Config blocks become a restricted computation layer. The restriction to arithmetic and config references prevents them from becoming a general-purpose expression context.
