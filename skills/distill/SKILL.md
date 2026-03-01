@@ -41,7 +41,7 @@ For any code path you encounter, ask: "If we rebuilt this system from scratch, w
 At the top of a distilled spec, document what is included and excluded:
 
 ```
--- allium: 1
+-- allium: 2
 -- interview-scheduling.allium
 
 -- Scope: Interview scheduling flow only

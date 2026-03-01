@@ -64,7 +64,7 @@ If the caller describes a feature in implementation terms ("the API returns a 40
 - Use `config` blocks for variable values. Do not hardcode numbers in rules.
 - Temporal triggers always need `requires` guards to prevent re-firing.
 - Use `with` for relationships, `where` for projections. Do not swap them.
-- `transitions_to` changes a field value. `becomes` transforms an entity into a different variant. Do not swap them.
+- `transitions_to` fires on field transition only (not creation). `becomes` fires on both creation and transition. Do not swap them.
 - Capitalised pipe values are variant references. Lowercase pipe values are enum literals.
 - New entities use `.created()` in `ensures` clauses. Variant instances use the variant name.
 - Inline enums compared across fields must be extracted to named enums.

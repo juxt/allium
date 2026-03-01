@@ -26,7 +26,7 @@ Before diving into details, establish what you are specifying. Not everything ne
 Capture scope at the start of every spec:
 
 ```
--- allium: 1
+-- allium: 2
 -- interview-scheduling.allium
 
 -- Scope: Interview scheduling for the hiring pipeline
