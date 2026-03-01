@@ -1559,7 +1559,7 @@ surface DomainIntegration {
         EventOutcome
 
     expects DeterministicEvaluation {
-        evaluate: (event: T, entities: EntityMap) -> EventOutcome
+        evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
 
         invariant: Determinism
             -- For identical inputs, evaluate must produce
@@ -1570,7 +1570,7 @@ surface DomainIntegration {
     }
 
     offers EventSubmitter {
-        submit: (idempotency_key: String, event: T) -> Future<ByteArray?>
+        submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
 
         invariant: AtMostOnceProcessing
             -- Within the TTL window, duplicate submissions
@@ -1891,7 +1891,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **Trigger Emission** | An ensures clause that emits a named event; other rules chain from it via their `when` clause |
 | **Precondition** | A requirement that must be true for a rule to execute |
 | **Postcondition** | An assertion about what becomes true after a rule executes |
-| **Black Box Function** | Domain logic referenced but not defined in the spec; pure and deterministic |
+| **Black Box Function** | Domain logic referenced but not defined in the spec; pure and deterministic. Common examples include `length()`, `hash()`, `verify()` |
 | **External Entity** | An entity managed by another specification; referenced but not governed here |
 | **Config** | Configurable parameters for a specification, referenced via `config.field` |
 | **Default** | A named entity instance used as seed data or base configuration |

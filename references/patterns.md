@@ -25,6 +25,7 @@ Patterns elide common cross-cutting entities (`Email`, `Notification`, `AuditLog
 This pattern handles user registration, login and password reset: the foundation of most SaaS applications.
 
 ```
+-- allium: 2
 -- password-auth.allium
 
 config {
@@ -328,6 +329,7 @@ surface AccountManagement {
 This pattern implements hierarchical roles where higher roles inherit permissions from lower ones.
 
 ```
+-- allium: 2
 -- rbac.allium
 
 ------------------------------------------------------------
@@ -631,6 +633,7 @@ surface WorkspaceDocuments {
 This pattern handles inviting users to collaborate on resources, whether they're existing users or not.
 
 ```
+-- allium: 2
 -- resource-invitation.allium
 
 config {
@@ -915,6 +918,7 @@ surface InvitationResponse {
 This pattern implements soft delete where items appear deleted but can be restored within a retention period.
 
 ```
+-- allium: 2
 -- soft-delete.allium
 
 config {
@@ -1052,7 +1056,10 @@ rule RestoreAll {
 This pattern handles in-app notifications with user-controlled email preferences and digest batching. It uses sum types to model different notification kinds, each carrying its own contextual data rather than pre-computed strings.
 
 ```
+-- allium: 2
 -- notifications.allium
+-- Elided types: Comment, Resource, Task, Permission, DayOfWeek
+-- (defined in other patterns or your domain spec)
 
 config {
     digest_window: Duration = 24.hours
@@ -1450,7 +1457,9 @@ This is better because:
 This pattern handles SaaS usage limits: different plans have different quotas, and usage is tracked and enforced.
 
 ```
+-- allium: 2
 -- usage-limits.allium
+-- Elided types: Feature (define as enum in your spec)
 
 ------------------------------------------------------------
 -- Entities
@@ -1800,6 +1809,7 @@ surface APIAccess {
 This pattern implements comments with @mentions, including mention parsing and notification generation.
 
 ```
+-- allium: 2
 -- comments.allium
 
 ------------------------------------------------------------
@@ -2105,6 +2115,7 @@ Library specs are standalone specifications for common functionality: authentica
 This example shows integrating a library OAuth spec into your application. The OAuth spec handles the authentication flow; your application responds to authentication events and manages application-level user state.
 
 ```
+-- allium: 2
 -- app-auth.allium
 
 ------------------------------------------------------------
@@ -2296,6 +2307,7 @@ rule UnlinkProvider {
 This example shows integrating a payment processor spec for subscription billing.
 
 ```
+-- allium: 2
 -- billing.allium
 
 ------------------------------------------------------------
@@ -2535,6 +2547,7 @@ When creating or choosing library specs:
 This pattern specifies the contract between an event-sourcing framework and its domain modules. The framework expects each module to supply a deterministic evaluation function; in return, the framework offers event submission and state snapshot services. Unlike user-facing surfaces that use `exposes` and `provides`, framework-to-module boundaries use `expects` and `offers` to describe programmatic obligations. The obligation blocks are extracted as module-level `contract` declarations so they can be reused across surfaces or referenced from other specs.
 
 ```
+-- allium: 2
 -- event-sourcing-integration.allium
 
 ------------------------------------------------------------
@@ -2865,9 +2878,8 @@ entity EventSubmission {
 
 -- Prose invariant inside a contract
 contract DeterministicEvaluation {
-    invariant Purity {
+    invariant: Purity
         -- evaluate must not perform I/O or access mutable state.
-    }
 }
 
 -- Surface-level guarantee: applies across the entire boundary
