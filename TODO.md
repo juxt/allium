@@ -22,18 +22,9 @@ From the parsed AST, generate two things. Entity generators derived from field d
 
 The output must work across languages, whether through an intermediate representation that language-specific adapters consume or by generating test code directly for each target. Entity generators are useful beyond testing: staging environments, demos, seed data.
 
-This also motivates a language addition. Some properties span multiple rules: "account balance never goes negative", "no two interviews overlap for the same candidate." These are things domain experts state in conversation. They have no home in the current language. An `invariant` block would express them:
+Expression-bearing invariants (ALP-11) give the property test generator system-wide properties to check after sequences of rule applications. Top-level invariants assert properties over entity collections; entity-level invariants assert properties of individual instances. Both use the existing expression language with purity constraints (no side effects, no `now`). The `implies` operator and `for` quantification make most domain properties expressible directly.
 
-```
-invariant "account balance is non-negative" {
-    for account in Accounts:
-        account.balance >= 0
-}
-```
-
-Invariants use Allium's existing expression language. They enrich the specification for human readers regardless of tooling, and they give the property test generator system-wide properties to check after sequences of rule applications.
-
-Open questions: whether invariants should support temporal assertions or only state assertions, and how black box functions should be handled in generators.
+Open question: how black box functions should be handled in generators.
 
 ## 3. Runtime trace validation
 
