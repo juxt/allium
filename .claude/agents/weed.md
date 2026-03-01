@@ -49,6 +49,8 @@ When you find a mismatch, do not assume which side is correct. Report each diver
 
 Present divergences grouped by entity or rule for easier review.
 
+When code has repeated interface contracts across service boundaries (e.g. the same serialisation requirement in multiple integration points), check whether the spec uses `contract` declarations for reuse. Code assertions and invariants (e.g. `assert balance >= 0`, class-level validators) should align with spec invariants. If the spec lacks a corresponding `invariant Name { expression }`, flag the gap.
+
 ## Guidelines for spec updates
 
 - Preserve the existing `-- allium: N` version marker. Do not change the version number.
@@ -59,6 +61,7 @@ Present divergences grouped by entity or rule for easier review.
 - Use `with` for relationships, `where` for projections. Do not swap them.
 - Inline enums compared across fields must be extracted to named enums.
 - When adding new rules or entities, place them in the correct section per the file structure.
+- Config values derived from other services' config (e.g. `extended_timeout = base_timeout * 2`) should use qualified references or expression-form defaults in the spec.
 
 ## Guidelines for code updates
 

@@ -13,8 +13,8 @@ Patterns elide common cross-cutting entities (`Email`, `Notification`, `AuditLog
 | Notification Preferences | Sum types for notification variants, user preferences, digest batching, surfaces |
 | Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers, surfaces |
 | Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications, surfaces |
-| Integrating Library Specs | External spec references, configuration, responding to external triggers |
-| Framework Integration Contract | Obligation blocks (`expects`/`offers`), invariants, programmatic surfaces |
+| Integrating Library Specs | External spec references, configuration, config parameter references, responding to external triggers |
+| Framework Integration Contract | Contract declarations, expression-bearing invariants, obligation blocks, programmatic surfaces |
 
 ---
 
@@ -2096,9 +2096,9 @@ surface CommentThread {
 
 ## Pattern 8: Integrating Library Specs
 
-**Demonstrates:** External spec references with coordinates, configuration blocks, responding to external triggers, using external entities
+**Demonstrates:** External spec references with coordinates, configuration blocks, config parameter references, responding to external triggers, using external entities
 
-Library specs are standalone specifications for common functionality - authentication providers, payment processors, email services, etc. They define a contract that implementations must satisfy, and your application spec composes them in.
+Library specs are standalone specifications for common functionality: authentication providers, payment processors, email services. They define a contract that implementations must satisfy, and your application spec composes them in. Consuming specs can reference a library spec's config values as defaults for their own parameters, avoiding duplication when the values should track each other.
 
 ### Example: OAuth Authentication
 
@@ -2312,6 +2312,8 @@ stripe/config {
 }
 
 config {
+    trial_period: Duration = stripe/config.trial_period
+    extended_trial: Duration = stripe/config.trial_period * 2
     trial_reminder_lead: Duration = 3.days
 }
 
@@ -2504,6 +2506,8 @@ rule CancelSubscription {
 **Key language features shown:**
 - External spec references with immutable coordinates (`use "github.com/.../abc123" as alias`)
 - Configuration blocks for external specs (`oauth/config { ... }`)
+- Config parameter references as defaults (`trial_period: Duration = stripe/config.trial_period`)
+- Expression-form defaults derived from library config (`extended_trial: Duration = stripe/config.trial_period * 2`)
 - Responding to external triggers (`when: oauth/AuthenticationSucceeded(...)`)
 - Trigger emissions for cross-pattern notification (`UserInformed(...)`)
 - Responding to external state transitions (`when: session: oauth/Session.status transitions_to expiring`)
@@ -2526,9 +2530,9 @@ When creating or choosing library specs:
 
 ## Pattern 9: Framework Integration Contract
 
-**Demonstrates:** Obligation blocks (`expects`/`offers`), invariants, programmatic surfaces, typed signatures
+**Demonstrates:** Contract declarations, expression-bearing invariants, obligation blocks (`expects`/`offers`), programmatic surfaces, typed signatures
 
-This pattern specifies the contract between an event-sourcing framework and its domain modules. The framework expects each module to supply a deterministic evaluation function; in return, the framework offers event submission and state snapshot services. Unlike user-facing surfaces that use `exposes` and `provides`, framework-to-module boundaries use `expects` and `offers` to describe programmatic obligations.
+This pattern specifies the contract between an event-sourcing framework and its domain modules. The framework expects each module to supply a deterministic evaluation function; in return, the framework offers event submission and state snapshot services. Unlike user-facing surfaces that use `exposes` and `provides`, framework-to-module boundaries use `expects` and `offers` to describe programmatic obligations. The obligation blocks are extracted as module-level `contract` declarations so they can be reused across surfaces or referenced from other specs.
 
 ```
 -- event-sourcing-integration.allium
@@ -2566,6 +2570,58 @@ value Snapshot {
 }
 
 ------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract DeterministicEvaluation {
+    evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
+
+    invariant: Determinism
+        -- For identical inputs (event_name, payload, current_state),
+        -- evaluate must produce byte-identical EventOutcome values
+        -- across all instances and invocations.
+
+    invariant: Purity
+        -- evaluate must not perform I/O, read the system clock,
+        -- access mutable state outside its arguments, or depend
+        -- on the order of previous invocations.
+
+    invariant: TotalFunction
+        -- evaluate must return a valid EventOutcome for every
+        -- combination of registered event_name, well-formed payload
+        -- and current_state. It must not throw or fail to terminate.
+
+    guidance:
+        -- Implementations should avoid allocating during evaluation
+        -- where possible, as the framework may invoke evaluate
+        -- at high frequency during replay.
+}
+
+contract EventSubmitter {
+    submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
+
+    invariant: AtMostOnceProcessing
+        -- Within the submission TTL window (config.submission_ttl),
+        -- a given idempotency key is accepted at most once.
+        -- Duplicate submissions are rejected.
+
+    invariant: OrderPreservation
+        -- Events submitted by a single module are processed in
+        -- submission order. No ordering guarantee exists across
+        -- modules.
+}
+
+contract StateSnapshots {
+    request_snapshot: (entity_key: EntityKey) -> Snapshot
+    get_snapshot: (request: SnapshotRequest) -> Snapshot?
+
+    invariant: SnapshotConsistency
+        -- A snapshot reflects the state after applying all events
+        -- up to and including the snapshot's version number.
+        -- No partial application.
+}
+
+------------------------------------------------------------
 -- Entities
 ------------------------------------------------------------
 
@@ -2597,6 +2653,8 @@ entity EventSubmission {
     status: pending | accepted
     submitted_at: Timestamp
     processed_at: Timestamp?
+
+    invariant PayloadWithinLimit { length(payload) <= config.max_payload_bytes }
 }
 
 ------------------------------------------------------------
@@ -2748,53 +2806,9 @@ surface EventSourcingIntegration {
 
     context module: DomainModule where status = active
 
-    expects DeterministicEvaluation {
-        evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
-
-        invariant: Determinism
-            -- For identical inputs (event_name, payload, current_state),
-            -- evaluate must produce byte-identical EventOutcome values
-            -- across all instances and invocations.
-
-        invariant: Purity
-            -- evaluate must not perform I/O, read the system clock,
-            -- access mutable state outside its arguments, or depend
-            -- on the order of previous invocations.
-
-        invariant: TotalFunction
-            -- evaluate must return a valid EventOutcome for every
-            -- combination of registered event_name, well-formed payload
-            -- and current_state. It must not throw or fail to terminate.
-
-        guidance:
-            -- Implementations should avoid allocating during evaluation
-            -- where possible, as the framework may invoke evaluate
-            -- at high frequency during replay.
-    }
-
-    offers EventSubmitter {
-        submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
-
-        invariant: AtMostOnceProcessing
-            -- Within the submission TTL window (config.submission_ttl),
-            -- a given idempotency key is accepted at most once.
-            -- Duplicate submissions are rejected.
-
-        invariant: OrderPreservation
-            -- Events submitted by a single module are processed in
-            -- submission order. No ordering guarantee exists across
-            -- modules.
-    }
-
-    offers StateSnapshots {
-        request_snapshot: (entity_key: EntityKey) -> Snapshot
-        get_snapshot: (request: SnapshotRequest) -> Snapshot?
-
-        invariant: SnapshotConsistency
-            -- A snapshot reflects the state after applying all events
-            -- up to and including the snapshot's version number.
-            -- No partial application.
-    }
+    expects DeterministicEvaluation
+    offers EventSubmitter
+    offers StateSnapshots
 
     guarantee: ModuleBoundaryIsolation
         -- Events and state from one module are never visible to
@@ -2805,18 +2819,20 @@ surface EventSourcingIntegration {
 ```
 
 **Key language features shown:**
-- `expects` block declaring what the counterpart must implement, with typed signatures
-- `offers` blocks declaring what the surface provides to the counterpart
-- `invariant:` declarations with PascalCase names and prose descriptions scoped to their obligation block
-- Multiple obligation blocks within a single surface (one `expects`, two `offers`)
-- `guarantee:` at surface level, distinct from block-scoped `invariant:` (boundary-wide vs block-scoped assertions)
-- `guidance:` inside an obligation block for non-normative implementation advice
+- `contract` declarations at module level, extracting obligation blocks for reuse across surfaces
+- Surface references to contracts by name (`expects DeterministicEvaluation`, `offers EventSubmitter`) without repeating signatures or invariants
+- Expression-bearing `invariant Name { expression }` on entities (`PayloadWithinLimit` on `EventSubmission`)
+- Prose-only `invariant: Name` inside contracts for properties that cannot be expressed as a single boolean expression
+- `guarantee:` at surface level, distinct from contract-scoped invariants (boundary-wide vs contract-scoped assertions)
+- `guidance:` inside a contract for non-normative implementation advice
 - Mixed surface: `ModuleAdministration` uses traditional `exposes`/`provides` for human actors; `EventSourcingIntegration` uses `expects`/`offers` for programmatic integration
 - Actor declaration for a code-level party (`FrameworkRuntime` identified by an active module)
 
-### When to use obligation blocks
+### When to use contracts and obligation blocks
 
-Use `expects`/`offers` when the boundary is between code and code rather than between a user and an application. Common scenarios:
+Use `contract` declarations when the same set of typed signatures and invariants applies across multiple surfaces or when other specs need to reference the obligation. Use inline `expects Name { ... }` / `offers Name { ... }` blocks for one-off obligations scoped to a single surface.
+
+Use `expects`/`offers` (whether inline or referencing a contract) when the boundary is between code and code rather than between a user and an application. Common scenarios:
 
 - **Framework-to-plugin contracts**: the framework expects evaluation logic, offers lifecycle services
 - **Service-to-adapter boundaries**: the service expects a storage adapter, offers a query interface
@@ -2827,30 +2843,39 @@ Do not use obligation blocks for user-facing surfaces. If the external party is 
 
 ### Obligation blocks vs provides
 
-`provides:` lists actions that an actor can invoke, each corresponding to a rule's external stimulus trigger. `offers Name { }` declares a set of typed operations that the surface owner supplies to the counterpart as an API. The distinction:
+`provides:` lists actions that an actor can invoke, each corresponding to a rule's external stimulus trigger. `offers Name { }` (inline) or `offers ContractName` (referencing a module-level contract) declares a set of typed operations that the surface owner supplies to the counterpart as an API. The distinction:
 
 - `provides: SubmitEvent(module, key, name, payload)` — an action the actor triggers; a rule fires in response
-- `offers EventSubmitter { submit: (...) -> EventSubmission }` — a typed operation the surface makes available; the implementation is the surface owner's responsibility
+- `offers EventSubmitter` — a typed operation set the surface makes available, defined in a `contract` declaration; the implementation is the surface owner's responsibility
 
 Both describe things the surface supplies, but `provides` connects to the rule system while `offers` describes a programmatic contract with typed signatures and invariants.
 
 ### Invariant vs guarantee
 
-`guarantee:` asserts a property of the surface boundary as a whole. `invariant:` asserts a property scoped to the operations within a specific obligation block.
+`guarantee:` asserts a property of the surface boundary as a whole. `invariant` asserts a property scoped to the operations within a specific contract or obligation block.
+
+Invariants come in two forms. Expression-bearing invariants carry a boolean expression that can be checked mechanically. Prose invariants describe properties that require human or LLM judgement.
 
 ```
--- Surface-level: applies across the entire boundary
+-- Expression-bearing invariant on an entity
+entity EventSubmission {
+    ...
+    invariant PayloadWithinLimit { length(payload) <= config.max_payload_bytes }
+}
+
+-- Prose invariant inside a contract
+contract DeterministicEvaluation {
+    invariant Purity {
+        -- evaluate must not perform I/O or access mutable state.
+    }
+}
+
+-- Surface-level guarantee: applies across the entire boundary
 guarantee: ModuleBoundaryIsolation
     -- Events from one module are never visible to another module.
-
--- Block-level: applies to the operations in this block only
-expects DeterministicEvaluation {
-    invariant: Purity
-        -- evaluate must not perform I/O or access mutable state.
-}
 ```
 
-Use `guarantee:` for cross-cutting properties that span the whole surface. Use `invariant:` for properties tied to specific operations within an obligation block.
+Use `guarantee:` for cross-cutting properties that span the whole surface. Use `invariant` for properties tied to specific operations within a contract or obligation block, or for entity-level assertions.
 
 ---
 

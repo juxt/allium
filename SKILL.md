@@ -117,6 +117,8 @@ rule InvitationExpires {
     ensures:
         for s in remaining:
             s.status = cancelled
+    guidance:
+        -- Non-normative implementation advice.
 }
 ```
 
@@ -182,7 +184,7 @@ surface InterviewerDashboard {
 }
 ```
 
-Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `provides` (available operations with optional when-guards), `guarantee` (constraints that must hold), `guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (references to temporal rules that apply within the surface's context).
+Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `provides` (available operations with optional when-guards), `expects ContractName` and `offers ContractName` (reference module-level `contract` declarations), `guarantee` (constraints that must hold), `guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (references to temporal rules that apply within the surface's context).
 
 The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, declare an actor type with a minimal `identified_by` expression. Actors that reference `within` in their `identified_by` expression must declare the expected context type: `within: Workspace`.
 
@@ -190,9 +192,24 @@ The `facing` clause accepts either an actor type (with a corresponding `actor` d
 
 The `exposes` block is the field-level contract: the implementation returns exactly these fields, the consumer uses exactly these fields. Do not add fields not listed. Do not omit fields that are listed.
 
+### Contract
+
+```allium
+contract Codec {
+    serialize: (value: Any) -> ByteArray
+    deserialize: (bytes: ByteArray) -> Any
+
+    invariant: Roundtrip
+        -- deserialize(serialize(value)) produces a value
+        -- equivalent to the original for all supported types.
+}
+```
+
+Contracts are module-level obligation blocks referenced by name in surfaces (`expects Codec`, `offers EventSubmitter`). See [Contracts](./references/language-reference.md#contracts) for declaration syntax and referencing rules.
+
 ### Expressions
 
-Navigation: `interview.candidacy.candidate.email`, `reply_to?.author` (optional), `timezone ?? "UTC"` (null coalescing). Collections: `slots.count`, `slot in invitation.slots`, `interviewers.any(i => i.can_solo)`, `for item in collection: item.status = cancelled`, `permissions + inherited` (set union), `old - new` (set difference). Comparisons: `status = pending`, `count >= 2`, `status in {confirmed, declined}`, `provider not in providers`. Boolean logic: `a and b`, `a or b`, `not a`.
+Navigation: `interview.candidacy.candidate.email`, `reply_to?.author` (optional), `timezone ?? "UTC"` (null coalescing). Collections: `slots.count`, `slot in invitation.slots`, `interviewers.any(i => i.can_solo)`, `for item in collection: item.status = cancelled`, `permissions + inherited` (set union), `old - new` (set difference). Comparisons: `status = pending`, `count >= 2`, `status in {confirmed, declined}`, `provider not in providers`. Boolean logic: `a and b`, `a or b`, `not a`, `a implies b`.
 
 ### Modular specs
 
@@ -208,6 +225,8 @@ Qualified names reference entities across specs: `oauth/Session`. Coordinates ar
 config {
     invitation_expiry: Duration = 7.days
     max_login_attempts: Integer = 5
+    extended_expiry: Duration = invitation_expiry * 2              -- expression-form default
+    sync_timeout: Duration = core/config.default_timeout           -- config parameter reference
 }
 ```
 
@@ -218,6 +237,17 @@ Rules reference config values as `config.invitation_expiry`. For default entity 
 ```
 default Role viewer = { name: "viewer", permissions: { "documents.read" } }
 ```
+
+### Invariant
+
+```allium
+invariant NonNegativeBalance {
+    for account in Accounts:
+        account.balance >= 0
+}
+```
+
+Expression-bearing invariants (`invariant Name { expression }`) assert properties over entity state. They are logical assertions, not runtime checks. Distinct from prose-only invariants (`invariant: Name`) in obligation blocks and contracts. See [Invariants](./references/language-reference.md#invariants).
 
 ### Deferred specs
 
@@ -237,6 +267,6 @@ When the `allium` CLI is installed, a hook validates `.allium` files automatical
 
 ## References
 
-- [Language reference](./references/language-reference.md) — full syntax for entities, rules, expressions, surfaces and validation
+- [Language reference](./references/language-reference.md) — full syntax for entities, rules, expressions, surfaces, contracts, invariants and validation
 - [Test generation](./references/test-generation.md) — generating tests from specifications
 - [Patterns](./references/patterns.md) — 9 worked patterns: auth, RBAC, invitations, soft delete, notifications, usage limits, comments, library spec integration, framework integration contract

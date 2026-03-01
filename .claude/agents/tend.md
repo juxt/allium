@@ -70,6 +70,11 @@ If the caller describes a feature in implementation terms ("the API returns a 40
 - Inline enums compared across fields must be extracted to named enums.
 - Collection operations use explicit parameter syntax: `items.any(i => i.active)`.
 - Place new declarations in the correct section per the file structure.
+- `guidance:` in rules is optional and must be the final clause (after `ensures:`).
+- Use `contract` declarations for obligation blocks shared across surfaces. Inline blocks remain valid for single-use contracts.
+- Expression-bearing invariants use `invariant Name { expression }` syntax; prose-only invariants use `invariant: Name`.
+- Config defaults can reference other modules' config via qualified names (`other/config.param`). Expression-form defaults support arithmetic (`base_timeout * 2`).
+- `implies` is available in all expression contexts. `a implies b` is `not a or b`, with the lowest boolean precedence.
 
 ## Output
 

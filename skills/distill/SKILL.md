@@ -430,6 +430,8 @@ rule CandidateAcceptsInvitation {
 | `send_email(...)` | `ensures: Email.created(...)` |
 | `notify(...)` | `ensures: Notification.created(...)` |
 
+Assertions, checks and validations found in code (e.g. `assert balance >= 0`, class-level validators) may map to expression-bearing invariants rather than rule preconditions. Consider whether they describe a system-wide property or a rule-specific guard.
+
 ### Step 4: Find temporal triggers
 
 Look for scheduled jobs and time-based logic:
@@ -512,6 +514,8 @@ external entity Candidate {
 }
 ```
 
+When repeated interface patterns appear across service boundaries (e.g. the same serialisation contract expected by multiple consumers), these suggest `contract` declarations for reuse rather than duplicated inline obligation blocks.
+
 ### Step 6: Abstract away implementation
 
 Now make a pass through your extracted spec and remove implementation details.
@@ -544,6 +548,8 @@ Changes:
 - `token: String(32)` removed (implementation)
 - `DateTime` became `Timestamp` (domain type)
 - Added derived `is_expired` for clarity
+
+Config values that derive from other config values (e.g. `extended_timeout = base_timeout * 2`) should use qualified references or expression-form defaults in the config block rather than independent literal values.
 
 ### Step 7: Validate with stakeholders
 
