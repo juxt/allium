@@ -111,43 +111,43 @@ Validation rule 25 requires config parameters to have explicit types and default
 
 ## Expression-form defaults
 
-Config defaults may also be expressions that combine qualified references with arithmetic. This allows derived configuration values that maintain a traceable relationship to their source.
-
-```allium
-config {
-    base_timeout: Duration = core/config.base_timeout       -- bare reference
-    extended_timeout: Duration = core/config.base_timeout * 2  -- expression
-    buffer_size: Integer = core/config.batch_size + 10         -- expression
-}
-```
-
-Expression-form defaults use the same arithmetic operators available in the existing expression language: `+`, `-`, `*`, `/`. Standard precedence applies. Both operands must resolve to compatible types; the checker verifies type consistency.
-
-### Resolution
-
-Expression-form defaults resolve in the same order as bare references: explicit override wins, then the expression is evaluated using the resolved values of any referenced parameters. The expression is evaluated once at config resolution time, not re-evaluated dynamically.
-
-### Motivation
-
-The roadmap review panel identified this as beneficial for PBT generation (TODO.md item 2). A PBT generator deriving entity generators bounded by config values can follow an expression-form default to understand the relationship between parameters, producing tighter test bounds than treating each parameter independently.
-
-### Validation
-
-Expression-form defaults are subject to the same validation rules as bare references (rules 48-49). The checker additionally verifies:
-
-51. Expression-form config defaults must use only arithmetic operators (`+`, `-`, `*`, `/`) and literal values alongside qualified config references
-52. Both sides of an arithmetic operator in a config default must resolve to type-compatible operands
-
-### Error catalogue addition
-
-#### E8: Invalid config default expression
-
-**Trigger**: A config default expression uses an operator or construct beyond arithmetic and qualified references.
-
-**Diagnostic**: "Config default expressions support arithmetic operators and qualified config references only. 'slots.count' is not a valid config default expression."
+Deferred to ALP-13. See that proposal for the expression-form extension and the committee's reasons for splitting it from this ALP.
 
 ## Questions for the committee
 
 1. Should the checker enforce that the local parameter name matches the referenced parameter name, or is renaming permitted? Renaming allows domain-appropriate vocabulary (`publish_delay` referencing `core/config.default_delay`) but makes tracing harder.
 2. Is the two-level indirection warning the right threshold, or should chained references be prohibited entirely?
 3. Should expression-form defaults support boolean expressions (e.g. `enabled: Boolean = core/config.feature_flag and env/config.is_production`), or should they be restricted to arithmetic?
+
+## Committee review
+
+**Status: adopted with amendments.** The panel reached consensus on bare qualified references. Expression-form defaults were deferred to ALP-13 by consensus (seven panellists recommended deferral; two supported inclusion but did not block).
+
+### Amendments
+
+1. **Cycle prohibition.** Add validation rule: "The config reference graph must be acyclic. The checker reports an error if resolving a config default would revisit a parameter already in the resolution chain." This is stronger than the depth warning — it catches indirect cycles through three or more modules.
+
+2. **Diamond dependency conflict detection.** When two modules both override the same parameter in a shared dependency, the checker must report a conflict rather than silently picking one. The resolution order handles linear chains but does not address diamond dependencies.
+
+3. **Renaming permitted.** The checker does not enforce that local and referenced parameter names match. Domains have their own vocabulary, and forcing name alignment couples domain language to infrastructure naming choices.
+
+### Answers to committee questions
+
+1. Renaming is permitted (see amendment 3).
+2. The two-level indirection warning is the right threshold. Chains are not prohibited, but the checker warns on depth > 2 and rejects cycles (amendment 1).
+3. Deferred to ALP-13 alongside expression-form defaults.
+
+### Key tensions
+
+**Bundling vs splitting.** The developer experience advocate argued that splitting expression-form defaults into a separate ALP creates unnecessary process overhead for a natural extension. The simplicity advocate countered that if the expression-form passes its own review quickly, splitting costs nothing, and if it raises questions, bundling forces the core proposal to wait. The panel sided with splitting.
+
+**Aliases vs computation.** The composability advocate and domain modelling advocate framed bare references as substitutional aliases ("use that value") and expression-form defaults as computational derivations ("derive a value from that value"). Config blocks currently declare values; expression-form defaults would turn them into a derived-value system. This conceptual distinction was the primary reason for deferral.
+
+### Expression-form deferral rationale
+
+The panel identified four unresolved questions:
+
+1. **Type semantics.** What does `Duration * 2` mean? The proposal defers to "the existing expression language" without specifying type rules for mixed-type arithmetic in config context.
+2. **Local references.** Can expression-form defaults reference local config parameters (`timeout = base_timeout * 2`), or only qualified ones? If only qualified, the feature has an irregularity.
+3. **Grammar impact.** Allowing expressions in config default position requires the parser to handle qualified references in expression context within config blocks, a grammar change larger than the proposal acknowledges.
+4. **Conceptual boundary.** Bare references are substitutional. Expressions are evaluative. These are different operations that warrant separate evaluation.
