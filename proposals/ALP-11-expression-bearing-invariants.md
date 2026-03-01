@@ -123,8 +123,8 @@ invariant NoOverlappingInterviews {
 ### What invariant expressions cannot do
 
 - No side effects. Invariants are pure assertions; they cannot use `.add()`, `.remove()` or `.created()`.
-- No `now`. Invariants assert state properties, not temporal ones. See open questions for discussion.
-- No `let` bindings. The expression must be self-contained. If the expression becomes unwieldy, the invariant should be split.
+- No `now`. Invariants assert state properties, not temporal ones. `now` is prohibited because it is volatile (re-evaluates on each read). Timestamp fields like `created_at` are permitted because they are stored state. The distinction is volatility, not temporality. See open questions for discussion.
+- `let` bindings are permitted. Bindings in invariant bodies must be pure expressions, subject to the same restrictions as the invariant body itself (no side effects, no `now`).
 
 ## Interaction with tooling roadmap
 
@@ -176,3 +176,35 @@ The trace validator can check invariants against production traces by evaluating
 2. Should `let` bindings be permitted inside invariant bodies for readability? This proposal prohibits them for simplicity, but complex invariants (e.g. those requiring join lookups) may benefit from local bindings.
 3. Should the brace-delimited expression form be available inside obligation blocks now, or should that wait for a future ALP per ALP-1's staging plan? This proposal defers it to maintain ALP-1's staging discipline.
 4. Does `implies` warrant addition to the general expression language, or should it be restricted to invariant contexts?
+
+## Committee review
+
+**Status: adopted with amendments.**
+
+All nine panellists supported the core construct. No panellist objected. Three amendments were required, all resolved during rebuttals.
+
+### Amendments
+
+1. **Permit `let` bindings in invariant bodies.** The prohibition creates an irregularity: `let` exists in rules and derived values but was artificially excluded from invariants. `let` bindings in invariant bodies must be pure expressions, subject to the same purity restrictions as the invariant body itself (no side effects, no `now`).
+
+2. **State invariant checking semantics explicitly.** Invariants are logical assertions over entity state, not runtime checks. Checking frequency and strategy are tooling concerns: PBT checks after rule sequences, the model checker checks exhaustively, the trace validator checks against reconstructed state. The semantics section should state this rather than leaving it implicit in the tooling discussion.
+
+3. **Clarify the `now`/timestamp boundary.** `now` is prohibited because it is volatile (re-evaluates on each read). Timestamp fields like `created_at` are permitted because they are stored state. The distinction is volatility, not temporality. Validation rule 56 should state this.
+
+### Answers to committee questions
+
+1. **Temporal invariants (`now`).** The panel supports the state-only boundary for this ALP. The `now` prohibition creates a clean extension point: a future ALP can introduce temporal invariants where the presence of `now` is the syntactic signal distinguishing them from state invariants. The creative advocate recorded a strong recommendation for this follow-up, motivated by the model checker's need to verify liveness properties. The domain modelling advocate noted that temporal properties are a tooling concern rather than a domain modelling concept, supporting separate evaluation.
+2. **`let` bindings.** Permitted, with purity constraints (see amendment 1).
+3. **Expression-bearing form in obligation blocks.** Deferred per ALP-1's staging plan. The panel did not challenge this.
+4. **`implies` scope.** Available in all expression contexts, not only invariants. The panel endorsed this unanimously. `implies` reads naturally in `requires` guards and derived boolean values as well as invariant assertions.
+
+### Key tensions
+
+**`for`-as-quantifier overloading.** The simplicity and machine reasoning advocates flagged that `for x in Collection:` has side-effecting semantics in rule `ensures` clauses but pure assertion semantics in invariants. The simplicity advocate initially suggested `all` as an alternative keyword. The readability advocate argued that `for` reads as natural language ("for every account, the balance is non-negative") and that a second keyword creates a different learning cost. The developer experience advocate added that the invariant block itself provides sufficient disambiguation, and error E10 catches anyone who attempts side effects. The simplicity advocate withdrew the suggestion, accepting that the cost of overloading is tolerable given the clear syntactic context.
+
+**Temporal invariants.** The creative advocate argued that the model checker needs temporal invariants for liveness properties and that properties like "no pending invitation older than 7 days" are assertions, not triggers for action. The domain modelling advocate countered that domain experts think about temporal properties in terms of rules, not invariants, and that temporal invariants are a tooling concept warranting separate evaluation. The panel agreed to defer.
+
+### Noted for future ALPs
+
+- Temporal invariants with `now`, for model checker liveness properties. Should use an explicit marker (`temporal invariant` or separate section) to distinguish from state invariants.
+- Expression-bearing invariants inside obligation blocks, per ALP-1's staging plan.
