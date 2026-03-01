@@ -109,8 +109,45 @@ Validation rule 25 requires config parameters to have explicit types and default
 
 **Diagnostic**: "Config parameter 'field' resolves through 3 levels of indirection. Consider referencing the source parameter directly."
 
+## Expression-form defaults
+
+Config defaults may also be expressions that combine qualified references with arithmetic. This allows derived configuration values that maintain a traceable relationship to their source.
+
+```allium
+config {
+    base_timeout: Duration = core/config.base_timeout       -- bare reference
+    extended_timeout: Duration = core/config.base_timeout * 2  -- expression
+    buffer_size: Integer = core/config.batch_size + 10         -- expression
+}
+```
+
+Expression-form defaults use the same arithmetic operators available in the existing expression language: `+`, `-`, `*`, `/`. Standard precedence applies. Both operands must resolve to compatible types; the checker verifies type consistency.
+
+### Resolution
+
+Expression-form defaults resolve in the same order as bare references: explicit override wins, then the expression is evaluated using the resolved values of any referenced parameters. The expression is evaluated once at config resolution time, not re-evaluated dynamically.
+
+### Motivation
+
+The roadmap review panel identified this as beneficial for PBT generation (TODO.md item 2). A PBT generator deriving entity generators bounded by config values can follow an expression-form default to understand the relationship between parameters, producing tighter test bounds than treating each parameter independently.
+
+### Validation
+
+Expression-form defaults are subject to the same validation rules as bare references (rules 48-49). The checker additionally verifies:
+
+51. Expression-form config defaults must use only arithmetic operators (`+`, `-`, `*`, `/`) and literal values alongside qualified config references
+52. Both sides of an arithmetic operator in a config default must resolve to type-compatible operands
+
+### Error catalogue addition
+
+#### E8: Invalid config default expression
+
+**Trigger**: A config default expression uses an operator or construct beyond arithmetic and qualified references.
+
+**Diagnostic**: "Config default expressions support arithmetic operators and qualified config references only. 'slots.count' is not a valid config default expression."
+
 ## Questions for the committee
 
 1. Should the checker enforce that the local parameter name matches the referenced parameter name, or is renaming permitted? Renaming allows domain-appropriate vocabulary (`publish_delay` referencing `core/config.default_delay`) but makes tracing harder.
-2. Should literal expressions be composable with references (e.g., `timeout: Duration = core/config.base_timeout * 2`)? This proposal takes the simpler position: defaults are either literal values or qualified references, not expressions.
-3. Is the two-level indirection warning the right threshold, or should chained references be prohibited entirely?
+2. Is the two-level indirection warning the right threshold, or should chained references be prohibited entirely?
+3. Should expression-form defaults support boolean expressions (e.g. `enabled: Boolean = core/config.feature_flag and env/config.is_production`), or should they be restricted to arithmetic?
