@@ -1739,17 +1739,17 @@ The checker should warn (but not error) on:
 
 | Code | Trigger | Diagnostic |
 |------|---------|------------|
-| E2 | Two obligation blocks (whether both `expects`, both `offers`, or one of each) with the same name in the same surface | "Obligation block 'Foo' is already declared in this surface. Obligation block names must be unique within a surface." |
-| E3 | Two surfaces that are composed or referenced together both declare an obligation block with the same name | "Obligation block 'Foo' is declared in both SurfaceA and SurfaceB. Rename one to resolve the conflict." |
-| E4 | `expects Foo` or `offers Foo` in a surface where `Foo` does not match any in-scope `contract` declaration or inline obligation block | "No contract or obligation block named 'Foo' found. Declare it as `contract Foo { ... }` at module level, or define it inline as `expects Foo { ... }` in this surface." |
-| E5 | A surface declares both `expects Foo { ... }` (inline) and `expects Foo` (contract reference) | "Surface declares both an inline obligation block and a contract reference named 'Foo'. Use one or the other." |
-| E6 | A config default references `alias/config.param` where `param` is not declared in the referenced module's config block | "Config parameter 'param' not found in module 'alias'. Check that the parameter name matches and the module is imported via `use`." |
-| E7 | A config parameter is declared as one type but references a parameter of a different type | "Type mismatch: 'max_retries' is Integer in module 'core', but declared as Duration here." |
-| E8 | A config default expression uses an operator or construct beyond arithmetic and config references | "Config default expressions support arithmetic operators and config references only. 'slots.count' is not a valid config default expression." |
-| E9 | An arithmetic operator is applied to operands whose types are not in the compatibility table | "Cannot apply '*' to Duration and Duration. Duration can be multiplied by Integer, not by another Duration." |
-| E10 | An invariant body evaluates to a non-boolean type | "Invariant 'NonNegativeBalance' must evaluate to a boolean. The expression evaluates to Integer." |
-| E11 | An invariant body contains `.created()`, `.add()`, `.remove()` or a trigger emission | "Invariant expressions must be pure assertions. '.created()' is a side effect and cannot appear in an invariant." |
-| E12 | An invariant body references `now` | "Invariants assert state properties, not temporal conditions. Use a rule with a temporal trigger instead." |
+| E1 | Two obligation blocks (whether both `expects`, both `offers`, or one of each) with the same name in the same surface | "Obligation block 'Foo' is already declared in this surface. Obligation block names must be unique within a surface." |
+| E2 | Two surfaces that are composed or referenced together both declare an obligation block with the same name | "Obligation block 'Foo' is declared in both SurfaceA and SurfaceB. Rename one to resolve the conflict." |
+| E3 | `expects Foo` or `offers Foo` in a surface where `Foo` does not match any in-scope `contract` declaration or inline obligation block | "No contract or obligation block named 'Foo' found. Declare it as `contract Foo { ... }` at module level, or define it inline as `expects Foo { ... }` in this surface." |
+| E4 | A surface declares both `expects Foo { ... }` (inline) and `expects Foo` (contract reference) | "Surface declares both an inline obligation block and a contract reference named 'Foo'. Use one or the other." |
+| E5 | A config default references `alias/config.param` where `param` is not declared in the referenced module's config block | "Config parameter 'param' not found in module 'alias'. Check that the parameter name matches and the module is imported via `use`." |
+| E6 | A config parameter is declared as one type but references a parameter of a different type | "Type mismatch: 'max_retries' is Integer in module 'core', but declared as Duration here." |
+| E7 | A config default expression uses an operator or construct beyond arithmetic and config references | "Config default expressions support arithmetic operators and config references only. 'slots.count' is not a valid config default expression." |
+| E8 | An arithmetic operator is applied to operands whose types are not in the compatibility table | "Cannot apply '*' to Duration and Duration. Duration can be multiplied by Integer, not by another Duration." |
+| E9 | An invariant body evaluates to a non-boolean type | "Invariant 'NonNegativeBalance' must evaluate to a boolean. The expression evaluates to Integer." |
+| E10 | An invariant body contains `.created()`, `.add()`, `.remove()` or a trigger emission | "Invariant expressions must be pure assertions. '.created()' is a side effect and cannot appear in an invariant." |
+| E11 | An invariant body references `now` | "Invariants assert state properties, not temporal conditions. Use a rule with a temporal trigger instead." |
 
 ---
 
