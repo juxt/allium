@@ -1642,12 +1642,10 @@ rule ApiRateLimitExceeded {
 
     requires: usage.is_over_api_quota
 
-    ensures: ApiResponse.created(
-        status: 429,
-        body: {
-            error: "rate_limit_exceeded",
-            resets_at: usage.next_reset_at
-        }
+    ensures: ApiRequestRejected(
+        workspace: workspace,
+        reason: rate_limit_exceeded,
+        data: { resets_at: usage.next_reset_at }
     )
 }
 

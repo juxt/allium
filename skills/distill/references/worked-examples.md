@@ -207,8 +207,8 @@ entity User {
     reset_tokens: PasswordResetToken with user = this
     sessions: Session with user = this
 
-    active_sessions: sessions with status = active
-    pending_reset_tokens: reset_tokens with status = pending
+    active_sessions: sessions where status = active
+    pending_reset_tokens: reset_tokens where status = pending
 }
 
 entity PasswordResetToken {
@@ -583,7 +583,7 @@ entity Workspace {
     all_projects: Project with workspace = this
 
     -- Projections
-    projects: all_projects with deleted_at = null
+    projects: all_projects where deleted_at = null
 
     -- Usage calculations
     project_count: projects.count
@@ -933,9 +933,9 @@ entity Document {
 entity Workspace {
     all_documents: Document with workspace = this
 
-    documents: all_documents with status = active
-    deleted_documents: all_documents with status = deleted
-    restorable_documents: all_documents with can_restore = true
+    documents: all_documents where status = active
+    deleted_documents: all_documents where status = deleted
+    restorable_documents: all_documents where can_restore = true
 }
 
 rule DeleteDocument {

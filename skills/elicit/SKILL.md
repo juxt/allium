@@ -262,7 +262,7 @@ Better to record an open question than assume.
 "I'm not sure whether declining should return the candidate to the pool or remove them entirely. Let me note that as an open question."
 
 ```
-open_question "When candidate declines, do they return to pool or exit?"
+open question "When candidate declines, do they return to pool or exit?"
 ```
 
 ### Use concrete examples

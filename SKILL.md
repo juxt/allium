@@ -25,11 +25,13 @@ Allium does NOT specify programming language or framework choices, database sche
 
 ## Routing table
 
-| Task | Skill | When |
-|------|-------|------|
+| Task | Tool | When |
+|------|------|------|
 | Writing or reading `.allium` files | this skill | You need language syntax and structure |
-| Building a spec through conversation | `elicit` | User describes a feature or behaviour they want to build |
-| Extracting a spec from existing code | `distill` | User has implementation code and wants a spec from it |
+| Building a spec through conversation | `elicit` skill | User describes a feature or behaviour they want to build |
+| Extracting a spec from existing code | `distill` skill | User has implementation code and wants a spec from it |
+| Modifying an existing spec | `tend` agent | User wants targeted changes to `.allium` files |
+| Checking spec-to-code alignment | `weed` agent | User wants to find or fix divergences between spec and implementation |
 
 ## Quick syntax summary
 
@@ -237,4 +239,4 @@ When the `allium` CLI is installed, a hook validates `.allium` files automatical
 
 - [Language reference](./references/language-reference.md) — full syntax for entities, rules, expressions, surfaces and validation
 - [Test generation](./references/test-generation.md) — generating tests from specifications
-- [Patterns](./references/patterns.md) — 8 worked patterns: auth, RBAC, invitations, soft delete, notifications, usage limits, comments, library spec integration
+- [Patterns](./references/patterns.md) — 9 worked patterns: auth, RBAC, invitations, soft delete, notifications, usage limits, comments, library spec integration, framework integration contract

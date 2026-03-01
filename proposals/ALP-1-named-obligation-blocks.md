@@ -1,6 +1,6 @@
 # ALP-1: Named obligation blocks in surfaces
 
-**Status**: adopted (pending language version 2)
+**Status**: adopted (incorporated into language version 2)
 **Keywords introduced**: `expects`, `offers`, `invariant`
 **Sections affected**: surfaces, validation rules, glossary
 
