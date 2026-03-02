@@ -96,11 +96,11 @@ An Allium specification file (`.allium`) begins with a language version marker, 
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `related`, `timeout`, `guarantee`, `guidance` and `invariant` are delimited by consistent indentation relative to the parent clause. Named blocks opened by a keyword and PascalCase name followed by `{ ... }` (`expects`, `offers`, `contract`, `invariant` — which also has a colon-delimited prose form in obligation blocks) use brace delimiters. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `contracts`, `related`, `timeout`, `guarantee`, `guidance` and `invariant` are delimited by consistent indentation relative to the parent clause. Named blocks opened by a keyword and PascalCase name followed by `{ ... }` (`contract`, `invariant` — which also has a colon-delimited prose form in contracts) use brace delimiters. `contracts:` entries use `demands`/`fulfils` modifiers followed by a contract name. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
-- **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names, obligation block names, contract names, invariant names (`InterviewSlot`, `CandidateSelectsSlot`, `DeterministicEvaluation`, `Purity`)
+- **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names, contract names, invariant names (`InterviewSlot`, `CandidateSelectsSlot`, `DeterministicEvaluation`, `Purity`)
 - **snake_case**: field names, config parameters, derived values, enum literals, relationship names (`expires_at`, `max_login_attempts`, `pending`)
 - **Entity collections**: natural English plurals of the entity name (`Users`, `Documents`, `Candidacies`)
 
@@ -129,7 +129,7 @@ This is distinct from surface `context`, which binds a parametric scope for a bo
 
 ## Contracts
 
-A `contract` declaration defines a named obligation block at module level. Surfaces reference contracts by name in their `expects` and `offers` clauses, avoiding duplication when multiple surfaces share the same capability contract.
+A `contract` declaration defines a named, direction-agnostic obligation at module level. Surfaces reference contracts in a `contracts:` clause using `demands` (the counterpart must implement) or `fulfils` (this surface supplies) direction markers.
 
 ### Declaration syntax
 
@@ -148,30 +148,26 @@ contract Codec {
 }
 ```
 
-Contracts permit the same contents as inline obligation blocks: typed signatures, `invariant:` declarations (PascalCase name with prose description) and `guidance:` blocks. Entity, value, enum and variant declarations are prohibited inside contracts. Types referenced in signatures must be declared at module level or imported via `use`.
+Contract bodies contain typed signatures, `invariant:` declarations (PascalCase name with prose description) and `guidance:` blocks. Entity, value, enum and variant declarations are prohibited inside contracts. Types referenced in signatures must be declared at module level or imported via `use`.
 
 ### Referencing contracts in surfaces
 
-Surfaces reference contracts by name. The `expects` or `offers` keyword indicates the direction of the obligation:
+Surfaces reference contracts in a `contracts:` clause. Each entry uses `demands` or `fulfils` to indicate the direction of the obligation:
 
 ```
 surface DomainIntegration {
     facing framework: FrameworkRuntime
 
-    expects Codec                    -- references a contract
-    expects DeterministicEvaluation  -- references a contract
-
-    offers EventSubmitter {          -- inline obligation block
-        submit: (event: DomainEvent) -> Acknowledgement
-    }
+    contracts:
+        demands Codec
+        demands DeterministicEvaluation
+        fulfils EventSubmitter
 
     guarantee: AllOperationsIdempotent
 }
 ```
 
-`expects ContractName` (no braces) references a module-level contract. `expects BlockName { ... }` (with braces) declares an inline obligation block. The two forms coexist within a surface but cannot share a name: a surface may not have both an inline obligation block and a contract reference called `Codec`.
-
-The surface inherits all signatures, invariants and guidance from the referenced contract. Surfaces that need additional obligations beyond a contract should declare them in a separate inline block.
+The surface inherits all signatures, invariants and guidance from each referenced contract. Each contract name may appear at most once per surface.
 
 ### Contract identity
 
@@ -180,10 +176,6 @@ Contract identity is determined by module-qualified name, consistent with entity
 ### Imports
 
 Contracts are importable across modules via `use`, following the same coordinate system as entity imports. Contract imports are atomic: a contract is imported as a complete unit. Partial imports (importing individual signatures from a contract) are not supported.
-
-### No conditional obligations
-
-Contract bodies are unconditional. Signatures, invariants and guidance apply to every surface that references the contract. Surface-specific conditions belong in inline obligation blocks alongside the contract reference, not inside the contract.
 
 ### No type parameters
 
@@ -1133,7 +1125,7 @@ Invariants are logical assertions over entity state, not runtime checks. Checkin
 
 Two syntactically distinct forms exist:
 
-- `invariant: Name` (colon, then prose) — prose-only, used in obligation blocks and contracts
+- `invariant: Name` (colon, then prose) — prose-only, used in contracts
 - `invariant Name { expression }` (no colon, braces) — expression-bearing, at top-level and entity-level scopes
 
 The prose-only form describes a property informally. The expression-bearing form is a machine-readable assertion that tooling can exercise.
@@ -1387,7 +1379,7 @@ External entities in one spec may be internal entities in another. The boundary 
 
 ## Surfaces
 
-A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes, provides and (for programmatic boundaries) expects or offers.
+A surface defines a contract at a boundary. A boundary exists wherever two parties interact: a user and an application, a framework and its domain modules, a service and its consumers. Each surface names the boundary and specifies what each party exposes and provides, with a `contracts:` clause for programmatic integration obligations.
 
 Surfaces serve two purposes:
 - **Documentation**: Capture expectations about what each party sees, must contribute and can use
@@ -1459,24 +1451,9 @@ surface SurfaceName {
         Action(party, item, ...) [when condition]
         ...
 
-    expects ContractName                -- references a module-level contract
-    expects BlockName {                  -- inline obligation block
-        operation: (param: Type) -> ReturnType
-
-        invariant: PropertyName
-            -- Description of the property.
-
-        guidance:
-            -- Non-normative implementation advice.
-    }
-
-    offers ContractName                  -- references a module-level contract
-    offers BlockName {                   -- inline obligation block
-        operation: (param: Type) -> ReturnType
-
-        invariant: PropertyName
-            -- Description of the property.
-    }
+    contracts:
+        demands ContractName             -- counterpart must implement
+        fulfils ContractName             -- this surface supplies
 
     guarantee: ConstraintName
     guidance: -- non-normative advice
@@ -1499,8 +1476,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `let` | Local bindings, same as in rules |
 | `exposes` | Visible data (supports `for` iteration over collections) |
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
-| `expects` | What the counterpart must supply. Either a contract reference (`expects ContractName`) or an inline obligation block (`expects BlockName { ... }`) with typed signatures, invariants and guidance |
-| `offers` | What this surface supplies to the counterpart. Either a contract reference (`offers ContractName`) or an inline obligation block (`offers BlockName { ... }`) with typed signatures, invariants and guidance |
+| `contracts` | References to module-level `contract` declarations with direction markers. `demands ContractName` indicates the counterpart must implement; `fulfils ContractName` indicates this surface supplies |
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Associated surfaces reachable from this one; the parenthesised expression evaluates to the entity instance that the target surface's `context` clause binds to, and its type must match the target surface's context type |
@@ -1550,40 +1526,42 @@ surface InterviewerDashboard {
 }
 ```
 
-**Obligation block example** — `expects` and `offers` declare programmatic integration contracts. Each named block contains typed signatures, invariant declarations and optional guidance. Types referenced in signatures must be declared at module level.
+**Contract reference example** — contracts are declared at module level and referenced in surfaces via a `contracts:` clause with `demands`/`fulfils` direction markers.
 
 ```
+contract DeterministicEvaluation {
+    evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
+
+    invariant: Determinism
+        -- For identical inputs, evaluate must produce
+        -- byte-identical outputs across all instances.
+
+    invariant: Purity
+        -- No I/O, no clock, no mutable state outside arguments.
+}
+
+contract EventSubmitter {
+    submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
+
+    invariant: AtMostOnceProcessing
+        -- Within the TTL window, duplicate submissions
+        -- receive the cached response.
+}
+
 surface DomainIntegration {
     exposes:
         EntityKey
         EventOutcome
 
-    expects DeterministicEvaluation {
-        evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
-
-        invariant: Determinism
-            -- For identical inputs, evaluate must produce
-            -- byte-identical outputs across all instances.
-
-        invariant: Purity
-            -- No I/O, no clock, no mutable state outside arguments.
-    }
-
-    offers EventSubmitter {
-        submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
-
-        invariant: AtMostOnceProcessing
-            -- Within the TTL window, duplicate submissions
-            -- receive the cached response.
-    }
+    contracts:
+        demands DeterministicEvaluation
+        fulfils EventSubmitter
 }
 ```
 
-Obligation blocks may not contain entity, value, enum or variant declarations. Their contents are limited to typed signatures, `invariant:` declarations and `guidance:` blocks.
+**Invariant declarations** — an `invariant:` inside a contract is a named, scoped assertion about a property of the operations in that contract. It carries a PascalCase name and a prose description. Invariant names must be unique within their contract.
 
-**Invariant declarations** — an `invariant:` inside an obligation block is a named, scoped assertion about a property of the operations in that block. It carries a PascalCase name and a prose description. Invariant names must be unique within their obligation block and across obligation blocks within the same surface.
-
-`invariant:` is distinct from `guarantee:`. A `guarantee:` is a surface-level assertion about the boundary contract as a whole. An `invariant:` describes a property scoped to a specific obligation block. The same `invariant:` construct also appears at top-level and entity-level scopes as expression-bearing invariants (see [Invariants](#invariants)).
+`invariant:` is distinct from `guarantee:`. A `guarantee:` is a surface-level assertion about the boundary contract as a whole. An `invariant:` describes a property scoped to a specific contract. The same `invariant:` construct also appears at top-level and entity-level scopes as expression-bearing invariants (see [Invariants](#invariants)).
 
 **Timeout example** — a `timeout` clause references an existing temporal rule by name and binds it to the surface's context. The rule name must correspond to a rule with a temporal trigger defined elsewhere in the spec. The `when` condition is optional: include it to restate the temporal expression for readability, or omit it when the rule name is self-explanatory. When present, the checker verifies the `when` condition matches the referenced rule's trigger.
 
@@ -1669,43 +1647,41 @@ A valid Allium specification must satisfy:
 34. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
 35. Rule names referenced in `timeout` clauses must correspond to a defined rule with a temporal trigger. If a `when` condition is present, it must match the referenced rule's temporal trigger expression
 
-**Obligation block validity:**
-36. Obligation blocks (`expects`, `offers`) must have a PascalCase name followed by a brace-delimited block body
-37. Obligation block bodies may contain only typed signatures, `invariant:` declarations and `guidance:` blocks. Entity, value, enum and variant declarations are prohibited inside obligation blocks
-38. Obligation block names must be unique within their enclosing surface, across both `expects` and `offers` blocks
-39. Types referenced in obligation block signatures must be declared at module level or imported via `use`
-40. `invariant:` declarations within obligation blocks must have a PascalCase name and a prose description
-41. Invariant names must be unique within their enclosing obligation block and across obligation blocks within the same surface
-42. Same-named obligation blocks across composed surfaces are a structural error
+**Contract clause validity:**
+36. `contracts:` entries must use `demands` or `fulfils` followed by a PascalCase contract name
+37. Each contract name appears at most once per surface
+38. Referenced contract names must resolve to a `contract` declaration in scope (local or imported via `use`)
+39. Same-named contracts from different modules on the same surface are a structural error
 
 **Contract validity:**
-43. `contract` declarations must have a PascalCase name followed by a brace-delimited block body
-44. Contract bodies may contain only typed signatures, `invariant:` declarations and `guidance:` blocks
-45. Contract names must be unique at module level
-46. A surface `expects`/`offers` clause referencing a contract name must resolve to a `contract` declaration in scope (local or imported via `use`)
-47. A surface may not have both an inline obligation block and a contract reference with the same name
+40. `contract` declarations must have a PascalCase name followed by a brace-delimited block body
+41. Contract bodies may contain only typed signatures, `invariant:` declarations and `guidance:` blocks
+42. Types in contract signatures must be declared at module level or imported via `use`
+43. Contract names must be unique at module level
+44. `invariant:` declarations within contracts must have a PascalCase name and a prose description
+45. Invariant names must be unique within their contract
 
 **Config reference validity:**
-48. A qualified config reference in a default expression must resolve to a declared parameter in an imported module's config block
-49. The declared type of a parameter with a qualified default must match the referenced parameter's type
-50. The config reference graph must be acyclic
+46. A qualified config reference in a default expression must resolve to a declared parameter in an imported module's config block
+47. The declared type of a parameter with a qualified default must match the referenced parameter's type
+48. The config reference graph must be acyclic
 
 **Config expression validity:**
-51. Expression-form config defaults must use only arithmetic operators (`+`, `-`, `*`, `/`), literal values, local config parameter references and qualified config references
-52. Both sides of an arithmetic operator in a config default must resolve to type-compatible operands per the type compatibility table
+49. Expression-form config defaults must use only arithmetic operators (`+`, `-`, `*`, `/`), literal values, local config parameter references and qualified config references
+50. Both sides of an arithmetic operator in a config default must resolve to type-compatible operands per the type compatibility table
 
 **Invariant validity:**
-53. Top-level `invariant` blocks must have a PascalCase name followed by a brace-delimited expression body
-54. Entity-level `invariant` blocks must have a PascalCase name followed by a brace-delimited expression body
-55. Invariant names must be unique within their scope (module-level for top-level invariants, entity declaration for entity-level invariants)
-56. Invariant expressions must evaluate to a boolean type
-57. Invariant expressions must not contain side-effecting operations (`.add()`, `.remove()`, `.created()`, trigger emissions)
-58. Invariant expressions must not reference `now` (volatile; stored timestamp fields are permitted)
-59. Entity collection references in top-level invariants must correspond to declared entity types
+51. Top-level `invariant` blocks must have a PascalCase name followed by a brace-delimited expression body
+52. Entity-level `invariant` blocks must have a PascalCase name followed by a brace-delimited expression body
+53. Invariant names must be unique within their scope (module-level for top-level invariants, entity declaration for entity-level invariants)
+54. Invariant expressions must evaluate to a boolean type
+55. Invariant expressions must not contain side-effecting operations (`.add()`, `.remove()`, `.created()`, trigger emissions)
+56. Invariant expressions must not reference `now` (volatile; stored timestamp fields are permitted)
+57. Entity collection references in top-level invariants must correspond to declared entity types
 
 **Rule guidance validity:**
-60. `guidance:` in a rule must appear after all other clauses
-61. `guidance:` content is opaque; the checker does not parse or validate it beyond recognising the block boundary
+58. `guidance:` in a rule must appear after all other clauses
+59. `guidance:` content is opaque; the checker does not parse or validate it beyond recognising the block boundary
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1727,29 +1703,9 @@ The checker should warn (but not error) on:
 - Surfaces that use a raw entity type in `facing` when actor declarations exist for that entity type (may indicate a missing access restriction)
 - `transitions_to` triggers on values that entities can be created with (the rule will not fire on creation; consider `becomes` if the rule should also fire on creation)
 - Multiple fields on the same entity with identical inline enum literals (suggests extraction to a named enum; will error if the fields are later compared)
-- Obligation blocks with no invariants (may indicate an incomplete contract)
 - Invariant descriptions that resemble formal expressions (informational: use expression-bearing `invariant Name { expression }` syntax for machine-readable assertions)
-- `expects:` or `offers:` with a colon and no block name inside a surface — "Did you mean to declare an obligation block? Use `expects BlockName { ... }` inside surfaces. `expects:` with a colon is not valid surface syntax."
 - Config reference chains deeper than two levels of indirection
 - Diamond dependency conflicts in config overrides
-
----
-
-## Error catalogue
-
-| Code | Trigger | Diagnostic |
-|------|---------|------------|
-| E1 | Two obligation blocks (whether both `expects`, both `offers`, or one of each) with the same name in the same surface | "Obligation block 'Foo' is already declared in this surface. Obligation block names must be unique within a surface." |
-| E2 | Two surfaces that are composed or referenced together both declare an obligation block with the same name | "Obligation block 'Foo' is declared in both SurfaceA and SurfaceB. Rename one to resolve the conflict." |
-| E3 | `expects Foo` or `offers Foo` in a surface where `Foo` does not match any in-scope `contract` declaration or inline obligation block | "No contract or obligation block named 'Foo' found. Declare it as `contract Foo { ... }` at module level, or define it inline as `expects Foo { ... }` in this surface." |
-| E4 | A surface declares both `expects Foo { ... }` (inline) and `expects Foo` (contract reference) | "Surface declares both an inline obligation block and a contract reference named 'Foo'. Use one or the other." |
-| E5 | A config default references `alias/config.param` where `param` is not declared in the referenced module's config block | "Config parameter 'param' not found in module 'alias'. Check that the parameter name matches and the module is imported via `use`." |
-| E6 | A config parameter is declared as one type but references a parameter of a different type | "Type mismatch: 'max_retries' is Integer in module 'core', but declared as Duration here." |
-| E7 | A config default expression uses an operator or construct beyond arithmetic and config references | "Config default expressions support arithmetic operators and config references only. 'slots.count' is not a valid config default expression." |
-| E8 | An arithmetic operator is applied to operands whose types are not in the compatibility table | "Cannot apply '*' to Duration and Duration. Duration can be multiplied by Integer, not by another Duration." |
-| E9 | An invariant body evaluates to a non-boolean type | "Invariant 'NonNegativeBalance' must evaluate to a boolean. The expression evaluates to Integer." |
-| E10 | An invariant body contains `.created()`, `.add()`, `.remove()` or a trigger emission | "Invariant expressions must be pure assertions. '.created()' is a side effect and cannot appear in an invariant." |
-| E11 | An invariant body references `now` | "Invariants assert state properties, not temporal conditions. Use a rule with a temporal trigger instead." |
 
 ---
 
@@ -1905,11 +1861,10 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
-| **Surface** | A boundary contract between two parties specifying what each side exposes, provides, expects and offers |
-| **Contract** | A named, reusable obligation block declared at module level with `contract Name { ... }`. Surfaces reference contracts by name in `expects`/`offers` clauses. Identity determined by module-qualified name |
-| **Obligation block** | A named contract element within a surface, declared with `expects` (what the counterpart must supply) or `offers` (what this surface supplies). Contains typed signatures, invariants and guidance. Can be declared inline or reference a module-level contract |
-| **`expects`** | Surface clause declaring a named set of operations and properties the counterpart must implement |
-| **`offers`** | Surface clause declaring a named set of operations and properties this surface provides to the counterpart |
-| **Invariant** | A named, scoped assertion about a property. Two syntactic variants: `invariant: Name` (prose-only, in obligation blocks and contracts) and `invariant Name { expression }` (expression-bearing, at top-level and entity-level). Expression-bearing invariants are logical assertions over entity state, not runtime checks. Distinct from `guarantee`, which asserts properties of the boundary as a whole |
+| **Surface** | A boundary contract between two parties specifying what each side exposes and provides, with optional `contracts:` clause for programmatic integration obligations |
+| **Contract** | A named, direction-agnostic obligation declared at module level with `contract Name { ... }`. Surfaces reference contracts in a `contracts:` clause with `demands`/`fulfils` direction markers. Identity determined by module-qualified name |
+| **`demands`** | Direction marker in a `contracts:` clause indicating the counterpart must implement this contract |
+| **`fulfils`** | Direction marker in a `contracts:` clause indicating this surface supplies the contract's operations |
+| **Invariant** | A named, scoped assertion about a property. Two syntactic variants: `invariant: Name` (prose-only, in contracts) and `invariant Name { expression }` (expression-bearing, at top-level and entity-level). Expression-bearing invariants are logical assertions over entity state, not runtime checks. Distinct from `guarantee`, which asserts properties of the boundary as a whole |
 | **`implies`** | Boolean operator. `a implies b` is `not a or b`. Lowest boolean precedence, binding looser than `and` and `or`. Available in all expression contexts |
 | **Config reference** | A qualified reference in a config default (`param: Type = other/config.param`) that aliases a parameter from an imported module. Supports expression-form defaults with arithmetic operators |

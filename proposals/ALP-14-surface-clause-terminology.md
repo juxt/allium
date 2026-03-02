@@ -1,6 +1,6 @@
 # ALP-14: Surface clause terminology
 
-**Status**: proposed
+**Status**: superseded by ALP-15
 **Keywords affected**: `exposes`, `provides`, `expects`, `offers`
 **Sections affected**: surfaces, validation rules, glossary, patterns, migration guide
 

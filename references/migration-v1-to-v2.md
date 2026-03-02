@@ -10,9 +10,9 @@ If you are an LLM migrating a v1 spec, read this document in full, then work thr
 
 Version 2 adds six capabilities to the language. None of the existing v1 syntax was removed or altered; every v1 construct still means what it meant before. The changes are:
 
-1. **Obligation blocks** (`expects`, `offers`) in surfaces, for expressing programmatic integration contracts with typed signatures and invariants.
-2. **Module-level contracts** (`contract`), reusable obligation blocks that surfaces reference by name.
-3. **Guidance clauses** (`guidance:`) in rules, obligation blocks and surfaces, for non-normative implementation advice.
+1. **Contract references** (`demands`, `fulfils`) in surfaces, for expressing programmatic integration contracts with typed signatures and invariants.
+2. **Module-level contracts** (`contract`), direction-agnostic obligation declarations that surfaces reference via a `contracts:` clause.
+3. **Guidance clauses** (`guidance:`) in rules, contracts and surfaces, for non-normative implementation advice.
 4. **Expression-bearing invariants** (`invariant Name { expression }`), machine-readable assertions at top-level and entity-level scope.
 5. **The `implies` operator**, a boolean operator available in all expression contexts.
 6. **Config composition** — config parameter defaults that reference imported module parameters by qualified name, with arithmetic expressions for derived defaults.
@@ -83,45 +83,48 @@ If you add expression-bearing invariants, place the section header after Rules:
 
 These constructs did not exist in v1. They are optional: a migrated spec does not need to use them. But they are available, and specs that would benefit from them should adopt them.
 
-### Obligation blocks in surfaces (`expects`, `offers`)
+### Contract references in surfaces (`demands`, `fulfils`)
 
-V1 surfaces had `exposes`, `provides`, `guarantee`, `related` and `timeout`. V2 adds `expects` and `offers` for programmatic integration contracts.
+V1 surfaces had `exposes`, `provides`, `guarantee`, `related` and `timeout`. V2 adds a `contracts:` clause for programmatic integration contracts.
 
-Use `expects` when the surface requires something from the counterpart. Use `offers` when the surface supplies something to the counterpart. Each block has a PascalCase name, contains typed signatures, optional `invariant:` declarations (prose-only, with a PascalCase name) and optional `guidance:` blocks.
+Use `demands` when the surface requires something from the counterpart. Use `fulfils` when the surface supplies something to the counterpart. Each entry references a module-level `contract` declaration by name.
 
 ```
+contract DeterministicEvaluation {
+    evaluate: (event_name: String, payload: ByteArray) -> EventOutcome
+
+    invariant: Determinism
+        -- For identical inputs, evaluate must produce
+        -- byte-identical outputs across all instances.
+
+    guidance:
+        -- Avoid allocating during evaluation where possible.
+}
+
+contract EventSubmitter {
+    submit: (key: String, event_name: String, payload: ByteArray) -> EventSubmission
+}
+
 surface DomainIntegration {
     facing framework: FrameworkRuntime
 
-    expects DeterministicEvaluation {
-        evaluate: (event_name: String, payload: ByteArray) -> EventOutcome
-
-        invariant: Determinism
-            -- For identical inputs, evaluate must produce
-            -- byte-identical outputs across all instances.
-
-        guidance:
-            -- Avoid allocating during evaluation where possible.
-    }
-
-    offers EventSubmitter {
-        submit: (key: String, event_name: String, payload: ByteArray) -> EventSubmission
-    }
+    contracts:
+        demands DeterministicEvaluation
+        fulfils EventSubmitter
 }
 ```
 
 **Syntax rules:**
-- `expects BlockName { ... }` and `offers BlockName { ... }` use braces, not colons.
-- Do not write `expects:` or `offers:` with a colon. That is not valid surface syntax.
-- Block names must be PascalCase.
-- Block names must be unique within a surface, across both `expects` and `offers`.
-- Only typed signatures, `invariant:` declarations and `guidance:` blocks are permitted inside obligation blocks. No entity, value, enum or variant declarations.
+- `contracts:` entries use `demands` or `fulfils` followed by a PascalCase contract name.
+- Each contract name may appear at most once per surface.
+- Referenced contract names must resolve to a `contract` declaration in scope.
+- Contract bodies contain typed signatures, `invariant:` declarations and `guidance:` blocks. No entity, value, enum or variant declarations.
 
-**When to add obligation blocks to an existing v1 surface:** if the surface describes a boundary between code (framework and module, service and plugin, API and consumer) rather than between a user and an application, and the contract involves typed operations with specific properties.
+**When to add contract references to an existing v1 surface:** if the surface describes a boundary between code (framework and module, service and plugin, API and consumer) rather than between a user and an application, and the contract involves typed operations with specific properties.
 
 ### Module-level contracts
 
-When multiple surfaces share the same obligation block, extract it as a `contract` at module level and reference it by name.
+Contracts are declared at module level in the Contracts section. Surfaces reference them via the `contracts:` clause.
 
 ```
 -- Module-level declaration (in the Contracts section)
@@ -134,21 +137,22 @@ contract Codec {
         -- equivalent to the original for all supported types.
 }
 
--- Surface references the contract by name (no braces)
+contract EventSubmitter {
+    submit: (event: DomainEvent) -> Acknowledgement
+}
+
+-- Surface references contracts with direction markers
 surface DataPipeline {
     facing processor: ProcessorModule
 
-    expects Codec                    -- contract reference, no braces
-    offers EventSubmitter {          -- inline obligation block, with braces
-        submit: (event: DomainEvent) -> Acknowledgement
-    }
+    contracts:
+        demands Codec
+        fulfils EventSubmitter
 }
 ```
 
 **Syntax rules:**
-- `expects ContractName` (no braces) references a module-level contract.
-- `expects BlockName { ... }` (with braces) declares an inline obligation block.
-- A surface cannot have both a contract reference and an inline block with the same name.
+- `contracts:` entries use `demands` or `fulfils` followed by a contract name.
 - Contract identity is determined by module-qualified name. Same-named contracts from different modules are a structural error.
 - Contracts are imported atomically via `use`. Partial imports are not supported.
 
@@ -179,7 +183,7 @@ rule ExpireInvitation {
 **Syntax rules:**
 - `guidance:` must be the last clause in a rule, after all `ensures` clauses.
 - Content is opaque prose using comment syntax (`--`). The checker does not parse it.
-- `guidance:` is also valid inside obligation blocks and at surface level. In obligation blocks it provides implementation advice scoped to that block's operations. At surface level it provides advice about the boundary as a whole.
+- `guidance:` is also valid inside contracts and at surface level. In contracts it provides implementation advice scoped to that contract's operations. At surface level it provides advice about the boundary as a whole.
 
 ### Expression-bearing invariants
 
@@ -220,7 +224,7 @@ entity Account {
 
 **Syntax rules:**
 - Expression-bearing invariants use `invariant Name { expression }` (no colon, braces).
-- Prose-only invariants in obligation blocks use `invariant: Name` (colon, then prose). These are distinct constructs.
+- Prose-only invariants in contracts use `invariant: Name` (colon, then prose). These are distinct constructs.
 - Invariant names are PascalCase.
 - Expressions must be pure: no `.add()`, `.remove()`, `.created()`, no trigger emissions, no `now`.
 - `for x in Collection:` inside an invariant body is a universal quantifier (all elements must satisfy).
@@ -282,11 +286,10 @@ config {
 
 ## Naming convention additions
 
-V2 extends PascalCase to three new constructs:
+V2 extends PascalCase to two new constructs:
 
 | Construct | Convention | Example |
 |-----------|-----------|---------|
-| Obligation block names | PascalCase | `DeterministicEvaluation` |
 | Contract names | PascalCase | `Codec` |
 | Invariant names | PascalCase | `NonNegativeBalance` |
 
@@ -300,8 +303,7 @@ Use this checklist when upgrading a v1 spec to v2. Items marked **required** mus
 
 - [ ] **Required.** Change `-- allium: 1` to `-- allium: 2` on the first line.
 - [ ] **Required if adopting new constructs.** Verify section order matches v2 (Contracts after Value Types, Invariants after Rules). If neither section is present, existing order is already correct.
-- [ ] **Optional.** If the spec has surfaces describing code-to-code boundaries, consider adding `expects`/`offers` obligation blocks.
-- [ ] **Optional.** If multiple surfaces share the same obligation block, extract it as a `contract` declaration and place it in the Contracts section.
+- [ ] **Optional.** If the spec has surfaces describing code-to-code boundaries, consider declaring `contract` blocks and referencing them via a `contracts:` clause with `demands`/`fulfils`.
 - [ ] **Optional.** If rules or surfaces have implementation-specific notes in comments, consider moving them into `guidance:` clauses (valid as the final clause in rules and at surface level).
 - [ ] **Optional.** If the spec has properties that must always hold (uniqueness, non-negativity, referential constraints), express them as `invariant Name { expression }` blocks.
 - [ ] **Optional.** If any expression (invariants, requires, derived values) would read more clearly with implication logic, use the `implies` operator.
@@ -316,9 +318,9 @@ Use this checklist when upgrading a v1 spec to v2. Items marked **required** mus
 | `-- allium: 1` | `-- allium: 2` | Required |
 | Sections: Value Types → Enumerations | Sections: Value Types → **Contracts** → Enumerations | Required (if contracts present) |
 | Sections: Rules → Actor Declarations | Sections: Rules → **Invariants** → Actor Declarations | Required (if invariants present) |
-| No obligation blocks in surfaces | `expects BlockName { ... }`, `offers BlockName { ... }` | Additive |
+| No contract references in surfaces | `contracts:` clause with `demands`/`fulfils` entries | Additive |
 | No module-level contracts | `contract Name { ... }` in Contracts section | Additive |
-| No `guidance:` clause | `guidance:` in rules (final clause), obligation blocks and surfaces | Additive |
+| No `guidance:` clause | `guidance:` in rules (final clause), contracts and surfaces | Additive |
 | No expression-bearing invariants | `invariant Name { expression }` at top-level and entity-level | Additive |
 | No `implies` operator | `a implies b` (lowest boolean precedence) | Additive |
 | Config defaults are literals only | Config defaults can reference `alias/config.param` and use arithmetic | Additive |

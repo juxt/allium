@@ -24,13 +24,13 @@ Every `.allium` file starts with `-- allium: N` where N is the current language 
 
 **`now` evaluation model** — In derived values, `now` re-evaluates on each read (volatile). In `ensures` clauses, `now` is bound to rule execution timestamp (snapshot). In temporal triggers, `now` is the evaluation timestamp with fire-once semantics.
 
-**Naming conventions** — PascalCase for entities, variants, rules, triggers, actors, surfaces, obligation block names, contract names, invariant names. snake_case for fields, config parameters, derived values, enum literals.
+**Naming conventions** — PascalCase for entities, variants, rules, triggers, actors, surfaces, contract names, invariant names. snake_case for fields, config parameters, derived values, enum literals.
 
-**`expects`/`offers` vs `exposes`/`provides`** — `exposes` and `provides` are colon-delimited clause lists (data visibility, available actions). `expects` and `offers` either reference a module-level `contract` by name (`expects Codec`) or declare an inline obligation block with braces (`expects BlockName { ... }`). Do not use a colon after `expects` or `offers`.
+**`contracts:` clause vs `exposes`/`provides`** — `exposes` and `provides` are colon-delimited clause lists (data visibility, available actions). `contracts:` uses `demands`/`fulfils` modifiers referencing module-level `contract` declarations (`contracts: demands Codec, fulfils EventSubmitter`). Contracts are always declared at module level with `contract Name { ... }`.
 
-**`invariant:` vs `invariant Name { }` vs `guarantee:`** — `guarantee:` is a surface-level assertion about the boundary as a whole. `invariant:` (colon, prose) is a named assertion scoped to an obligation block or contract. `invariant Name { expression }` (no colon, braces) is an expression-bearing assertion at top-level or entity-level scope. They are distinct constructs.
+**`invariant:` vs `invariant Name { }` vs `guarantee:`** — `guarantee:` is a surface-level assertion about the boundary as a whole. `invariant:` (colon, prose) is a named assertion scoped to a contract. `invariant Name { expression }` (no colon, braces) is an expression-bearing assertion at top-level or entity-level scope. They are distinct constructs.
 
-**Obligation block contents** — Only typed signatures, `invariant:` declarations and `guidance:` blocks are permitted inside obligation blocks. Type declarations (entity, value, enum, variant) must be declared at module level and referenced by name.
+**Contract contents** — Only typed signatures, `invariant:` declarations and `guidance:` blocks are permitted inside contracts. Type declarations (entity, value, enum, variant) must be declared at module level and referenced by name.
 
 ## Anti-patterns
 

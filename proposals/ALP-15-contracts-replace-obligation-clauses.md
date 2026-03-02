@@ -1,8 +1,8 @@
 # ALP-15: Contracts replace obligation clauses
 
-**Status**: proposed
+**Status**: adopted (Option D, with modifications)
 **Keywords removed**: `expects`, `offers`
-**Keywords modified**: `contract` (gains `direction` clause)
+**Keywords added**: `demands`, `fulfils` (as direction markers within `contracts:` clause)
 **Sections affected**: contracts, surfaces, validation rules, glossary, patterns, migration guide
 
 ## Problem
@@ -170,3 +170,98 @@ This proposal recommends **Option D** as the starting point for debate, for thre
 The sharpest question for the panel: is the loss of inline obligation blocks a real cost, or does forcing module-level declarations improve spec hygiene?
 
 The secondary question: do `demands`/`fulfils` as list-level modifiers carry enough of the old `expects`/`offers` confusion to reopen the vocabulary problem, or does the structural change (one clause with modifiers vs two separate clauses) make the distinction self-evident?
+
+## Panel verdict
+
+**Consensus: adopt Option D**, with three validation constraints added during debate.
+
+All nine panellists converged on Option D. The simplicity advocate initially preferred Option B (direction on the contract declaration) but conceded during rebuttals that baking direction into the contract entangles two logically separate concerns. The machine reasoning advocate flagged the modifier-name syntax as a novel pattern but accepted it given a strict grammar rule. The backward compatibility advocate noted that `expects`/`offers` have no installed base, making this the cheapest possible time to make the change.
+
+### Adopted changes
+
+1. Remove the `expects` and `offers` keywords from surfaces.
+2. Remove inline obligation blocks (the `expects BlockName { ... }` and `offers BlockName { ... }` forms).
+3. Add a `contracts:` clause to surfaces. Each entry takes the form `demands ContractName` or `fulfils ContractName`.
+4. Contract declarations remain unchanged (module-level, direction-agnostic).
+
+### Validation rules
+
+Added at the rigour advocate's request:
+
+1. Each contract name appears at most once per surface.
+2. A direction modifier (`demands` or `fulfils`) is mandatory for every entry in the `contracts:` clause.
+3. The same contract may appear with different directions in different surfaces.
+
+### Before and after
+
+Before:
+
+```
+surface DomainIntegration {
+    facing framework: FrameworkRuntime
+
+    exposes:
+        EntityKey
+        EventOutcome
+
+    expects DeterministicEvaluation {
+        evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
+
+        invariant: Determinism
+            -- For identical inputs, evaluate must produce
+            -- byte-identical outputs across all instances.
+
+        invariant: Purity
+            -- No I/O, no clock, no mutable state outside arguments.
+    }
+
+    offers EventSubmitter {
+        submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
+
+        invariant: AtMostOnceProcessing
+            -- Within the TTL window, duplicate submissions
+            -- receive the cached response.
+    }
+
+    guarantee: AllOperationsIdempotent
+}
+```
+
+After:
+
+```
+contract DeterministicEvaluation {
+    evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
+
+    invariant: Determinism
+        -- For identical inputs, evaluate must produce
+        -- byte-identical outputs across all instances.
+
+    invariant: Purity
+        -- No I/O, no clock, no mutable state outside arguments.
+}
+
+contract EventSubmitter {
+    submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
+
+    invariant: AtMostOnceProcessing
+        -- Within the TTL window, duplicate submissions
+        -- receive the cached response.
+}
+
+surface DomainIntegration {
+    facing framework: FrameworkRuntime
+
+    exposes:
+        EntityKey
+        EventOutcome
+
+    contracts:
+        demands DeterministicEvaluation
+        fulfils EventSubmitter
+
+    guarantee: AllOperationsIdempotent
+}
+```
+
+This change also supersedes ALP-14. Eliminating `expects`/`offers` dissolves the vocabulary collision between `provides` and `offers` that ALP-14 sought to address.

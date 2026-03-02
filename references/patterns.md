@@ -14,7 +14,7 @@ Patterns elide common cross-cutting entities (`Email`, `Notification`, `AuditLog
 | Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers, surfaces |
 | Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications, surfaces |
 | Integrating Library Specs | External spec references, configuration, config parameter references, responding to external triggers |
-| Framework Integration Contract | Contract declarations, expression-bearing invariants, obligation blocks, programmatic surfaces |
+| Framework Integration Contract | Contract declarations, expression-bearing invariants, contract references, programmatic surfaces |
 
 ---
 
@@ -2542,9 +2542,9 @@ When creating or choosing library specs:
 
 ## Pattern 9: Framework Integration Contract
 
-**Demonstrates:** Contract declarations, expression-bearing invariants, obligation blocks (`expects`/`offers`), programmatic surfaces, typed signatures
+**Demonstrates:** Contract declarations, expression-bearing invariants, `contracts:` clause with `demands`/`fulfils`, programmatic surfaces, typed signatures
 
-This pattern specifies the contract between an event-sourcing framework and its domain modules. The framework expects each module to supply a deterministic evaluation function; in return, the framework offers event submission and state snapshot services. Unlike user-facing surfaces that use `exposes` and `provides`, framework-to-module boundaries use `expects` and `offers` to describe programmatic obligations. The obligation blocks are extracted as module-level `contract` declarations so they can be reused across surfaces or referenced from other specs.
+This pattern specifies the contract between an event-sourcing framework and its domain modules. The framework demands that each module supply a deterministic evaluation function; in return, the surface fulfils event submission and state snapshot services. Unlike user-facing surfaces that use `exposes` and `provides`, framework-to-module boundaries use a `contracts:` clause with `demands` and `fulfils` to describe programmatic obligations. Contracts are declared at module level so they can be reused across surfaces or referenced from other specs.
 
 ```
 -- allium: 2
@@ -2819,9 +2819,10 @@ surface EventSourcingIntegration {
 
     context module: DomainModule where status = active
 
-    expects DeterministicEvaluation
-    offers EventSubmitter
-    offers StateSnapshots
+    contracts:
+        demands DeterministicEvaluation
+        fulfils EventSubmitter
+        fulfils StateSnapshots
 
     guarantee: ModuleBoundaryIsolation
         -- Events and state from one module are never visible to
@@ -2832,40 +2833,38 @@ surface EventSourcingIntegration {
 ```
 
 **Key language features shown:**
-- `contract` declarations at module level, extracting obligation blocks for reuse across surfaces
-- Surface references to contracts by name (`expects DeterministicEvaluation`, `offers EventSubmitter`) without repeating signatures or invariants
+- `contract` declarations at module level for reuse across surfaces
+- Surface `contracts:` clause with `demands`/`fulfils` direction markers (`demands DeterministicEvaluation`, `fulfils EventSubmitter`) without repeating signatures or invariants
 - Expression-bearing `invariant Name { expression }` on entities (`PayloadWithinLimit` on `EventSubmission`)
 - Prose-only `invariant: Name` inside contracts for properties that cannot be expressed as a single boolean expression
 - `guarantee:` at surface level, distinct from contract-scoped invariants (boundary-wide vs contract-scoped assertions)
 - `guidance:` inside a contract for non-normative implementation advice
-- Mixed surface: `ModuleAdministration` uses traditional `exposes`/`provides` for human actors; `EventSourcingIntegration` uses `expects`/`offers` for programmatic integration
+- Mixed surface: `ModuleAdministration` uses traditional `exposes`/`provides` for human actors; `EventSourcingIntegration` uses `contracts:` clause for programmatic integration
 - Actor declaration for a code-level party (`FrameworkRuntime` identified by an active module)
 
-### When to use contracts and obligation blocks
+### When to use contracts
 
-Use `contract` declarations when the same set of typed signatures and invariants applies across multiple surfaces or when other specs need to reference the obligation. Use inline `expects Name { ... }` / `offers Name { ... }` blocks for one-off obligations scoped to a single surface.
+Use `contract` declarations when the boundary is between code and code rather than between a user and an application. All contracts are declared at module level and referenced in surfaces via a `contracts:` clause with `demands`/`fulfils` direction markers. Common scenarios:
 
-Use `expects`/`offers` (whether inline or referencing a contract) when the boundary is between code and code rather than between a user and an application. Common scenarios:
+- **Framework-to-plugin contracts**: the framework demands evaluation logic, fulfils lifecycle services
+- **Service-to-adapter boundaries**: the service demands a storage adapter, fulfils a query interface
+- **Cross-context integration**: one bounded context demands event handlers, fulfils event streams
+- **SDK contracts**: the SDK demands configuration and callbacks, fulfils client operations
 
-- **Framework-to-plugin contracts**: the framework expects evaluation logic, offers lifecycle services
-- **Service-to-adapter boundaries**: the service expects a storage adapter, offers a query interface
-- **Cross-context integration**: one bounded context expects event handlers, offers event streams
-- **SDK contracts**: the SDK expects configuration and callbacks, offers client operations
+Do not use contracts for user-facing surfaces. If the external party is a person interacting through a UI, use `exposes` (what they see) and `provides` (what actions they can take). Contracts describe what code must implement, not what users can do.
 
-Do not use obligation blocks for user-facing surfaces. If the external party is a person interacting through a UI, use `exposes` (what they see) and `provides` (what actions they can take). Obligation blocks describe what code must implement, not what users can do.
+### Contracts vs provides
 
-### Obligation blocks vs provides
-
-`provides:` lists actions that an actor can invoke, each corresponding to a rule's external stimulus trigger. `offers Name { }` (inline) or `offers ContractName` (referencing a module-level contract) declares a set of typed operations that the surface owner supplies to the counterpart as an API. The distinction:
+`provides:` lists actions that an actor can invoke, each corresponding to a rule's external stimulus trigger. `fulfils ContractName` in a `contracts:` clause declares a set of typed operations that the surface owner supplies to the counterpart as an API. The distinction:
 
 - `provides: SubmitEvent(module, key, name, payload)` — an action the actor triggers; a rule fires in response
-- `offers EventSubmitter` — a typed operation set the surface makes available, defined in a `contract` declaration; the implementation is the surface owner's responsibility
+- `fulfils EventSubmitter` — a typed operation set the surface makes available, defined in a `contract` declaration; the implementation is the surface owner's responsibility
 
-Both describe things the surface supplies, but `provides` connects to the rule system while `offers` describes a programmatic contract with typed signatures and invariants.
+Both describe things the surface supplies, but `provides` connects to the rule system while `fulfils` references a programmatic contract with typed signatures and invariants.
 
 ### Invariant vs guarantee
 
-`guarantee:` asserts a property of the surface boundary as a whole. `invariant` asserts a property scoped to the operations within a specific contract or obligation block.
+`guarantee:` asserts a property of the surface boundary as a whole. `invariant` asserts a property scoped to the operations within a specific contract.
 
 Invariants come in two forms. Expression-bearing invariants carry a boolean expression that can be checked mechanically. Prose invariants describe properties that require human or LLM judgement.
 
@@ -2887,7 +2886,7 @@ guarantee: ModuleBoundaryIsolation
     -- Events from one module are never visible to another module.
 ```
 
-Use `guarantee:` for cross-cutting properties that span the whole surface. Use `invariant` for properties tied to specific operations within a contract or obligation block, or for entity-level assertions.
+Use `guarantee:` for cross-cutting properties that span the whole surface. Use `invariant` for properties tied to specific operations within a contract, or for entity-level assertions.
 
 ---
 
