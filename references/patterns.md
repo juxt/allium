@@ -269,10 +269,10 @@ surface Authentication {
         UserRegisters(email, password)
         UserRequestsPasswordReset(email)
 
-    guarantee: NoSessionRequired
+    @guarantee NoSessionRequired
         -- Accessible without an existing session.
 
-    guidance:
+    @guidance
         -- Show lockout status and unlock time when user.is_locked.
         -- Validate password length client-side before submission.
 }
@@ -290,7 +290,7 @@ surface PasswordReset {
         UserResetsPassword(token, new_password)
             when token.is_valid
 
-    guarantee: NoSessionRequired
+    @guarantee NoSessionRequired
         -- Accessible without an existing session.
 }
 
@@ -585,7 +585,7 @@ surface WorkspaceMemberManagement {
         RemoveMemberFromWorkspace(admin, workspace, target_user)
             when target_user != workspace.owner
 
-    guarantee: OwnerProtection
+    @guarantee OwnerProtection
         -- The workspace owner's role cannot be changed or removed.
 }
 
@@ -875,7 +875,7 @@ surface ResourceSharing {
             RevokeShare(sharer, s)
                 when sharer = resource.owner or share.can_admin
 
-    guarantee: OwnerCannotBeRevoked
+    @guarantee OwnerCannotBeRevoked
         -- The resource owner's access cannot be revoked or downgraded.
 }
 
@@ -1767,7 +1767,7 @@ surface UsageDashboard {
         UpgradePlan(workspace, new_plan)
         DowngradePlan(workspace, new_plan)
 
-    guidance:
+    @guidance
         -- Show progress bars for usage against limits.
         -- Highlight when any resource is above 80% of its limit.
 }
@@ -1783,7 +1783,7 @@ surface APIAccess {
         ApiRequestReceived(consumer, endpoint)
             when not consumer.usage.is_over_api_quota
 
-    guarantee: RateLimitEnforcement
+    @guarantee RateLimitEnforcement
         -- Requests beyond the daily limit receive HTTP 429 with
         -- reset time.
 }
@@ -2082,7 +2082,7 @@ surface CommentThread {
             RemoveReaction(viewer, comment, emoji)
                 when exists CommentReaction{comment: comment, user: viewer, emoji: emoji}
 
-    guidance:
+    @guidance
         -- Show "edited" indicator when comment.is_edited.
         -- Show "deleted comment" placeholder for deleted replies
         -- rather than removing them from the thread.
@@ -2589,22 +2589,22 @@ value Snapshot {
 contract DeterministicEvaluation {
     evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
 
-    invariant: Determinism
+    @invariant Determinism
         -- For identical inputs (event_name, payload, current_state),
         -- evaluate must produce byte-identical EventOutcome values
         -- across all instances and invocations.
 
-    invariant: Purity
+    @invariant Purity
         -- evaluate must not perform I/O, read the system clock,
         -- access mutable state outside its arguments, or depend
         -- on the order of previous invocations.
 
-    invariant: TotalFunction
+    @invariant TotalFunction
         -- evaluate must return a valid EventOutcome for every
         -- combination of registered event_name, well-formed payload
         -- and current_state. It must not throw or fail to terminate.
 
-    guidance:
+    @guidance
         -- Implementations should avoid allocating during evaluation
         -- where possible, as the framework may invoke evaluate
         -- at high frequency during replay.
@@ -2613,12 +2613,12 @@ contract DeterministicEvaluation {
 contract EventSubmitter {
     submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
 
-    invariant: AtMostOnceProcessing
+    @invariant AtMostOnceProcessing
         -- Within the submission TTL window (config.submission_ttl),
         -- a given idempotency key is accepted at most once.
         -- Duplicate submissions are rejected.
 
-    invariant: OrderPreservation
+    @invariant OrderPreservation
         -- Events submitted by a single module are processed in
         -- submission order. No ordering guarantee exists across
         -- modules.
@@ -2628,7 +2628,7 @@ contract StateSnapshots {
     request_snapshot: (entity_key: EntityKey) -> Snapshot
     get_snapshot: (request: SnapshotRequest) -> Snapshot?
 
-    invariant: SnapshotConsistency
+    @invariant SnapshotConsistency
         -- A snapshot reflects the state after applying all events
         -- up to and including the snapshot's version number.
         -- No partial application.
@@ -2824,7 +2824,7 @@ surface EventSourcingIntegration {
         fulfils EventSubmitter
         fulfils StateSnapshots
 
-    guarantee: ModuleBoundaryIsolation
+    @guarantee ModuleBoundaryIsolation
         -- Events and state from one module are never visible to
         -- another module's evaluate function. Cross-module
         -- communication happens only through side effects processed
@@ -2836,9 +2836,9 @@ surface EventSourcingIntegration {
 - `contract` declarations at module level for reuse across surfaces
 - Surface `contracts:` clause with `demands`/`fulfils` direction markers (`demands DeterministicEvaluation`, `fulfils EventSubmitter`) without repeating signatures or invariants
 - Expression-bearing `invariant Name { expression }` on entities (`PayloadWithinLimit` on `EventSubmission`)
-- Prose-only `invariant: Name` inside contracts for properties that cannot be expressed as a single boolean expression
-- `guarantee:` at surface level, distinct from contract-scoped invariants (boundary-wide vs contract-scoped assertions)
-- `guidance:` inside a contract for non-normative implementation advice
+- Prose-only `@invariant Name` inside contracts for properties that cannot be expressed as a single boolean expression
+- `@guarantee Name` at surface level, distinct from contract-scoped invariants (boundary-wide vs contract-scoped assertions)
+- `@guidance` inside a contract for non-normative implementation advice
 - Mixed surface: `ModuleAdministration` uses traditional `exposes`/`provides` for human actors; `EventSourcingIntegration` uses `contracts:` clause for programmatic integration
 - Actor declaration for a code-level party (`FrameworkRuntime` identified by an active module)
 
@@ -2864,7 +2864,7 @@ Both describe things the surface supplies, but `provides` connects to the rule s
 
 ### Invariant vs guarantee
 
-`guarantee:` asserts a property of the surface boundary as a whole. `invariant` asserts a property scoped to the operations within a specific contract.
+`@guarantee` asserts a property of the surface boundary as a whole. `invariant` asserts a property scoped to the operations within a specific contract.
 
 Invariants come in two forms. Expression-bearing invariants carry a boolean expression that can be checked mechanically. Prose invariants describe properties that require human or LLM judgement.
 
@@ -2877,16 +2877,16 @@ entity EventSubmission {
 
 -- Prose invariant inside a contract
 contract DeterministicEvaluation {
-    invariant: Purity
+    @invariant Purity
         -- evaluate must not perform I/O or access mutable state.
 }
 
 -- Surface-level guarantee: applies across the entire boundary
-guarantee: ModuleBoundaryIsolation
+@guarantee ModuleBoundaryIsolation
     -- Events from one module are never visible to another module.
 ```
 
-Use `guarantee:` for cross-cutting properties that span the whole surface. Use `invariant` for properties tied to specific operations within a contract, or for entity-level assertions.
+Use `@guarantee` for cross-cutting properties that span the whole surface. Use `invariant` for properties tied to specific operations within a contract, or for entity-level assertions.
 
 ---
 

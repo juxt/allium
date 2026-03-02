@@ -96,7 +96,7 @@ An Allium specification file (`.allium`) begins with a language version marker, 
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `contracts`, `related`, `timeout`, `guarantee`, `guidance` and `invariant` are delimited by consistent indentation relative to the parent clause. Named blocks opened by a keyword and PascalCase name followed by `{ ... }` (`contract`, `invariant` — which also has a colon-delimited prose form in contracts) use brace delimiters. `contracts:` entries use `demands`/`fulfils` modifiers followed by a contract name. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `contracts`, `related` and `timeout` are delimited by consistent indentation relative to the parent clause. Named blocks opened by a keyword and PascalCase name followed by `{ ... }` (`contract`, `invariant`) use brace delimiters. Prose annotations prefixed with `@` (`@invariant`, `@guarantee`, `@guidance`) are followed by indented comment lines that form their body. `contracts:` entries use `demands`/`fulfils` modifiers followed by a contract name. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
@@ -138,17 +138,17 @@ contract Codec {
     serialize: (value: Any) -> ByteArray
     deserialize: (bytes: ByteArray) -> Any
 
-    invariant: Roundtrip
+    @invariant Roundtrip
         -- deserialize(serialize(value)) produces a value
         -- equivalent to the original for all supported types.
 
-    guidance:
+    @guidance
         -- Implementations should handle versioned payloads
         -- by inspecting a version prefix in the byte array.
 }
 ```
 
-Contract bodies contain typed signatures, `invariant:` declarations (PascalCase name with prose description) and `guidance:` blocks. Entity, value, enum and variant declarations are prohibited inside contracts. Types referenced in signatures must be declared at module level or imported via `use`.
+Contract bodies contain typed signatures and annotations (`@invariant`, `@guidance`). Entity, value, enum and variant declarations are prohibited inside contracts. Types referenced in signatures must be declared at module level or imported via `use`.
 
 ### Referencing contracts in surfaces
 
@@ -163,7 +163,8 @@ surface DomainIntegration {
         demands DeterministicEvaluation
         fulfils EventSubmitter
 
-    guarantee: AllOperationsIdempotent
+    @guarantee AllOperationsIdempotent
+        -- All operations exposed by this surface are safe to retry.
 }
 ```
 
@@ -476,7 +477,7 @@ rule RuleName {
     ensures: Postcondition1
     ensures: Postcondition2
 
-    guidance:                       -- optional, always last
+    @guidance                       -- optional, always last
         -- Non-normative implementation advice.
 }
 ```
@@ -488,7 +489,7 @@ rule RuleName {
 | `let` | Local variable bindings (can appear anywhere after `when`) |
 | `requires` | Preconditions that must be true (rule fails if not met) |
 | `ensures` | What becomes true after the rule executes |
-| `guidance` | Non-normative implementation advice (optional, always last) |
+| `@guidance` | Non-normative implementation advice (optional, always last) |
 
 Place `let` bindings where they make the rule most readable, typically just before the clause that first uses them.
 
@@ -1125,10 +1126,10 @@ Invariants are logical assertions over entity state, not runtime checks. Checkin
 
 Two syntactically distinct forms exist:
 
-- `invariant: Name` (colon, then prose) — prose-only, used in contracts
-- `invariant Name { expression }` (no colon, braces) — expression-bearing, at top-level and entity-level scopes
+- `@invariant Name` (sigil prefix, followed by indented comments) — prose annotation, used in contracts
+- `invariant Name { expression }` (no sigil, braces) — expression-bearing, at top-level and entity-level scopes
 
-The prose-only form describes a property informally. The expression-bearing form is a machine-readable assertion that tooling can exercise.
+The prose annotation describes a property informally. The expression-bearing form is a machine-readable assertion that tooling can exercise. When a prose annotation is promoted to the expression-bearing form, the `@` is dropped and a `{ expr }` body is added in its place.
 
 ---
 
@@ -1455,8 +1456,11 @@ surface SurfaceName {
         demands ContractName             -- counterpart must implement
         fulfils ContractName             -- this surface supplies
 
-    guarantee: ConstraintName
-    guidance: -- non-normative advice
+    @guarantee ConstraintName
+        -- Constraint description.
+
+    @guidance
+        -- Non-normative advice.
 
     related:
         OtherSurface(item.relationship) [when condition]
@@ -1477,8 +1481,8 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `exposes` | Visible data (supports `for` iteration over collections) |
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
 | `contracts` | References to module-level `contract` declarations with direction markers. `demands ContractName` indicates the counterpart must implement; `fulfils ContractName` indicates this surface supplies |
-| `guarantee` | Constraints that must hold across the boundary |
-| `guidance` | Non-normative implementation advice |
+| `@guarantee` | Named constraint that must hold across the boundary (prose annotation; PascalCase name required) |
+| `@guidance` | Non-normative implementation advice (prose annotation; no name; must appear last) |
 | `related` | Associated surfaces reachable from this one; the parenthesised expression evaluates to the entity instance that the target surface's `context` clause binds to, and its type must match the target surface's context type |
 | `timeout` | References to temporal rules that apply within this surface's context (the rule name must correspond to a defined rule with a temporal trigger) |
 
@@ -1532,18 +1536,18 @@ surface InterviewerDashboard {
 contract DeterministicEvaluation {
     evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
 
-    invariant: Determinism
+    @invariant Determinism
         -- For identical inputs, evaluate must produce
         -- byte-identical outputs across all instances.
 
-    invariant: Purity
+    @invariant Purity
         -- No I/O, no clock, no mutable state outside arguments.
 }
 
 contract EventSubmitter {
     submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
 
-    invariant: AtMostOnceProcessing
+    @invariant AtMostOnceProcessing
         -- Within the TTL window, duplicate submissions
         -- receive the cached response.
 }
@@ -1559,9 +1563,9 @@ surface DomainIntegration {
 }
 ```
 
-**Invariant declarations** — an `invariant:` inside a contract is a named, scoped assertion about a property of the operations in that contract. It carries a PascalCase name and a prose description. Invariant names must be unique within their contract.
+**Invariant annotations** — `@invariant` inside a contract is a named, scoped prose annotation about a property of the operations in that contract. It carries a PascalCase name and a prose description in indented comment lines. Invariant names must be unique within their contract.
 
-`invariant:` is distinct from `guarantee:`. A `guarantee:` is a surface-level assertion about the boundary contract as a whole. An `invariant:` describes a property scoped to a specific contract. The same `invariant:` construct also appears at top-level and entity-level scopes as expression-bearing invariants (see [Invariants](#invariants)).
+`@invariant` is distinct from `@guarantee`. `@guarantee` is a surface-level annotation about the boundary contract as a whole. `@invariant` describes a property scoped to a specific contract. The expression-bearing `invariant Name { expression }` construct (no sigil, no colon, brace-delimited body) is a separate form that appears at top-level and entity-level scopes (see [Invariants](#invariants)).
 
 **Timeout example** — a `timeout` clause references an existing temporal rule by name and binds it to the surface's context. The rule name must correspond to a rule with a temporal trigger defined elsewhere in the spec. The `when` condition is optional: include it to restate the temporal expression for readability, or omit it when the rule name is self-explanatory. When present, the checker verifies the `when` condition matches the referenced rule's trigger.
 
@@ -1655,11 +1659,11 @@ A valid Allium specification must satisfy:
 
 **Contract validity:**
 40. `contract` declarations must have a PascalCase name followed by a brace-delimited block body
-41. Contract bodies may contain only typed signatures, `invariant:` declarations and `guidance:` blocks
+41. Contract bodies may contain only typed signatures and annotations (`@invariant`, `@guidance`)
 42. Types in contract signatures must be declared at module level or imported via `use`
 43. Contract names must be unique at module level
-44. `invariant:` declarations within contracts must have a PascalCase name and a prose description
-45. Invariant names must be unique within their contract
+44. `@invariant` annotations within contracts must have a PascalCase name and be followed by at least one indented comment line
+45. `@invariant` names must be unique within their contract
 
 **Config reference validity:**
 46. A qualified config reference in a default expression must resolve to a declared parameter in an imported module's config block
@@ -1679,9 +1683,12 @@ A valid Allium specification must satisfy:
 56. Invariant expressions must not reference `now` (volatile; stored timestamp fields are permitted)
 57. Entity collection references in top-level invariants must correspond to declared entity types
 
-**Rule guidance validity:**
-58. `guidance:` in a rule must appear after all other clauses
-59. `guidance:` content is opaque; the checker does not parse or validate it beyond recognising the block boundary
+**Annotation validity:**
+58. `@invariant` requires a PascalCase name; names must be unique within their containing construct (contract or surface)
+59. `@guarantee` requires a PascalCase name; names must be unique within their surface
+60. `@guidance` must not have a name; must appear after all structural clauses and after all other annotations in its containing construct
+61. All annotations must be followed by at least one indented comment line; unindented comment lines after an annotation are not part of the annotation body
+62. Within a construct, `@invariant` and `@guarantee` annotations may appear in any order relative to each other but must appear after all structural clauses; `@guidance` must appear last
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1703,7 +1710,7 @@ The checker should warn (but not error) on:
 - Surfaces that use a raw entity type in `facing` when actor declarations exist for that entity type (may indicate a missing access restriction)
 - `transitions_to` triggers on values that entities can be created with (the rule will not fire on creation; consider `becomes` if the rule should also fire on creation)
 - Multiple fields on the same entity with identical inline enum literals (suggests extraction to a named enum; will error if the fields are later compared)
-- Invariant descriptions that resemble formal expressions (informational: use expression-bearing `invariant Name { expression }` syntax for machine-readable assertions)
+- `@invariant` prose that resembles a formal expression (informational: promote to expression-bearing `invariant Name { expression }` when the assertion is machine-readable)
 - Config reference chains deeper than two levels of indirection
 - Diamond dependency conflicts in config overrides
 
@@ -1865,6 +1872,6 @@ ensures: deadline = now + config.confirmation_deadline
 | **Contract** | A named, direction-agnostic obligation declared at module level with `contract Name { ... }`. Surfaces reference contracts in a `contracts:` clause with `demands`/`fulfils` direction markers. Identity determined by module-qualified name |
 | **`demands`** | Direction marker in a `contracts:` clause indicating the counterpart must implement this contract |
 | **`fulfils`** | Direction marker in a `contracts:` clause indicating this surface supplies the contract's operations |
-| **Invariant** | A named, scoped assertion about a property. Two syntactic variants: `invariant: Name` (prose-only, in contracts) and `invariant Name { expression }` (expression-bearing, at top-level and entity-level). Expression-bearing invariants are logical assertions over entity state, not runtime checks. Distinct from `guarantee`, which asserts properties of the boundary as a whole |
+| **Invariant** | A named, scoped assertion about a property. Two syntactic forms: `@invariant Name` (prose annotation, in contracts) and `invariant Name { expression }` (expression-bearing, at top-level and entity-level). Expression-bearing invariants are logical assertions over entity state, not runtime checks. Distinct from `@guarantee`, which annotates properties of the boundary as a whole |
 | **`implies`** | Boolean operator. `a implies b` is `not a or b`. Lowest boolean precedence, binding looser than `and` and `or`. Available in all expression contexts |
 | **Config reference** | A qualified reference in a config default (`param: Type = other/config.param`) that aliases a parameter from an imported module. Supports expression-form defaults with arithmetic operators |

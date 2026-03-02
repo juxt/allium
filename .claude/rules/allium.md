@@ -28,9 +28,11 @@ Every `.allium` file starts with `-- allium: N` where N is the current language 
 
 **`contracts:` clause vs `exposes`/`provides`** — `exposes` and `provides` are colon-delimited clause lists (data visibility, available actions). `contracts:` uses `demands`/`fulfils` modifiers referencing module-level `contract` declarations (`contracts: demands Codec, fulfils EventSubmitter`). Contracts are always declared at module level with `contract Name { ... }`.
 
-**`invariant:` vs `invariant Name { }` vs `guarantee:`** — `guarantee:` is a surface-level assertion about the boundary as a whole. `invariant:` (colon, prose) is a named assertion scoped to a contract. `invariant Name { expression }` (no colon, braces) is an expression-bearing assertion at top-level or entity-level scope. They are distinct constructs.
+**`@` annotation sigil** — The `@` prefix marks prose annotations: constructs whose structure (name, placement, uniqueness) the checker validates, but whose prose content it does not evaluate. Three annotation keywords exist: `@invariant` (named prose assertion in contracts), `@guidance` (non-normative advice in contracts, rules, surfaces) and `@guarantee` (named prose assertion in surfaces). `@guidance` must appear after all structural clauses and after all other annotations. When a prose annotation is promoted to an expression-bearing form, the `@` is dropped and a `{ expr }` body is added.
 
-**Contract contents** — Only typed signatures, `invariant:` declarations and `guidance:` blocks are permitted inside contracts. Type declarations (entity, value, enum, variant) must be declared at module level and referenced by name.
+**`@invariant` vs `invariant Name { }` vs `@guarantee`** — `@guarantee` is a surface-level prose assertion about the boundary as a whole. `@invariant` is a named prose assertion scoped to a contract. `invariant Name { expression }` (no `@`, braces) is an expression-bearing assertion at top-level or entity-level scope. They are distinct constructs. The `@` sigil marks prose annotations whose structure the checker validates but whose content it does not evaluate.
+
+**Contract contents** — Only typed signatures and `@`-prefixed annotations (`@invariant`, `@guidance`) are permitted inside contracts. Type declarations (entity, value, enum, variant) must be declared at module level and referenced by name.
 
 ## Anti-patterns
 

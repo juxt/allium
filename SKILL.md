@@ -117,7 +117,7 @@ rule InvitationExpires {
     ensures:
         for s in remaining:
             s.status = cancelled
-    guidance:
+    @guidance
         -- Non-normative implementation advice.
 }
 ```
@@ -184,7 +184,7 @@ surface InterviewerDashboard {
 }
 ```
 
-Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `provides` (available operations with optional when-guards), `contracts:` (references module-level `contract` declarations with `demands`/`fulfils` direction markers), `guarantee` (constraints that must hold), `guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (references to temporal rules that apply within the surface's context).
+Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data, supports `for` iteration over collections), `provides` (available operations with optional when-guards), `contracts:` (references module-level `contract` declarations with `demands`/`fulfils` direction markers), `@guarantee` (named prose assertions about the boundary), `@guidance` (non-normative advice), `related` (associated surfaces reachable from this one), `timeout` (references to temporal rules that apply within the surface's context).
 
 The `facing` clause accepts either an actor type (with a corresponding `actor` declaration and `identified_by` mapping) or an entity type directly. Use actor declarations when the boundary has specific identity requirements; use entity types when any instance can interact (e.g., `facing visitor: User`). For integration surfaces where the external party is code, declare an actor type with a minimal `identified_by` expression. Actors that reference `within` in their `identified_by` expression must declare the expected context type: `within: Workspace`.
 
@@ -199,7 +199,7 @@ contract Codec {
     serialize: (value: Any) -> ByteArray
     deserialize: (bytes: ByteArray) -> Any
 
-    invariant: Roundtrip
+    @invariant Roundtrip
         -- deserialize(serialize(value)) produces a value
         -- equivalent to the original for all supported types.
 }
@@ -247,7 +247,7 @@ invariant NonNegativeBalance {
 }
 ```
 
-Expression-bearing invariants (`invariant Name { expression }`) assert properties over entity state. They are logical assertions, not runtime checks. Distinct from prose-only invariants (`invariant: Name`) in contracts. See [Invariants](./references/language-reference.md#invariants).
+Expression-bearing invariants (`invariant Name { expression }`) assert properties over entity state. They are logical assertions, not runtime checks. Distinct from prose annotations (`@invariant Name`) in contracts, which use the `@` sigil to mark content the checker does not evaluate. See [Invariants](./references/language-reference.md#invariants).
 
 ### Deferred specs
 

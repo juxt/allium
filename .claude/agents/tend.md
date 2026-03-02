@@ -70,9 +70,11 @@ If the caller describes a feature in implementation terms ("the API returns a 40
 - Inline enums compared across fields must be extracted to named enums.
 - Collection operations use explicit parameter syntax: `items.any(i => i.active)`.
 - Place new declarations in the correct section per the file structure.
-- `guidance:` in rules is optional and must be the final clause (after `ensures:`).
+- `@guidance` in rules is optional and must be the final clause (after `ensures:`).
 - Use `contract` declarations for obligation blocks shared across surfaces. Inline blocks remain valid for single-use contracts.
-- Expression-bearing invariants use `invariant Name { expression }` syntax; prose-only invariants use `invariant: Name`.
+- Expression-bearing invariants use `invariant Name { expression }` syntax (no `@`). Prose-only invariants use `@invariant Name` (with `@`, no colon). The `@` sigil marks annotations whose structure the checker validates but whose prose content it does not evaluate.
+- `@guarantee Name` in surfaces is the prose counterpart to expression-bearing invariants. Same `@` sigil convention.
+- `@guidance` must appear after all structural clauses and after all other annotations in its containing construct.
 - Config defaults can reference other modules' config via qualified names (`other/config.param`). Expression-form defaults support arithmetic (`base_timeout * 2`).
 - `implies` is available in all expression contexts. `a implies b` is `not a or b`, with the lowest boolean precedence.
 

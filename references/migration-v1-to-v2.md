@@ -12,7 +12,7 @@ Version 2 adds six capabilities to the language. None of the existing v1 syntax 
 
 1. **Contract references** (`demands`, `fulfils`) in surfaces, for expressing programmatic integration contracts with typed signatures and invariants.
 2. **Module-level contracts** (`contract`), direction-agnostic obligation declarations that surfaces reference via a `contracts:` clause.
-3. **Guidance clauses** (`guidance:`) in rules, contracts and surfaces, for non-normative implementation advice.
+3. **Guidance annotations** (`@guidance`) in rules, contracts and surfaces, for non-normative implementation advice.
 4. **Expression-bearing invariants** (`invariant Name { expression }`), machine-readable assertions at top-level and entity-level scope.
 5. **The `implies` operator**, a boolean operator available in all expression contexts.
 6. **Config composition** — config parameter defaults that reference imported module parameters by qualified name, with arithmetic expressions for derived defaults.
@@ -93,11 +93,11 @@ Use `demands` when the surface requires something from the counterpart. Use `ful
 contract DeterministicEvaluation {
     evaluate: (event_name: String, payload: ByteArray) -> EventOutcome
 
-    invariant: Determinism
+    @invariant Determinism
         -- For identical inputs, evaluate must produce
         -- byte-identical outputs across all instances.
 
-    guidance:
+    @guidance
         -- Avoid allocating during evaluation where possible.
 }
 
@@ -118,7 +118,7 @@ surface DomainIntegration {
 - `contracts:` entries use `demands` or `fulfils` followed by a PascalCase contract name.
 - Each contract name may appear at most once per surface.
 - Referenced contract names must resolve to a `contract` declaration in scope.
-- Contract bodies contain typed signatures, `invariant:` declarations and `guidance:` blocks. No entity, value, enum or variant declarations.
+- Contract bodies contain typed signatures and `@`-prefixed annotations (`@invariant`, `@guidance`). No entity, value, enum or variant declarations.
 
 **When to add contract references to an existing v1 surface:** if the surface describes a boundary between code (framework and module, service and plugin, API and consumer) rather than between a user and an application, and the contract involves typed operations with specific properties.
 
@@ -132,7 +132,7 @@ contract Codec {
     serialize: (value: Any) -> ByteArray
     deserialize: (bytes: ByteArray) -> Any
 
-    invariant: Roundtrip
+    @invariant Roundtrip
         -- deserialize(serialize(value)) produces a value
         -- equivalent to the original for all supported types.
 }
@@ -156,9 +156,9 @@ surface DataPipeline {
 - Contract identity is determined by module-qualified name. Same-named contracts from different modules are a structural error.
 - Contracts are imported atomically via `use`. Partial imports are not supported.
 
-### Guidance clauses in rules
+### Guidance annotations in rules
 
-Rules can now end with a `guidance:` clause containing non-normative implementation advice.
+Rules can now end with an `@guidance` annotation containing non-normative implementation advice.
 
 ```
 -- v1: no guidance clause
@@ -168,22 +168,23 @@ rule ExpireInvitation {
     ensures: invitation.status = expired
 }
 
--- v2: guidance added as final clause
+-- v2: guidance added as final annotation
 rule ExpireInvitation {
     when: invitation: Invitation.expires_at <= now
     requires: invitation.status = pending
     ensures: invitation.status = expired
 
-    guidance:
+    @guidance
         -- Expire in a background job rather than blocking the
         -- request path. Batch expiration where possible.
 }
 ```
 
 **Syntax rules:**
-- `guidance:` must be the last clause in a rule, after all `ensures` clauses.
-- Content is opaque prose using comment syntax (`--`). The checker does not parse it.
-- `guidance:` is also valid inside contracts and at surface level. In contracts it provides implementation advice scoped to that contract's operations. At surface level it provides advice about the boundary as a whole.
+- `@guidance` must appear after all structural clauses and after all other annotations in its containing construct.
+- Content is opaque prose using indented comment syntax (`--`). The checker does not parse it.
+- `@guidance` is also valid inside contracts and at surface level. In contracts it provides implementation advice scoped to that contract's operations. At surface level it provides advice about the boundary as a whole.
+- The `@` sigil marks prose annotations: constructs whose structure (placement, ordering) the checker validates, but whose content it does not evaluate. The same sigil convention applies to `@invariant` and `@guarantee`.
 
 ### Expression-bearing invariants
 
@@ -223,8 +224,8 @@ entity Account {
 ```
 
 **Syntax rules:**
-- Expression-bearing invariants use `invariant Name { expression }` (no colon, braces).
-- Prose-only invariants in contracts use `invariant: Name` (colon, then prose). These are distinct constructs.
+- Expression-bearing invariants use `invariant Name { expression }` (no `@`, braces).
+- Prose-only invariants in contracts use `@invariant Name` (with `@`, no colon). These are distinct constructs.
 - Invariant names are PascalCase.
 - Expressions must be pure: no `.add()`, `.remove()`, `.created()`, no trigger emissions, no `now`.
 - `for x in Collection:` inside an invariant body is a universal quantifier (all elements must satisfy).
@@ -304,7 +305,7 @@ Use this checklist when upgrading a v1 spec to v2. Items marked **required** mus
 - [ ] **Required.** Change `-- allium: 1` to `-- allium: 2` on the first line.
 - [ ] **Required if adopting new constructs.** Verify section order matches v2 (Contracts after Value Types, Invariants after Rules). If neither section is present, existing order is already correct.
 - [ ] **Optional.** If the spec has surfaces describing code-to-code boundaries, consider declaring `contract` blocks and referencing them via a `contracts:` clause with `demands`/`fulfils`.
-- [ ] **Optional.** If rules or surfaces have implementation-specific notes in comments, consider moving them into `guidance:` clauses (valid as the final clause in rules and at surface level).
+- [ ] **Optional.** If rules or surfaces have implementation-specific notes in comments, consider moving them into `@guidance` annotations (valid as the final annotation in rules and at surface level).
 - [ ] **Optional.** If the spec has properties that must always hold (uniqueness, non-negativity, referential constraints), express them as `invariant Name { expression }` blocks.
 - [ ] **Optional.** If any expression (invariants, requires, derived values) would read more clearly with implication logic, use the `implies` operator.
 - [ ] **Optional.** If config defaults duplicate or derive from imported module parameters, use qualified references and expressions.
@@ -320,7 +321,7 @@ Use this checklist when upgrading a v1 spec to v2. Items marked **required** mus
 | Sections: Rules → Actor Declarations | Sections: Rules → **Invariants** → Actor Declarations | Required (if invariants present) |
 | No contract references in surfaces | `contracts:` clause with `demands`/`fulfils` entries | Additive |
 | No module-level contracts | `contract Name { ... }` in Contracts section | Additive |
-| No `guidance:` clause | `guidance:` in rules (final clause), contracts and surfaces | Additive |
+| No `@guidance` annotation | `@guidance` in rules (final annotation), contracts and surfaces | Additive |
 | No expression-bearing invariants | `invariant Name { expression }` at top-level and entity-level | Additive |
 | No `implies` operator | `a implies b` (lowest boolean precedence) | Additive |
 | Config defaults are literals only | Config defaults can reference `alias/config.param` and use arithmetic | Additive |
