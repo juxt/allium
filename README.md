@@ -187,7 +187,7 @@ rule IncidentEscalates {
 }
 ```
 
-The [language reference](references/language-reference.md) covers entities, rules, triggers, relationships, projections, derived values, surfaces and actor declarations.
+The [language reference](references/language-reference.md) covers entities, rules, triggers, relationships, projections, derived values, surfaces and actor declarations. The [v1 to v2 migration guide](references/migration-v1-to-v2.md) covers what changed and how to upgrade existing specs.
 
 ### A language without a runtime
 
