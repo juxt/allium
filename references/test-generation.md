@@ -1,49 +1,121 @@
 # Test generation
 
+This document describes categories of tests that a person, agent or skill should derive from an Allium specification. It is not a tool to invoke. The taxonomy maps spec constructs to test obligations; how those tests are expressed depends on the target language and test framework.
+
 From an Allium specification, generate:
 
-**Contract tests** (per rule):
-- Success case: all preconditions met, verify all postconditions hold
-- Failure cases: one test per precondition, verify rule is rejected when that precondition fails
-- Edge cases: boundary values for numeric conditions
+**Entity and value type tests** (per entity and value type):
+- Verify all declared fields are present with correct types
+- Verify optional fields accept null and non-null values
+- Verify optional navigation (`?.`) short-circuits to null when the left side is absent
+- Verify null coalescing (`??`) produces the default when the left side is null and the original value otherwise
+- Verify relationships navigate to the correct related entities
+- Verify join lookups (`Entity{field1, field2}`) resolve to the correct instance, or null when no match exists
+- For value types, verify equality is structural (by field values, not reference)
 
-**State transition tests** (per entity with status):
+**Enumeration tests** (per named enum):
+- Verify fields typed with the same named enum are comparable
+- Verify `in` and `not in` membership tests work against set literals of enum values
+
+**Sum type tests** (per sum type):
+- Verify each variant has its variant-specific fields accessible within a type guard
+- Verify variant-specific fields are inaccessible outside type guards
+- Verify all variants listed in the discriminator are handled in conditional logic
+- Verify an entity cannot be multiple variants simultaneously
+- Verify creation uses the variant name, not the base entity name
+- Verify a `.created` trigger on the base entity fires for any variant and can be narrowed with a type guard
+
+**Derived value and projection tests** (per derived value or projection):
+- Verify derived values compute correctly for representative entity states
+- Verify projections filter correctly against their `where` predicate
+- Verify projections with `-> field` mapping extract the correct field and exclude nulls
+- Verify parameterised derived values return correct results for representative arguments
+- Verify derived values involving `now` are volatile (re-evaluate on each read)
+- Verify collection operations (`.any()`, `.all()`, `.count`, set `+`/`-`, `.first`, `.last`) produce correct results
+
+**Default instance tests** (per `default` declaration):
+- Verify the named instance exists unconditionally
+- Verify all specified field values match the declaration
+- Verify cross-references between defaults resolve correctly (e.g. `inherits_from: viewer`)
+
+**Config tests** (per config block):
+- Verify each parameter has its declared default value when not overridden
+- Verify overriding a parameter replaces the default
+- Verify mandatory parameters (no default) cause an error when omitted
+- Verify expression-form defaults evaluate correctly, including type compatibility of arithmetic operands
+- Verify qualified references to imported config resolve through the override chain
+- Verify config parameters that depend on other parameters resolve in the correct order
+
+**Invariant tests** (per expression-bearing `invariant Name { expr }`):
+- Verify the invariant holds after every state-changing rule that touches the constrained entities
+- Verify the invariant holds for edge-case entity states (boundary values, empty collections)
+- For entity-level invariants, verify they hold after any field mutation on the entity
+- For invariants using `implies`, verify the consequent holds when the antecedent is true and that the invariant is trivially satisfied when the antecedent is false
+
+**Rule tests** (per rule):
+- Success case: all preconditions met, verify all postconditions hold
+- Failure cases: verify the rule is rejected when each `requires` clause independently fails
+- Edge cases: boundary values for numeric conditions
+- For conditional ensures, verify each branch fires under the correct condition and that `if` guards read resulting state, not pre-rule state
+- For entity-creating ensures, verify the created entity has the specified field values
+- For `let` bindings, verify the bound value is correct and available to subsequent clauses
+- For `not exists` in ensures, verify the entity is removed from the system
+- For bulk updates (`for` in ensures), verify the postcondition applies to every element in the collection
+- For rule-level `for` iteration, verify the rule body executes for each matching element
+- For chained triggers (trigger emission in ensures), verify the downstream rule fires with the correct parameters
+
+**State transition tests** (per entity with status enum):
 - Valid transitions succeed via their rules
 - Invalid transitions are rejected (no rule allows them)
 - Terminal states have no outbound transitions
+- For `transitions_to` triggers, verify the rule does not fire on entity creation
+- For `becomes` triggers, verify the rule fires both on creation and on transition
 
 **Temporal tests** (per time-based trigger):
-- Before deadline: rule doesn't fire, state unchanged
+- Before deadline: rule does not fire, state unchanged
 - At deadline: rule fires, postconditions hold
-- After deadline: rule has already fired, doesn't re-fire
+- After deadline: rule has already fired, does not re-fire
+- Verify `requires` guard prevents re-firing when entity remains in the qualifying state
+- Verify temporal triggers on optional fields do not fire when the field is null
 
 **Communication tests** (per Notification/Email/etc):
-- Verify communication is triggered
+- Verify communication is triggered by the correct rule
 - Verify recipient is correct
 - Verify template and data are passed
 
-**Scenario tests** (per flow):
-- Happy path through main flow
-- Edge cases and error paths
-- Concurrent scenarios: what happens if two triggers fire simultaneously?
-
-**Sum type tests** (per sum type):
-- Type discrimination: verify each variant has distinct accessible fields
-- Exhaustiveness: verify all variants are handled in conditional logic
-- Invalid state prevention: verify that an entity cannot be multiple variants
-- Type guard correctness: verify variant-specific fields are only accessible within appropriate type guards
-
 **Surface tests** (per surface):
 - Exposure tests: verify each item in `exposes` is accessible to the specified party
-- Provides availability tests: verify provided operations appear when their `when` conditions are true
-- Provides unavailability tests: verify provided operations are hidden when `when` conditions are false
-- Requires tests: verify the surface rejects interaction when required contributions are missing
-- Related surface navigation: verify navigation to related surfaces works
-- Party restriction tests: verify the surface is not accessible to other party types
-- Guarantee tests: verify stated guarantees hold across the boundary
+- For `for` iteration in `exposes`, verify each element in the collection is exposed
+- Provides availability: verify provided operations appear when their `when` conditions are true
+- Provides unavailability: verify provided operations are hidden when `when` conditions are false, including when the corresponding rule's `requires` clauses are not met
+- Actor identification: verify only entities matching the actor's `identified_by` predicate can interact
+- For actors with `within`, verify interaction is scoped to the declared context (e.g. actions in one workspace do not affect another)
+- Party restriction: verify the surface is not accessible to other party types
+- Context scoping: verify the surface instance is absent when no entity matches the `context` predicate
+- Related surface navigation: verify navigation to related surfaces resolves to the correct context entity
+- Guarantee tests: verify stated `@guarantee` annotations hold across the boundary
+- Timeout tests: verify the referenced temporal rule fires within the surface's context
+
+**Contract declaration tests** (per `contract` declaration):
+- Verify the implementation satisfies each typed signature in the contract
+- Verify `@invariant` annotations are honoured across the boundary
+- For surfaces that `demand` a contract, verify the counterpart provides all signatures
+- For surfaces that `fulfil` a contract, verify this surface supplies all signatures
+
+**Cross-module tests** (per `use` declaration):
+- Verify qualified entity references resolve to the imported module's entities
+- Verify rules that respond to external triggers (state transitions, trigger emissions) from imported modules fire correctly
+- Verify external entities referenced as type placeholders accept the consuming spec's concrete type
 
 **Cross-rule interaction tests** (per rule with entity-creating ensures):
-- Re-trigger sibling rules on the same parent while the created entity exists. Verify guards prevent duplicate creation or conflicting state.
-- For each surface `provides` entry, generate unavailability tests for each conjunct in the corresponding rule's requires. One test per conjunct, each falsifying that conjunct, verifying the operation is hidden or rejected.
+- Verify guards prevent duplicate entity creation when sibling rules re-trigger on the same parent
+- Verify `provides` entries are unavailable when any `requires` conjunct of the corresponding rule is false
 
-**Concurrency note:** Rules are assumed to be atomic, meaning a rule either completes entirely or not at all. If two rules could fire simultaneously on the same entity, test that the resulting state is consistent regardless of order.
+**Scenario tests** (per flow):
+- Happy path through the main flow
+- Edge cases and error paths
+- When two rules could fire on the same entity, verify the resulting state is consistent regardless of order
+
+**Concurrency note:** The language reference does not formally define rule atomicity or evaluation order. Treat rules as atomic (completing entirely or not at all) as a reasonable default.
+
+**Constructs without dedicated test categories:** `given` block bindings are exercised through rule tests that reference them. `deferred` specifications are tested in their own modules. `open question` declarations are checker warnings, not test obligations. `exists` as an `if`-condition is covered by rule conditional ensures tests. Discard bindings (`_`) have no observable effect to test.
