@@ -1,7 +1,6 @@
 # ALP-16: Annotation sigil for prose constructs
 
 **Status**: adopt
-**Debate**: [ALP-16-debate-report.md](ALP-16-debate-report.md)
 **Constructs affected**: `invariant:` (prose-only form), `guidance:`, `guarantee:`
 **Sections affected**: contracts, rules, surfaces, validation rules, patterns, SKILL.md
 
