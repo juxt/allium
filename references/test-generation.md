@@ -111,9 +111,9 @@ From an Allium specification, generate:
 - Verify guards prevent duplicate entity creation when sibling rules re-trigger on the same parent
 - Verify `provides` entries are unavailable when any `requires` conjunct of the corresponding rule is false
 
-**Scenario tests** (per flow):
-- Happy path through the main flow
-- Edge cases and error paths
+**Scenario tests** (per specification):
+- Happy path through the main rule chain (follow chained triggers from entry point to terminal state)
+- Edge cases and error paths at each decision point
 - When two rules could fire on the same entity, verify the resulting state is consistent regardless of order
 
 **Concurrency note:** The language reference does not formally define rule atomicity or evaluation order. Treat rules as atomic (completing entirely or not at all) as a reasonable default.
