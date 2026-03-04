@@ -71,7 +71,7 @@ If the caller describes a feature in implementation terms ("the API returns a 40
 - Collection operations use explicit parameter syntax: `items.any(i => i.active)`.
 - Place new declarations in the correct section per the file structure.
 - `@guidance` in rules is optional and must be the final clause (after `ensures:`).
-- Use `contract` declarations for obligation blocks shared across surfaces. Inline blocks remain valid for single-use contracts.
+- Use `contract` declarations for obligation blocks. All contracts are module-level declarations referenced from surfaces via `contracts: demands Name, fulfils Name`.
 - Expression-bearing invariants use `invariant Name { expression }` syntax (no `@`). Prose-only invariants use `@invariant Name` (with `@`, no colon). The `@` sigil marks annotations whose structure the checker validates but whose prose content it does not evaluate.
 - `@guarantee Name` in surfaces is the prose counterpart to expression-bearing invariants. Same `@` sigil convention.
 - `@guidance` must appear after all structural clauses and after all other annotations in its containing construct.

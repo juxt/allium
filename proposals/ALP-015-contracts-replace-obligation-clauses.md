@@ -233,18 +233,18 @@ After:
 contract DeterministicEvaluation {
     evaluate: (event_name: String, payload: ByteArray, current_state: ByteArray) -> EventOutcome
 
-    invariant: Determinism
+    @invariant Determinism
         -- For identical inputs, evaluate must produce
         -- byte-identical outputs across all instances.
 
-    invariant: Purity
+    @invariant Purity
         -- No I/O, no clock, no mutable state outside arguments.
 }
 
 contract EventSubmitter {
     submit: (idempotency_key: String, event_name: String, payload: ByteArray) -> EventSubmission
 
-    invariant: AtMostOnceProcessing
+    @invariant AtMostOnceProcessing
         -- Within the TTL window, duplicate submissions
         -- receive the cached response.
 }
@@ -260,7 +260,7 @@ surface DomainIntegration {
         demands DeterministicEvaluation
         fulfils EventSubmitter
 
-    guarantee: AllOperationsIdempotent
+    @guarantee AllOperationsIdempotent
 }
 ```
 
