@@ -1,7 +1,8 @@
 // Allium syntax highlighter
 document.addEventListener('DOMContentLoaded', function() {
-  var keywords = /^(rule|entity|when|requires|ensures|default|deferred|use|if|let|in|with|for|as|this)$/;
+  var keywords = /^(rule|entity|when|requires|ensures|default|deferred|use|if|let|in|with|for|as|this|surface|invariant|contract|facing|context|exposes|provides|contracts|demands|fulfils|implies|where|config|enum|variant|becomes|transitions_to|related|timeout)$/;
   var builtins = /^(now|true|false|none)$/;
+  var annotations = /^@(invariant|guarantee|guidance)$/;
 
   document.querySelectorAll('code.language-allium').forEach(function(block) {
     var text = block.textContent;
@@ -9,12 +10,26 @@ document.addEventListener('DOMContentLoaded', function() {
     var i = 0;
 
     while (i < text.length) {
-      // Comments
-      if (text[i] === '/' && text[i + 1] === '/') {
+      // Comments (// or --)
+      if ((text[i] === '/' && text[i + 1] === '/') || (text[i] === '-' && text[i + 1] === '-')) {
         var end = text.indexOf('\n', i);
         if (end === -1) end = text.length;
         result.push(span('comment', text.slice(i, end)));
         i = end;
+        continue;
+      }
+
+      // @ annotations
+      if (text[i] === '@' && i + 1 < text.length && /[a-z]/.test(text[i + 1])) {
+        var j = i + 1;
+        while (j < text.length && /[a-zA-Z_]/.test(text[j])) j++;
+        var word = text.slice(i, j);
+        if (annotations.test(word)) {
+          result.push(span('keyword', word));
+        } else {
+          result.push(esc(word));
+        }
+        i = j;
         continue;
       }
 
