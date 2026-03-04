@@ -3,7 +3,7 @@ layout: default
 title: Allium v2
 ---
 
-<p class="hero">Allium v2: additive language features for sharper specifications</p>
+<p class="hero">Allium v2</p>
 
 Allium is a behavioural specification language for describing what systems should do, not how they do it. LLMs and humans interpret it directly; there is no compiler or runtime. v2 extends what specs can express without removing or altering any v1 syntax.
 
