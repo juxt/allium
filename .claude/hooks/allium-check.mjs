@@ -1,5 +1,6 @@
 import { execFileSync } from "child_process";
 import { extname } from "path";
+import path from "path";
 
 let data = "";
 for await (const chunk of process.stdin) {
@@ -13,8 +14,14 @@ if (!filePath || extname(filePath) !== ".allium") {
   process.exit(0);
 }
 
+const projectRoot = path.resolve(process.env.CLAUDE_PROJECT_ROOT ?? process.cwd());
+const resolvedPath = path.resolve(filePath);
+if (!resolvedPath.startsWith(projectRoot + path.sep) && resolvedPath !== projectRoot) {
+  process.exit(0);
+}
+
 try {
-  execFileSync("allium", ["check", filePath], {
+  execFileSync("allium", ["check", resolvedPath], {
     encoding: "utf-8",
     stdio: "pipe",
   });
