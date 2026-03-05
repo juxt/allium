@@ -8,7 +8,7 @@ tools:
   - Grep
   - Edit
   - Write
-  - Bash
+  - Bash(allium *)
 ---
 
 # Weed
