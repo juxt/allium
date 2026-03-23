@@ -116,6 +116,81 @@ document.addEventListener('DOMContentLoaded', function() {
     block.innerHTML = result.join('');
   });
 
+  // JSON syntax highlighting
+  document.querySelectorAll('code.language-json').forEach(function(block) {
+    var text = block.textContent;
+    var result = [];
+    var i = 0;
+
+    while (i < text.length) {
+      // Strings
+      if (text[i] === '"') {
+        var j = i + 1;
+        while (j < text.length && text[j] !== '"') {
+          if (text[j] === '\\') j++;
+          j++;
+        }
+        j++;
+        var str = text.slice(i, j);
+
+        // Check if this is a key (followed by colon)
+        var after = j;
+        while (after < text.length && text[after] === ' ') after++;
+        if (text[after] === ':') {
+          result.push(span('field', str));
+        } else {
+          result.push(span('string', str));
+        }
+        i = j;
+        continue;
+      }
+
+      // Numbers
+      if (/[0-9\-]/.test(text[i]) && (i === 0 || /[\s,\[:]/.test(text[i - 1]))) {
+        var j = i;
+        if (text[j] === '-') j++;
+        while (j < text.length && /[0-9.]/.test(text[j])) j++;
+        if (j > i && (text[i] !== '-' || j > i + 1)) {
+          result.push(span('number', text.slice(i, j)));
+          i = j;
+          continue;
+        }
+      }
+
+      // Booleans and null
+      if (/[tfn]/.test(text[i])) {
+        var remaining = text.slice(i);
+        var match = remaining.match(/^(true|false|null)/);
+        if (match) {
+          result.push(span('builtin', match[0]));
+          i += match[0].length;
+          continue;
+        }
+      }
+
+      // Punctuation
+      if (/[{}()\[\]:,]/.test(text[i])) {
+        result.push(span('punctuation', text[i]));
+        i++;
+        continue;
+      }
+
+      // Comments (not standard JSON, but used in our examples)
+      if (text[i] === '/' && text[i + 1] === '/') {
+        var end = text.indexOf('\n', i);
+        if (end === -1) end = text.length;
+        result.push(span('comment', text.slice(i, end)));
+        i = end;
+        continue;
+      }
+
+      result.push(esc(text[i]));
+      i++;
+    }
+
+    block.innerHTML = result.join('');
+  });
+
   function span(cls, s) {
     return '<span class="allium-' + cls + '">' + esc(s) + '</span>';
   }
