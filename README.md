@@ -25,6 +25,9 @@ Once installed, type `/allium` to get started. Allium examines your project and 
 
 - `/allium:elicit` — build a spec through structured conversation with stakeholders
 - `/allium:distill` — extract a spec from existing code
+- `/allium:propagate` — generate tests from a specification
+
+Tend and propagate are Allium's built-in agent and skill. Tend updates your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
