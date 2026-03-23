@@ -262,6 +262,4 @@ With the CLI installed, Claude Code validates every `.allium` file after writing
 
 ## Upgrading from v2
 
-Change `-- allium: 2` to `-- allium: 3`. One breaking change: `produces` and `consumes` clauses on rules are removed. Replace them with `when` clauses on the fields themselves. The checker emits a migration diagnostic if it encounters the old syntax.
-
-Everything else is additive. Adopt `when` clauses, transition graphs and the other new features as you need them.
+Change `-- allium: 2` to `-- allium: 3`. Adopt the new features as you need them. Nothing was removed.
