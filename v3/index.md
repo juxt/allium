@@ -9,6 +9,8 @@ v3 turns your specs into property-based tests. Describe what your system should 
 
 ## Get started
 
+<code>tend</code> and <code>propagate</code> are Allium's built-in agent and skill. Tend updates your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
+
 If you have existing Allium specs, update them and generate tests in two prompts:
 
 <div class="terminal">
@@ -48,8 +50,6 @@ If you have existing Allium specs, update them and generate tests in two prompts
     </div>
   </div>
 </div>
-
-<code>tend</code> and <code>propagate</code> are Allium's built-in agent and skill. Tend updates your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
 
 If you don't have specs yet, start with `/allium` to distil from your codebase or build one through conversation.
 
