@@ -1,5 +1,7 @@
 # ALP-9: Module-level obligation blocks
 
+**Status**: adopt (evolved into ALP-15 contracts)
+
 ## Problem
 
 Obligation blocks (`expects`/`offers`) are currently scoped to surfaces. When multiple surfaces share the same capability contract (e.g. a serialisation interface, a storage adapter, an event handler), the signatures and invariants must be duplicated in each surface. This duplication creates a maintenance burden and a consistency risk: if one surface's copy is updated and another is not, the spec silently diverges from itself.

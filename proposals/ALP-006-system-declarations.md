@@ -1,5 +1,7 @@
 # ALP-6: `system` declarations
 
+**Status**: reject
+
 ## Problem
 
 Some entities are module-scoped singletons: there is exactly one instance per running system, and it holds coordination state that doesn't belong to any individual domain entity. The language has `entity` (zero or more instances) and `given` (externally provided module parameters), but nothing for internally managed singleton state.

@@ -1,5 +1,7 @@
 # ALP-4: Reverse relationship declarations
 
+**Status**: reject
+
 ## Problem
 
 When two entities have a bidirectional relationship and are declared in different modules, the second module needs to add a navigation field to the first entity without reopening its declaration.

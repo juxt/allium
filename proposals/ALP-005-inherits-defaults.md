@@ -1,5 +1,7 @@
 # ALP-5: `inherits defaults:` clause
 
+**Status**: reject (problem addressed by ALP-10)
+
 ## Problem
 
 Configuration surfaces need to distinguish between values the consumer must supply and values that have defaults defined elsewhere. There is no mechanism to reference default values from another module.

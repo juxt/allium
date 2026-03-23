@@ -1,5 +1,7 @@
 # ALP-13: Expression-form config defaults
 
+**Status**: adopt
+
 ## Problem
 
 ALP-10 introduced bare qualified references in config defaults (`param: Type = other/config.param`), allowing config parameters to alias values from imported modules. The ALP-10 panel adopted bare references but deferred expression-form defaults, which combine qualified references with arithmetic to express derived configuration values.

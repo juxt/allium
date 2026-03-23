@@ -1,5 +1,7 @@
 # ALP-12: `.indexed` collection method
 
+**Status**: reject (prerequisite: ordered collection semantics)
+
 ## Problem
 
 When a specification needs to associate a positional offset with each element during iteration, the language offers no built-in way to do it. The workaround is to model the offset as an explicit field on the entity, which conflates a coordination concern (position in a sequence) with the domain model. This is most common when downstream behaviour depends on ordering: publishing messages at specific offsets, numbering steps in a workflow, or assigning ranks.

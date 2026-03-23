@@ -1,5 +1,7 @@
 # ALP-11: Expression-bearing invariants
 
+**Status**: adopt
+
 ## Problem
 
 Allium specifications capture domain rules as `requires`/`ensures` pairs, but some properties span multiple rules and have no home in the current language. "Account balance never goes negative." "No two interviews overlap for the same candidate." These are properties domain experts state in conversation. They are system-wide assertions, not preconditions on individual rules.
