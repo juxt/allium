@@ -5,51 +5,11 @@ title: Allium v3
 
 <p class="hero">Allium v3</p>
 
-v3 turns your specs into property-based tests. Describe what your system should do, and the CLI extracts a complete test plan and domain model. Your LLM generates the actual tests in whatever language and framework you already use.
+v3 turns your specs into property-based tests. Describe what your system should do, and your LLM generates real tests in whatever language and framework you already use.
 
-Every v2 spec is valid v3. Change `-- allium: 2` to `-- allium: 3` and adopt the new features as you need them.
+## Get started
 
-## Why this matters
-
-Most testing frameworks work bottom-up: you write tests, one at a time, hoping you've covered enough. Allium works top-down. The spec already describes every entity, every rule, every transition, every invariant. The CLI reads that description and tells you exactly what needs testing. No gaps, no guesswork.
-
-Other spec-driven test tools constrain you to their DSL, their runner, their conventions. Allium doesn't generate tests itself. It gives your LLM a precise, structured brief, and the LLM writes real tests using your project's existing framework, your factories, your fixtures. The output is idiomatic code you can read, modify and maintain.
-
-## The workflow
-
-<div class="terminal">
-  <div class="terminal-titlebar">
-    <div class="terminal-dots">
-      <span class="terminal-dot red"></span>
-      <span class="terminal-dot yellow"></span>
-      <span class="terminal-dot green"></span>
-    </div>
-    <span class="terminal-title">Terminal</span>
-  </div>
-  <div class="terminal-body">
-    <div class="turn user">
-      <span class="prompt">$</span> allium plan orders.allium
-    </div>
-    <div class="turn llm">
-      <span class="marker"> </span> <span style="color: #6c7086;">// 47 test obligations: 12 rule tests, 8 state transitions,</span>
-    </div>
-    <div class="turn llm">
-      <span class="marker"> </span> <span style="color: #6c7086;">// 6 invariant properties, 9 field presence checks, ...</span>
-    </div>
-    <div class="turn user">
-      <span class="prompt">$</span> allium model orders.allium
-    </div>
-    <div class="turn llm">
-      <span class="marker"> </span> <span style="color: #6c7086;">// Entity shapes, transition graphs, when-sets, constraints</span>
-    </div>
-  </div>
-</div>
-
-Two commands, two concerns.
-
-**`allium plan`** reads your spec and emits every test obligation as structured JSON. Each rule gets a success case and failure cases. Each transition edge gets a validity check. Each invariant becomes a property to verify after every state change. Each state-dependent field gets presence and absence checks. The plan is exhaustive and deterministic: same spec, same obligations, every time.
-
-**`allium model`** extracts the domain model: entity shapes with field types and constraints, transition graphs showing valid state sequences, `when`-sets declaring which fields exist at which lifecycle states, and invariant expressions that constrain generated data. This is what your test generator needs to construct valid fixtures at any point in the lifecycle.
+If you have existing Allium specs, update them and generate tests in two prompts:
 
 <div class="terminal">
   <div class="terminal-titlebar">
@@ -62,98 +22,42 @@ Two commands, two concerns.
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> /allium:propagate
+      <span class="prompt">&gt;</span> Update our Allium specs to v3. Add transition graphs and when clauses where our entities have lifecycle state.
     </div>
     <div class="turn llm">
-      <span class="marker">✻</span> Found <code>orders.allium</code> and your Kotlin test suite using Kotest + fast-check. Running <code>allium plan</code> and <code>allium model</code> against the spec.
-    </div>
-    <div class="turn llm">
-      <span class="marker">✻</span> 47 test obligations. Your existing tests cover 19. I'll generate the remaining 28, including property-based tests for the 6 invariants and state machine tests walking the order lifecycle. Writing to <code>src/test/kotlin/orders/</code>.
+      <span class="marker">✻</span> Found 4 specs. <code>orders.allium</code> has a status enum with 5 states — I've added a transition graph and moved <code>tracking_number</code> and <code>shipped_at</code> to <code>when status = shipped | delivered</code>. <code>subscriptions.allium</code> has trial/active/cancelled lifecycle, same treatment. The other two have no lifecycle fields, just bumped them to v3.
     </div>
   </div>
 </div>
 
-The propagate skill reads both outputs alongside your codebase. It maps spec constructs to your implementation, reuses your existing test infrastructure, and fills coverage gaps. Existing tests that already satisfy an obligation are left alone.
+<div class="terminal">
+  <div class="terminal-titlebar">
+    <div class="terminal-dots">
+      <span class="terminal-dot red"></span>
+      <span class="terminal-dot yellow"></span>
+      <span class="terminal-dot green"></span>
+    </div>
+    <span class="terminal-title">Claude Code</span>
+  </div>
+  <div class="terminal-body">
+    <div class="turn user">
+      <span class="prompt">&gt;</span> Now generate property-based tests from the orders spec.
+    </div>
+    <div class="turn llm">
+      <span class="marker">✻</span> Running <code>allium plan</code> and <code>allium model</code> against <code>orders.allium</code>. 47 test obligations. Your existing tests cover 19. Generating the remaining 28, including property-based tests for the 6 invariants and state machine tests walking the order lifecycle. Writing to <code>src/test/kotlin/orders/</code>.
+    </div>
+  </div>
+</div>
 
-## What the CLI gives you
+The first prompt uses the tend agent to evolve your specs. The second uses the propagate skill to generate tests. Both work with whatever LLM tooling you have installed.
 
-Without the CLI, your LLM derives test obligations by reading the spec directly. This works for straightforward cases, but an LLM reading prose will miss edge cases that a parser catches mechanically. The CLI extracts obligations from the AST. Every `when`-qualified field, every transition edge, every invariant expression maps to a concrete test obligation. The plan is complete by construction.
+If you don't have specs yet, start with `/allium` to distil from your codebase or build one through conversation.
 
-Here's what `allium plan` produces for a single rule:
+## Why this matters
 
-```json
-{
-  "id": "rule-success.ShipOrder",
-  "category": "rule_success",
-  "description": "Verify rule ShipOrder succeeds when all preconditions are met",
-  "source_construct": "ShipOrder",
-  "source_span": { "start": 300, "end": 450 },
-  "dependencies": {
-    "entities_read": ["Order", "Warehouse"],
-    "entities_written": ["Order"],
-    "trigger_emissions": ["NotifyCustomer"],
-    "trigger_source": "external"
-  }
-}
-```
+Most testing frameworks work bottom-up: you write tests, one at a time, hoping you've covered enough. Allium works top-down. The spec already describes every entity, every rule, every transition, every invariant. The tooling reads that description and tells your LLM exactly what needs testing. No gaps, no guesswork.
 
-And for a state-dependent field entering its `when` set:
-
-```json
-{
-  "id": "when-set.ShipOrder.Order.tracking_number",
-  "category": "when_set",
-  "description": "Verify ShipOrder sets Order.tracking_number when transitioning status from confirmed to shipped",
-  "source_construct": "ShipOrder",
-  "source_span": { "start": 300, "end": 450 },
-  "detail": {
-    "rule": "ShipOrder",
-    "entity": "Order",
-    "field": "tracking_number",
-    "source_state": "confirmed",
-    "target_state": "shipped",
-    "qualifying_states": ["shipped", "delivered"]
-  }
-}
-```
-
-The dependency information tells your test generator whether a rule can be tested in isolation (reads one entity, writes one field) or needs integration wiring (triggers chains across components, references deferred specs).
-
-Here's what `allium model` produces for the same entity:
-
-```json
-{
-  "name": "Order",
-  "kind": "internal",
-  "fields": [
-    { "name": "status", "type_expr": "pending | confirmed | shipped | delivered | cancelled",
-      "enum_values": ["pending", "confirmed", "shipped", "delivered", "cancelled"] },
-    { "name": "tracking_number", "type_expr": "String",
-      "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } },
-    { "name": "shipped_at", "type_expr": "Timestamp",
-      "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } }
-  ],
-  "transition_graphs": [
-    {
-      "field": "status",
-      "edges": [
-        { "from": "pending", "to": "confirmed" },
-        { "from": "confirmed", "to": "shipped" },
-        { "from": "shipped", "to": "delivered" },
-        { "from": "pending", "to": "cancelled" },
-        { "from": "confirmed", "to": "cancelled" }
-      ],
-      "terminal": ["delivered", "cancelled"],
-      "states": ["cancelled", "confirmed", "delivered", "pending", "shipped"]
-    }
-  ],
-  "invariants": [
-    { "name": "PositiveTotal", "scope": "entity", "expression": "total > 0" }
-  ]
-}
-```
-
-To construct a valid Order at state `shipped`, a test generator includes `tracking_number` and `shipped_at` (their `when_set` contains `shipped`) and omits fields whose `when_set` doesn't. The transition graph tells it which state sequences are valid for state machine tests. The invariant expression constrains generated values.
+Other spec-driven test tools constrain you to their DSL, their runner, their conventions. Allium doesn't generate tests itself. It gives your LLM a precise, structured brief, and the LLM writes real tests using your project's existing framework, your factories, your fixtures. The output is idiomatic code you can read, modify and maintain.
 
 ## What's new in the language
 
@@ -250,15 +154,109 @@ entity Timeline {
 
 This distinction matters for specs where ordering is part of the domain contract, not an implementation detail.
 
-## Installing the CLI
+## How the CLI fits in
+
+The [Allium CLI](https://github.com/juxt/allium-tools) runs behind the scenes. When you ask your LLM to generate tests, the propagate skill calls two commands:
+
+**`allium plan`** reads your spec and emits every test obligation as structured JSON. Each rule gets a success case and failure cases. Each transition edge gets a validity check. Each invariant becomes a property to verify after every state change. Each state-dependent field gets presence and absence checks. The plan is exhaustive and deterministic: same spec, same obligations, every time.
+
+**`allium model`** extracts the domain model: entity shapes with field types and constraints, transition graphs showing valid state sequences, `when`-sets declaring which fields exist at which lifecycle states, and invariant expressions that constrain generated data. This is what the test generator needs to construct valid fixtures at any point in the lifecycle.
+
+Without the CLI, your LLM derives test obligations by reading the spec directly. This works, but an LLM reading prose will miss edge cases that a parser catches mechanically. The CLI extracts obligations from the AST. The plan is complete by construction.
+
+Install it with Homebrew or Cargo:
 
 ```
 brew tap juxt/allium && brew install allium
 ```
 
-Or via Cargo: `cargo install allium-cli`
+```
+cargo install allium-cli
+```
 
-With the CLI installed, Claude Code validates every `.allium` file after writing or editing it, and the propagate skill uses `allium plan` and `allium model` for deterministic test obligation extraction. Without it, everything still works, but test completeness depends on LLM interpretation rather than AST analysis.
+With the CLI installed, your LLM also validates every `.allium` file after writing or editing it, catching structural errors before they accumulate.
+
+<details>
+<summary>Example plan output for a single rule</summary>
+
+```json
+{
+  "id": "rule-success.ShipOrder",
+  "category": "rule_success",
+  "description": "Verify rule ShipOrder succeeds when all preconditions are met",
+  "source_construct": "ShipOrder",
+  "source_span": { "start": 300, "end": 450 },
+  "dependencies": {
+    "entities_read": ["Order", "Warehouse"],
+    "entities_written": ["Order"],
+    "trigger_emissions": ["NotifyCustomer"],
+    "trigger_source": "external"
+  }
+}
+```
+
+And for a state-dependent field entering its `when` set:
+
+```json
+{
+  "id": "when-set.ShipOrder.Order.tracking_number",
+  "category": "when_set",
+  "description": "Verify ShipOrder sets Order.tracking_number when transitioning status from confirmed to shipped",
+  "source_construct": "ShipOrder",
+  "source_span": { "start": 300, "end": 450 },
+  "detail": {
+    "rule": "ShipOrder",
+    "entity": "Order",
+    "field": "tracking_number",
+    "source_state": "confirmed",
+    "target_state": "shipped",
+    "qualifying_states": ["shipped", "delivered"]
+  }
+}
+```
+
+The dependency information tells the test generator whether a rule can be tested in isolation or needs integration wiring.
+
+</details>
+
+<details>
+<summary>Example model output for an entity</summary>
+
+```json
+{
+  "name": "Order",
+  "kind": "internal",
+  "fields": [
+    { "name": "status", "type_expr": "pending | confirmed | shipped | delivered | cancelled",
+      "enum_values": ["pending", "confirmed", "shipped", "delivered", "cancelled"] },
+    { "name": "tracking_number", "type_expr": "String",
+      "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } },
+    { "name": "shipped_at", "type_expr": "Timestamp",
+      "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } }
+  ],
+  "transition_graphs": [
+    {
+      "field": "status",
+      "edges": [
+        { "from": "pending", "to": "confirmed" },
+        { "from": "confirmed", "to": "shipped" },
+        { "from": "shipped", "to": "delivered" },
+        { "from": "pending", "to": "cancelled" },
+        { "from": "confirmed", "to": "cancelled" }
+      ],
+      "terminal": ["delivered", "cancelled"],
+      "states": ["cancelled", "confirmed", "delivered", "pending", "shipped"]
+    }
+  ],
+  "invariants": [
+    { "name": "PositiveTotal", "scope": "entity", "expression": "total > 0" }
+  ]
+}
+```
+
+To construct a valid Order at state `shipped`, the generator includes `tracking_number` and `shipped_at` (their `when_set` contains `shipped`) and omits fields whose `when_set` doesn't. The transition graph tells it which state sequences are valid for state machine tests. The invariant expression constrains generated values.
+
+</details>
 
 ## Upgrading from v2
 
