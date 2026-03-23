@@ -1,5 +1,7 @@
 # ALP-10: Cross-module config parameter references
 
+**Status**: adopt (expression-form defaults deferred to ALP-13)
+
 ## Problem
 
 When a module composes several imported modules, its configuration surface is split across multiple config blocks. A reader must inspect each imported module's config to understand which parameters have defaults and which must be supplied. There is no way to declare that a local config parameter inherits its default from an imported module's config, making the dependency invisible.

@@ -1,6 +1,6 @@
 ---
 name: tend
-description: "Tend the Allium garden. Grow new behaviour into well-formed specifications, refine existing specs, push back on vague requirements."
+description: "Tend the Allium garden. Use when the user wants to write, edit, update, add to, improve, clarify, refine, restructure, fix or migrate Allium specs. Covers adding entities, rules, triggers, surfaces and contracts, fixing syntax or validation errors, renaming or refactoring within specs, migrating specs to a new language version, and translating requirements into well-formed specifications. Pushes back on vague requirements."
 model: opus
 tools:
   - Read

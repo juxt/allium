@@ -1,5 +1,7 @@
 # ALP-2: Type parameters and wildcards
 
+**Status**: reject
+
 ## Problem
 
 Specs describing typed framework APIs need to express "this operation works for any entity type" without enumerating concrete types. Without type parameters, field signatures lose precision (everything becomes `Any`) or rely on comments to convey type relationships the checker cannot verify.

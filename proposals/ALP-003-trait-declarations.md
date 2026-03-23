@@ -1,5 +1,7 @@
 # ALP-3: `trait` declarations
 
+**Status**: reject (superseded by ALP-9/ALP-15 contracts)
+
 ## Problem
 
 Some types define capabilities (operations another party implements) rather than data shape. The spec needs `Codec<T>` as an interface with `serialize` and `deserialize` operations, distinct from a `value` that describes a data structure.

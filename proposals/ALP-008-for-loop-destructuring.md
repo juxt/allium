@@ -1,5 +1,7 @@
 # ALP-8: Destructuring binds in `for` loops
 
+**Status**: reject (`.indexed` concern split to ALP-12)
+
 ## Problem
 
 When iterating over indexed or paired collections, the current `for` syntax binds a single variable. Accessing the index and value requires separate expressions inside the loop body, which obscures the intent and adds noise.

@@ -31,7 +31,8 @@ From an Allium specification, generate:
 - Verify projections with `-> field` mapping extract the correct field and exclude nulls
 - Verify parameterised derived values return correct results for representative arguments
 - Verify derived values involving `now` are volatile (re-evaluate on each read)
-- Verify collection operations (`.any()`, `.all()`, `.count`, set `+`/`-`, `.first`, `.last`) produce correct results
+- Verify built-in collection operations (`.any()`, `.all()`, `.count`, set `+`/`-`, `.first`, `.last`) produce correct results
+- Verify black box collection functions (free-standing calls like `filter(collection, predicate)`) are treated as opaque with implementation-defined semantics
 
 **Default instance tests** (per `default` declaration):
 - Verify the named instance exists unconditionally
@@ -70,6 +71,18 @@ From an Allium specification, generate:
 - Terminal states have no outbound transitions
 - For `transitions_to` triggers, verify the rule does not fire on entity creation
 - For `becomes` triggers, verify the rule fires both on creation and on transition
+
+**State-dependent field tests** (per field with a `when` clause):
+- Verify the field is present (has a meaningful value) when the entity is in a qualifying state
+- Verify the field is absent (has no meaningful value) when the entity is outside the qualifying states
+- When a rule transitions into the `when` set, verify it sets the field (entering obligation)
+- When a rule transitions out of the `when` set, verify it clears the field (leaving obligation)
+- When a rule moves within the `when` set, verify no obligation fires (field is already present)
+- When two rules converge on the same qualifying state, verify both set the field
+- Verify accessing a `when`-qualified field without a state guard is rejected
+- For derived values computed from `when`-qualified fields, verify the inferred `when` set matches the intersection of the inputs' `when` sets
+
+How "present" and "absent" are tested depends on how the implementation represents the entity. When the entity is modelled as a sealed hierarchy or variant type (one class per lifecycle state), presence and absence are structural: the field exists on one variant and not another. The compiler enforces the `when` clause. When the entity is modelled as a single mutable class with nullable fields, test that the field is meaningfully populated in qualifying states and null or empty outside them. Both representations are valid for the same spec; the choice is an implementation concern. The spec-level concept is lifecycle-dependent presence; the test adapts to the representation.
 
 **Temporal tests** (per time-based trigger):
 - Before deadline: rule does not fire, state unchanged

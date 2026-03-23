@@ -1,7 +1,7 @@
 ---
 name: allium
 description: An LLM-native language for sharpening intent alongside implementation. Velocity through clarity.
-version: 2
+version: 3
 auto_trigger:
   - file_patterns: ["**/*.allium"]
   - keywords: ["allium", "allium spec", "allium specification", ".allium file"]
@@ -32,6 +32,7 @@ Allium does NOT specify programming language or framework choices, database sche
 | Extracting a spec from existing code | `distill` skill | User has implementation code and wants a spec from it |
 | Modifying an existing spec | `tend` agent | User wants targeted changes to `.allium` files |
 | Checking spec-to-code alignment | `weed` agent | User wants to find or fix divergences between spec and implementation |
+| Generating tests from a spec | `propagate` skill | User wants to generate tests, PBT properties or state machine tests from a specification |
 
 ## Quick syntax summary
 
@@ -248,6 +249,44 @@ invariant NonNegativeBalance {
 ```
 
 Expression-bearing invariants (`invariant Name { expression }`) assert properties over entity state. They are logical assertions, not runtime checks. Distinct from prose annotations (`@invariant Name`) in contracts, which use the `@` sigil to mark content the checker does not evaluate. See [Invariants](./references/language-reference.md#invariants).
+
+### Transition graph (v3)
+
+```
+entity Order {
+    status: pending | confirmed | shipped | delivered | cancelled
+
+    transitions status {
+        pending -> confirmed
+        confirmed -> shipped
+        shipped -> delivered
+        pending -> cancelled
+        confirmed -> cancelled
+        terminal: delivered, cancelled
+    }
+}
+```
+
+### State-dependent field presence (v3)
+
+```
+entity Order {
+    status: pending | confirmed | shipped | delivered | cancelled
+    customer: Customer
+    total: Money
+    tracking_number: String when status = shipped | delivered
+    shipped_at: Timestamp when status = shipped | delivered
+
+    transitions status {
+        pending -> confirmed
+        confirmed -> shipped
+        shipped -> delivered
+        pending -> cancelled
+        confirmed -> cancelled
+        terminal: delivered, cancelled
+    }
+}
+```
 
 ### Deferred specs
 

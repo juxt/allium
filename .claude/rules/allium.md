@@ -44,6 +44,8 @@ Every `.allium` file starts with `-- allium: N` where N is the current language 
 
 **Implicit lambdas** — Collection operations use explicit parameter syntax: `interviewers.any(i => i.can_solo)`, not `interviewers.any(can_solo)`.
 
+**Dot-method black box functions** — Dot-method syntax on collections is reserved for built-in operations (`.count`, `.any()`, `.all()`, `.first`, `.last`, `.unique`, `.add()`, `.remove()`). Domain-specific collection operations use free-standing black box function syntax with the collection as the first argument: `filter(events, e => e.recent)`, not `events.filter(e => e.recent)`.
+
 **Overly broad enums** — If an inline enum appears on multiple fields that need comparison, extract a named `enum`. Inline enums are anonymous and cannot be compared across fields.
 
 **Inline enum comparison** — Two inline enum fields cannot be compared even if they share the same literals. The checker reports an error. Extract a named enum when values need comparison across fields.

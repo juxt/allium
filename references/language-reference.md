@@ -5,7 +5,7 @@
 An Allium specification file (`.allium`) begins with a language version marker, followed by these sections in order:
 
 ```
--- allium: 2
+-- allium: 3
 -- Comments use double-dash
 -- use declarations (optional)
 
@@ -101,7 +101,7 @@ Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `e
 ### Naming conventions
 
 - **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names, contract names, invariant names (`InterviewSlot`, `CandidateSelectsSlot`, `DeterministicEvaluation`, `Purity`)
-- **snake_case**: field names, config parameters, derived values, enum literals, relationship names (`expires_at`, `max_login_attempts`, `pending`)
+- **snake_case**: field names, config parameters, derived values, enum literals, relationship names (`expires_at`, `max_login_attempts`, `pending`). Enum literals that reference external standards may use backtick-quoted forms containing characters outside the snake_case set (`` `de-CH-1996` ``, `` `no-cache` ``)
 - **Entity collections**: natural English plurals of the entity name (`Users`, `Documents`, `Candidacies`)
 
 ---
@@ -167,6 +167,8 @@ surface DomainIntegration {
         -- All operations exposed by this surface are safe to retry.
 }
 ```
+
+`@guarantee` is a surface-level prose assertion about the boundary as a whole; see [Surfaces](#surfaces) for the full clause reference.
 
 The surface inherits all signatures, invariants and guidance from each referenced contract. Each contract name may appear at most once per surface.
 
@@ -283,7 +285,7 @@ variant Leaf : Node {
 
 A sum type has three parts: a **discriminator field** whose type is a pipe-separated list of variant names, **variant declarations** using `variant X : BaseEntity`, and **variant-specific fields** that only exist for that variant. Variants inherit all fields from the base entity; the discriminator is set automatically on creation.
 
-**Distinguishing sum types from enums:** lowercase values are enum literals (`status: pending | active`), capitalised values are variant references (`kind: Branch | Leaf`). The validator checks that capitalised names correspond to `variant` declarations.
+**Distinguishing sum types from enums:** unquoted lowercase values are enum literals (`status: pending | active`), unquoted capitalised values are variant references (`kind: Branch | Leaf`). Backtick-quoted values are always enum literals regardless of case (`` `de-CH-1996` ``). The validator checks that unquoted capitalised names correspond to `variant` declarations.
 
 **Creating variant instances** — always via the variant name, not the base:
 
@@ -342,8 +344,9 @@ Primitive types have no properties or methods. For domain-specific string types 
 
 **Compound types:**
 - `Set<T>` — unordered collection of unique items
-- `List<T>` — ordered collection (use when order matters)
-- `T?` — optional (may be absent)
+- `List<T>` — ordered collection (use when order matters). A compound field type declared explicitly on entities
+- `Sequence<T>` — ordered collection produced by ordered relationships and their projections. `Sequence` is a subtype of `Set`: an ordered collection is assignable where an unordered one is expected, but not the reverse. `List<T>` is a field type you declare explicitly; `Sequence` is the collection type the checker infers when a relationship is ordered. Both carry ordering semantics, but they occupy different positions in the grammar
+- `T?` — optional (may be absent). Reserved for genuinely optional fields: a user's nickname, a note that may or may not exist. For fields whose presence depends on lifecycle state, use a `when` clause instead (see below).
 
 **Checking for absent values:**
 ```
@@ -354,6 +357,129 @@ requires: request.reminded_at != null     -- field has a value
 `null` represents the absence of a value for optional fields.
 
 `field = null` and `field != null` are presence checks, not comparisons. `field = null` is true when the field is absent; `field != null` is true when the field has a value. Comparisons with null produce false: `null <= now` is false, `null > 0` is false. Arithmetic with null produces null: `null + 1.day` is null. This means temporal triggers on optional fields (e.g., `when: user: User.next_digest_at <= now`) do not fire when the field is absent.
+
+**State-dependent field presence (`when` clause):**
+
+A field declaration may carry a `when` clause tying its presence to lifecycle state:
+
+```
+entity Order {
+    status: pending | confirmed | shipped | delivered | cancelled
+    customer: Customer
+    total: Money
+    tracking_number: String when status = shipped | delivered
+    shipped_at: Timestamp when status = shipped | delivered
+    delivery_confirmed_at: Timestamp when status = delivered
+
+    transitions status {
+        pending -> confirmed
+        confirmed -> shipped
+        shipped -> delivered
+        terminal: delivered, cancelled
+    }
+}
+```
+
+Fields without `when` are present in all states. Fields with `when` are present only when the named status field holds one of the listed values. The `when` clause references a single status field; that field must have a `transitions` block.
+
+`?` and `when` are orthogonal. `reviewer_notes: String? when review = approved | rejected` means the field exists in those states but may be null within them. `?` is genuine optionality; `when` is lifecycle-dependent presence. A field may carry both.
+
+Entities with multiple status fields use the qualified form to disambiguate:
+
+```
+entity Document {
+    status: draft | published | archived
+    review: pending | approved | rejected
+
+    transitions status { ... }
+    transitions review { ... }
+
+    published_at: Timestamp when status = published | archived
+    reviewer_notes: String when review = rejected
+}
+```
+
+Each `when` clause references one status field. Compound conditions across multiple status fields (`when status = published and review = rejected`) are not supported; use invariants for cross-field constraints.
+
+The `when` keyword appears in three syntactic positions: rule triggers (`when: TriggerCondition`, with colon), surface and provides guards (`Action(...) when condition`, without colon, after an action), and field declarations (`field: Type when status = value`, without colon, after a type). The grammar is unambiguous at each position. Rule triggers are identified by the colon. Surface guards follow an action or related clause. Field `when` clauses follow a type declaration.
+
+**Presence and absence obligations.** Obligations fire when a rule crosses the boundary of a field's `when` set:
+
+- **Entering** (source state outside `when` set, target state inside): the rule must set the field.
+- **Leaving** (source state inside `when` set, target state outside): the rule must clear the field.
+- **Moving within** (both states inside): no obligation. The field is already present and remains present; the rule may update it but need not.
+- **Moving outside** (both states outside): no obligation.
+
+```
+entity Document {
+    status: active | deleted
+    deleted_at: Timestamp when status = deleted
+    deleted_by: User when status = deleted
+
+    transitions status {
+        active -> deleted
+        deleted -> active
+        terminal: active
+    }
+}
+
+rule SoftDelete {
+    when: SoftDelete(document, actor)
+    requires: document.status = active
+    ensures:
+        document.status = deleted
+        document.deleted_at = now        -- entering when set: must set
+        document.deleted_by = actor      -- entering when set: must set
+}
+
+rule RestoreDocument {
+    when: RestoreDocument(document)
+    requires: document.status = deleted
+    ensures:
+        document.status = active
+        document.deleted_at = null       -- leaving when set: must clear
+        document.deleted_by = null       -- leaving when set: must clear
+}
+```
+
+**Access without guard.** Accessing a `when`-qualified field without a `requires` guard narrowing to a qualifying state is an error:
+
+```
+-- Error: tracking_number requires status in {shipped, delivered}
+rule BadAccess {
+    when: SomeEvent(order)
+    ensures: Label.created(tracking: order.tracking_number)
+}
+
+-- Valid: requires narrows to a qualifying state
+rule GenerateLabel {
+    when: GenerateLabel(order)
+    requires: order.status = shipped
+    ensures: Label.created(tracking: order.tracking_number)
+}
+```
+
+**Convergent transitions.** If two rules reach the same state and the entity requires a field at that state, both must set it:
+
+```
+rule CancelByCustomer {
+    when: CustomerCancels(order)
+    requires: order.status = pending
+    ensures:
+        order.status = cancelled
+        order.cancelled_at = now         -- required: entering when set
+        order.cancelled_by = customer    -- required: entering when set
+}
+
+rule CancelByTimeout {
+    when: order: Order.created_at + 48.hours <= now
+    requires: order.status = pending
+    ensures:
+        order.status = cancelled
+        order.cancelled_at = now         -- required: entering when set
+        -- Error: cancelled_by not set
+}
+```
 
 **Enumerated types (inline):**
 ```
@@ -367,6 +493,19 @@ enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | s
 ```
 
 Named enumerations define a reusable set of values. Declare them in the Enumerations section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
+
+**Backtick-quoted enum literals:**
+
+Enum values that reference external standards may contain characters outside the snake_case set (hyphens, dots, mixed case, leading digits). Enclose these in backticks:
+
+```
+enum InterfaceLanguage { en | de | fr | `de-CH-1996` | es | `zh-Hant-TW` | `sr-Latn` }
+enum CacheDirective { `no-cache` | `no-store` | `must-revalidate` | `max-age` }
+```
+
+Backtick-quoted literals are values, not identifiers. They participate in equality comparison and assignment. The checker does not apply case convention rules inside backticks. Comparison is byte-exact after UTF-8 encoding; authors are responsible for using the canonical form from the external standard. Quoted and unquoted forms are distinct values with no implicit normalisation: `de_ch_1996` and `` `de-CH-1996` `` are different values.
+
+Backtick-quoted literals are permitted in enum declarations (named and inline), literal comparisons in rules and `ensures` clauses. They are not permitted in identifier positions (field names, entity names, variant names, config parameter names, derived value names, rule/trigger/invariant names). They cannot appear in arithmetic expressions.
 
 Inline enums are anonymous: they have no type identity. Two inline enum fields cannot be compared with each other, whether on the same entity or across entities; the checker reports an error. Use a named enum when values need to be compared across fields. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
 
@@ -388,6 +527,47 @@ entity Order {
 }
 requires: order.status != order.previous_status    -- valid
 ```
+
+### Transition graphs
+
+A transition graph declares the valid lifecycle transitions for an enum status field. When present, the graph is authoritative: rules whose `ensures` clauses produce transitions not in the graph are validation errors. Entities without a declared graph continue to derive transition validity from rules alone, with no change in checker behaviour.
+
+The graph lives inside the entity body, below the field it governs, introduced by the `transitions` keyword followed by the field name:
+
+```
+entity Order {
+    status: pending | confirmed | shipped | delivered | cancelled
+
+    transitions status {
+        pending -> confirmed
+        confirmed -> shipped
+        shipped -> delivered
+        pending -> cancelled
+        confirmed -> cancelled
+        terminal: delivered, cancelled
+    }
+}
+```
+
+**Edges.** Each line in the block is a directed edge using `->`: `from_state -> to_state`. The graph declares which transitions are possible (structural topology), not when or why they occur (conditional logic). Conditions remain in rules. The graph says "this edge exists"; the rule says "this edge fires under these conditions". A complete understanding of lifecycle behaviour requires reading both the graph and the rules.
+
+**Terminal states.** Terminal states are declared with a `terminal:` clause listing the terminal values. This is the sole mechanism for terminal marking. Absence of outbound edges does not imply terminal status; the checker requires explicit declaration.
+
+**Completeness obligations.** When a graph is declared, the checker enforces two obligations:
+1. Every non-terminal state has at least one outbound edge in the graph.
+2. Every declared edge is witnessed by at least one rule whose `requires`/`ensures` pair can produce that transition.
+
+The converse (every rule transition appears in the graph) is enforced by the authoritative relationship itself. The graph is identified by entity and field name (e.g. `Order.status`) in error messages; no separate name declaration is needed.
+
+**Enum reference, not redeclaration.** The graph references enum values already declared on the field. The checker enforces exact correspondence: every value in the graph must exist on the field, and every field value must appear in at least one edge or as a terminal. Drift is a hard error.
+
+**Opt-in.** The checker does not emit warnings or suggestions about missing graphs on entities that lack them. The construct earns adoption through demonstrated value, not through tooling pressure.
+
+**Multiple status fields.** Entities with multiple status fields use independent single-field graphs. Cross-field constraints are expressed through invariants.
+
+**Generality.** Transition graphs currently target enum status fields. The syntax is designed to extend to variant discriminators and other lifecycle-bearing fields in future versions without structural changes.
+
+**Interaction with state-dependent fields.** When a transition graph is declared, the checker uses its structure alongside `when` clauses on field declarations to enforce presence and absence obligations at each transition (see [Field types](#field-types)) and to verify that `when`-qualified fields are only accessed within qualifying state guards.
 
 **Entity references:**
 ```
@@ -418,6 +598,8 @@ The relationship name determines the cardinality:
 - **Singular name** (e.g., `invitation`) — at most one related entity. The value is the entity instance, or `null` if none exists. Equivalent to `T?`. If multiple entities match a singular relationship, the specification is in error and the checker should report it.
 - **Plural name** (e.g., `slots`) — zero or more related entities. The value is a collection, empty if none exist.
 
+Relationships currently produce `Set` (unordered). The declaration syntax for ordered relationships (which would produce `Sequence`) is pending a follow-up ALP. The semantic model for ordered collections is defined; see [Collection operations](#collection-operations) for the type-level rules.
+
 ### Projections
 
 Named filtered views of relationships:
@@ -434,6 +616,8 @@ confirmed_interviewers: confirmations where status = confirmed -> interviewer
 ```
 
 The `-> field` syntax extracts a field from each matching entity. When the extracted field is optional (`T?`), null values are excluded from the result: the projection produces `Set<T>`, not `Set<T?>`.
+
+Projections preserve ordering. If the source collection is a `Sequence`, the projection result is also a `Sequence` in the same relative order. This applies to both `where` filtering and `-> field` extraction. Field extraction on ordered collections retains duplicates (two source elements navigating to the same target produce two entries in sequence order); use `.unique` to deduplicate, which produces an unordered `Set`.
 
 ### Derived values
 
@@ -493,6 +677,41 @@ rule RuleName {
 
 Place `let` bindings where they make the rule most readable, typically just before the clause that first uses them.
 
+### Derived value `when` propagation
+
+Derived values computed from `when`-qualified fields inherit the intersection of their inputs' `when` sets:
+
+```
+entity Order {
+    status: pending | confirmed | shipped | delivered
+    shipped_at: Timestamp when status = shipped | delivered
+    delivery_confirmed_at: Timestamp when status = delivered
+
+    transitions status {
+        pending -> confirmed
+        confirmed -> shipped
+        shipped -> delivered
+        terminal: delivered
+    }
+
+    -- Inferred: when status = delivered
+    -- (intersection of {shipped, delivered} and {delivered})
+    days_in_transit: delivery_confirmed_at - shipped_at
+}
+```
+
+The checker infers this; the author does not declare it. If the intersection is empty, the derived value is unreachable and the checker reports an error.
+
+An author may optionally annotate a derived value with an explicit `when` clause as documentation:
+
+```
+days_in_transit: delivery_confirmed_at - shipped_at when status = delivered
+```
+
+When present, the checker verifies it matches the inferred set. A mismatch is an error. When absent, the inferred set applies silently. The checker exports inferred `when` sets as structured data alongside state-level summaries.
+
+**Cross-entity access.** Accessing a `when`-qualified field on a related entity requires a guard narrowing the related entity's status to a qualifying state. `candidacy.order.tracking_number` requires that the rule's context narrows `order.status` to a qualifying state.
+
 ### Rule-level iteration
 
 A `for` clause applies the rule body once per element in a collection. The binding variable is available in all subsequent clauses.
@@ -533,7 +752,7 @@ when: interview: Interview.status transitions_to scheduled
 when: confirmation: SlotConfirmation.status transitions_to confirmed
 ```
 
-The variable before the colon binds the entity that triggered the transition. `transitions_to` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields.
+The variable before the colon binds the entity that triggered the transition. `transitions_to` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields. When a transition graph is declared for the field, only transitions in the graph are structurally valid; rules producing other transitions are validation errors.
 
 **State becomes** — entity has a value, whether by creation or transition:
 ```
@@ -767,6 +986,10 @@ reply_to?.author
 identity.timezone ?? "UTC"
 inherits_from?.effective_permissions ?? {}
 
+-- State-dependent fields: ?. is not needed for when-qualified fields
+-- when the requires clause narrows to a qualifying state
+order.tracking_number         -- valid when requires: order.status = shipped
+
 -- Self-reference
 this                                        -- the instance being defined or identified
 replies: Comment with reply_to = this       -- all Comments whose reply_to is this entity
@@ -826,12 +1049,23 @@ interviewers.remove(leaving_interviewer)
 all_permissions: permissions + inherited_permissions
 removed_mentions: old_mentions - new_mentions
 
--- First/last (for ordered collections)
+-- First/last (ordered collections only: Sequence or List<T>)
 attempts.first
 attempts.last
+
+-- Deduplicate (produces unordered Set)
+ordered_interviewers.unique
 ```
 
-`.add()` and `.remove()` are ensures-only mutations on a relationship. Set `+` and `-` are expression-level operations that produce new sets without mutating anything.
+`.first` and `.last` are restricted to ordered collections (`Sequence` or `List<T>`). Using them on a `Set` is a warning in the current version, becoming a hard error in the next version.
+
+`.unique` deduplicates a collection. Because deduplication discards positional information, the result is always an unordered `Set`, even when the source is ordered.
+
+`for item in collection:` iterates in declared order when the source is a `Sequence` or `List<T>`. When the source is a `Set`, iteration order is unspecified.
+
+`.add()` and `.remove()` are ensures-only mutations on a relationship. Set `+` and `-` are expression-level operations that produce new sets without mutating anything. When applied to ordered collections (`Sequence` or `List<T>`), `+` and `-` produce unordered results (`Set<T>`). The checker reports the type change if the result is used where ordering is expected.
+
+Dot-method syntax on collections is reserved for built-in operations. The built-in dot-methods are: `.count`, `.any()`, `.all()`, `.first`, `.last`, `.unique`, `.add()`, `.remove()`. The checker rejects any dot-method call on a collection whose name is not in this set. Domain-specific collection operations use free-standing black box function syntax with the collection as the first argument (see [Black box functions](#black-box-functions)).
 
 ### Comparisons
 
@@ -978,16 +1212,25 @@ Object literals are anonymous record types. They carry named fields but have no 
 
 ### Black box functions
 
-Black box functions represent domain logic too complex or algorithmic for the spec level. They appear in expressions and their behaviour is described by comments or deferred specifications.
+Black box functions represent domain logic too complex or algorithmic for the spec level. They appear in expressions and their behaviour is described by comments or deferred specifications. Black box functions always use free-standing call syntax; they never use dot-method syntax.
 
 ```
+-- Scalar black box functions
 hash(password)                              -- black box
 verify(password, user.password_hash)        -- black box
 parse_mentions(body)                        -- black box: extracts @username
 next_digest_time(user)                      -- black box: uses digest_day_of_week
+
+-- Collection-operating black box functions (collection as first argument)
+filter(events, e => e.recent)               -- black box
+grouped_by(copies, r => r.output_payloads)  -- black box
+min_by(pending, e => e.offset)              -- black box
+flatMap(groups, g => g.deferred_events)     -- black box
 ```
 
 Black box functions are pure (no side effects) and deterministic for the same inputs within a rule execution.
+
+The distinction between built-in operations and black box functions is syntactic: dot-method calls on collections (`.count`, `.any()`, `.all()`, `.first`, `.last`, `.unique`, `.add()`, `.remove()`) are built-in with language-defined semantics. Free-standing function calls are black box with implementation-defined semantics. The checker enforces this boundary: an unrecognised dot-method on a collection is an error. Built-in operations may chain from the result of a black box function call, since the result is a collection: `filter(events, e => e.recent).count` is valid.
 
 ### The `with` and `where` keywords
 
@@ -1122,6 +1365,8 @@ Invariant expressions must be pure:
 
 Invariants are logical assertions over entity state, not runtime checks. Checking frequency and strategy are tooling concerns: PBT checks invariants after rule sequences, the model checker checks exhaustively, the trace validator checks against reconstructed state.
 
+Invariant expressions that reference `when`-qualified fields must scope their quantification to qualifying states. `for o in Orders: o.tracking_number != null` is an error if `tracking_number` carries a `when` clause, because the field does not exist in all states. Use a guard: `for o in Orders: o.status in {shipped, delivered} implies o.tracking_number != null`.
+
 ### Prose-only vs expression-bearing invariants
 
 Two syntactically distinct forms exist:
@@ -1130,6 +1375,30 @@ Two syntactically distinct forms exist:
 - `invariant Name { expression }` (no sigil, braces) — expression-bearing, at top-level and entity-level scopes
 
 The prose annotation describes a property informally. The expression-bearing form is a machine-readable assertion that tooling can exercise. When a prose annotation is promoted to the expression-bearing form, the `@` is dropped and a `{ expr }` body is added in its place.
+
+### Recognising expressible invariants
+
+Expression-bearing invariants assert properties over entity state at a single point in time. They answer the question "given the current state of all entities, does this property hold?" Not all important properties have this shape.
+
+**Expressible** (use `invariant Name { expr }`):
+
+- Uniqueness across entity instances: "no two instances share a priority"
+- Relationships between fields on the same entity: "save_block = must_save implies expected_save_version != null"
+- Bounds on field values: "gap >= 1", "version >= 1"
+- Structural relationships between collections: "L1 and L2 never hold the same key", "distinct causal groups have disjoint entity key sets"
+- Subset and partition relationships: "processed events are a subset of group events", "processed and deferred together cover all events"
+
+The common thread: the property can be checked by reading current field values and navigating current relationships. No knowledge of history, ordering or external state is required.
+
+**Not expressible** (use prose comments or `@invariant` in contracts):
+
+- Cross-instance agreement: "all instances produce byte-identical outputs for the same input." This compares the behaviour of independent processes, not entity state.
+- Temporal ordering: "event 2 sees the entity state left by event 1." This is about the order in which rules executed, not a static property.
+- Evaluation function contracts: "the function is pure and deterministic." This constrains code behaviour, not entity state. Use `@invariant` inside a `contract` declaration.
+- Counterfactual properties: "if a crash occurred, recovery could reconstruct this state." This reasons about a hypothetical scenario, not the current state.
+- Monotonicity: "the watermark never decreases." This compares current state to prior state. A single-point-in-time invariant can assert a lower bound (`watermark >= -1`) but not that the value has not decreased since last observed.
+
+When in doubt, try writing the expression. If it requires comparing two moments in time, reasoning about what another process would do, or referencing the order in which rules fired, it belongs in prose.
 
 ---
 
@@ -1610,10 +1879,27 @@ A valid Allium specification must satisfy:
 5. All triggers are valid (external stimulus, state transition, state becomes, entity creation, temporal, derived or chained)
 6. All rules sharing a trigger name must use the same parameter count and positional types. Parameter binding names may differ between rules. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
 
-**State machine validity:**
+**State machine validity (without transition graph):**
 7. All status values are reachable via some rule
 8. All non-terminal status values have exits
 9. No undefined states: rules cannot set status to values not in the enum
+
+**Transition graph validity (when a `transitions` block is declared):**
+7a. Rules whose `ensures` clauses produce transitions not in the declared graph are errors (authoritative relationship)
+7b. Every non-terminal state in the graph has at least one outbound edge
+7c. Every declared edge in the graph is witnessed by at least one rule whose `requires`/`ensures` pair can produce that transition
+7d. Every enum value on the field appears in at least one edge or in the `terminal:` clause; every value in the graph exists on the field (exact correspondence)
+7e. Terminal states must be explicitly declared with a `terminal:` clause
+
+**State-dependent field validity (when `when` clauses are present):**
+7f. Every state in a `when` clause must be a valid value of the referenced status field
+7g. The field referenced in a `when` clause must have a `transitions` block
+7h. Rules transitioning into the `when` set (source state outside, target state inside) must set the field
+7i. Rules transitioning out of the `when` set (source state inside, target state outside) must clear the field
+7j. Transitions within the `when` set (both states inside) or outside it (both states outside) carry no obligation
+7k. Accessing a `when`-qualified field without a `requires` guard narrowing to a qualifying state is an error
+7l. Optional explicit `when` on derived values must match the checker's inferred intersection of input `when` sets
+7m. Tautological invariant (off by default, opt-in): an expression-bearing invariant whose assertion is provably true given lifecycle analysis from `when` clauses and transition reachability
 
 **Expression validity:**
 10. No circular dependencies in derived values
@@ -1621,6 +1907,7 @@ A valid Allium specification must satisfy:
 12. Type consistency in comparisons and arithmetic
 13. All lambdas are explicit (use `i => i.field` not `field`)
 14. Inline enum fields cannot be compared with each other (whether on the same entity or across entities); use a named enum to share values across fields
+14a. Dot-method calls on collections must use a recognised built-in name (`.count`, `.any()`, `.all()`, `.first`, `.last`, `.unique`, `.add()`, `.remove()`). Unrecognised dot-methods are errors. Domain-specific collection operations use free-standing black box function syntax
 
 **Sum type validity:**
 15. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
@@ -1683,12 +1970,22 @@ A valid Allium specification must satisfy:
 56. Invariant expressions must not reference `now` (volatile; stored timestamp fields are permitted)
 57. Entity collection references in top-level invariants must correspond to declared entity types
 
+**Ordered collection validity:**
+58. `.first` and `.last` on unordered collections (`Set`) produce a warning in the current version, becoming a hard error in the next version
+59. Set arithmetic (`+`, `-`) on ordered collections produces unordered results. The checker reports an error if the result is used where an ordered collection is expected
+60. `.unique` produces an unordered `Set` regardless of the source collection's ordering
+
+**Enum literal validity:**
+61. Backtick-quoted enum literals must contain only printable Unicode characters (categories L, M, N, P, S) excluding backtick and whitespace
+62. Backtick-quoted literals are permitted only in enum declarations (named and inline), literal comparisons and `ensures` clauses; they are not permitted in identifier positions
+63. Backtick-quoted literals cannot appear in arithmetic expressions
+
 **Annotation validity:**
-58. `@invariant` requires a PascalCase name; names must be unique within their containing construct (contract or surface)
-59. `@guarantee` requires a PascalCase name; names must be unique within their surface
-60. `@guidance` must not have a name; must appear after all structural clauses and after all other annotations in its containing construct
-61. All annotations must be followed by at least one indented comment line; unindented comment lines after an annotation are not part of the annotation body
-62. Within a construct, `@invariant` and `@guarantee` annotations may appear in any order relative to each other but must appear after all structural clauses; `@guidance` must appear last
+64. `@invariant` requires a PascalCase name; names must be unique within their containing construct (contract or surface)
+65. `@guarantee` requires a PascalCase name; names must be unique within their surface
+66. `@guidance` must not have a name; must appear after all structural clauses and after all other annotations in its containing construct
+67. All annotations must be followed by at least one indented comment line; unindented comment lines after an annotation are not part of the annotation body
+68. Within a construct, `@invariant` and `@guarantee` annotations may appear in any order relative to each other but must appear after all structural clauses; `@guidance` must appear last
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1713,6 +2010,8 @@ The checker should warn (but not error) on:
 - `@invariant` prose that resembles a formal expression (informational: promote to expression-bearing `invariant Name { expression }` when the assertion is machine-readable)
 - Config reference chains deeper than two levels of indirection
 - Diamond dependency conflicts in config overrides
+- Tautological invariant (off by default, opt-in): an expression-bearing invariant whose assertion is provably true given lifecycle analysis from `when` clauses and transition reachability
+- `.first` or `.last` on unordered collections (warning in current version, error in next)
 
 ---
 
@@ -1739,7 +2038,7 @@ ensures: CandidateInformed(about: options_available, data: { slots: slots })
 **Algorithm in rules:**
 ```
 -- Bad
-ensures: selected = interviewers.sortBy(load).take(3).filter(available)
+ensures: selected = filter(take(sortBy(interviewers, load), 3), available)
 
 -- Good
 ensures: Suggestion.created(
@@ -1845,8 +2144,10 @@ ensures: deadline = now + config.confirmation_deadline
 | **Variant** | One alternative in a sum type, declared with `variant X : Base { ... }` |
 | **Type Guard** | Condition (`requires:` or `if`) that narrows to a variant, unlocking its fields |
 | **Field** | Data stored on an entity or value |
-| **Relationship** | Navigation from one entity to related entities |
-| **Projection** | A filtered view of a relationship |
+| **Relationship** | Navigation from one entity to related entities. Unordered relationships produce `Set`; ordered relationships produce `Sequence`. Declaration syntax for ordered relationships is pending |
+| **Projection** | A filtered view of a relationship. Preserves the ordering of the source collection: a projection of a `Sequence` is a `Sequence` |
+| **Sequence** | Ordered collection type that will be produced by ordered relationships and their projections when declaration syntax is introduced (pending follow-up ALP). A subtype of `Set`: assignable where an unordered collection is expected, but not the reverse. Distinct from `List<T>`, which is a compound field type declared explicitly. Ordering propagates through `where` and field extraction; set arithmetic (`+`, `-`) and `.unique` produce unordered results |
+| **Ordered collection** | A collection whose elements have a meaningful sequence (intrinsic order). `Sequence` and `List<T>` are the two ordered collection types. `.first`, `.last` and deterministic `for` iteration are restricted to ordered collections |
 | **Derived Value** | A computed value based on other fields |
 | **Parameterised Derived Value** | A derived value that takes arguments, e.g. `can_use_feature(f): f in plan.features` |
 | **Rule** | A specification of behaviour triggered by some condition |
@@ -1854,7 +2155,11 @@ ensures: deadline = now + config.confirmation_deadline
 | **Trigger Emission** | An ensures clause that emits a named event; other rules chain from it via their `when` clause |
 | **Precondition** | A requirement that must be true for a rule to execute |
 | **Postcondition** | An assertion about what becomes true after a rule executes |
-| **Black Box Function** | Domain logic referenced but not defined in the spec; pure and deterministic. Common examples include `length()`, `hash()`, `verify()` |
+| **`when` clause (field)** | Clause on a field declaration tying its presence to lifecycle state: `field: Type when status = value1 \| value2`. The field is present only in the listed states. The referenced status field must have a `transitions` block. Orthogonal to `?` (genuine optionality) |
+| **Presence obligation** | When a rule transitions an entity into a field's `when` set (source state outside, target state inside), the rule must set the field |
+| **Absence obligation** | When a rule transitions an entity out of a field's `when` set (source state inside, target state outside), the rule must clear the field |
+| **Derived value `when` inference** | The checker infers `when` sets for derived values by intersecting the `when` sets of their inputs. Authors may optionally annotate with an explicit `when` clause, verified against the inference. The checker exports inferred `when` sets as structured data |
+| **Black Box Function** | Domain logic referenced but not defined in the spec; pure and deterministic. Always use free-standing call syntax, never dot-method syntax. For collection-operating functions, the collection is the first argument: `filter(events, predicate)`. Common examples include `hash()`, `verify()`, `filter()`, `grouped_by()` |
 | **External Entity** | An entity managed by another specification; referenced but not governed here |
 | **Config** | Configurable parameters for a specification, referenced via `config.field` |
 | **Default** | A named entity instance used as seed data or base configuration |
@@ -1864,7 +2169,8 @@ ensures: deadline = now + config.confirmation_deadline
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
 | **`within`** | Clause in actor declarations that names the required context type; also a keyword in `identified_by` expressions that resolves to the surface's context entity |
 | **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
-| **Enum** | A set of values. **Named enums** (`enum Recommendation { ... }`) have type identity and are reusable across fields and entities. **Inline enums** (`status: pending \| active`) are anonymous, scoped to a single field, and cannot be compared across fields |
+| **Enum** | A set of values. **Named enums** (`enum Recommendation { ... }`) have type identity and are reusable across fields and entities. **Inline enums** (`status: pending \| active`) are anonymous, scoped to a single field, and cannot be compared across fields. Enum literals referencing external standards may use backtick quoting (`` `de-CH-1996` ``) to preserve the standard's canonical form; quoted and unquoted literals are distinct values with no implicit normalisation |
+| **Transition Graph** | An authoritative, opt-in declaration of valid lifecycle transitions for an enum status field. Declared inside the entity body with `transitions field_name { ... }` using `->` edge notation and a `terminal:` clause. When present, rules producing transitions not in the graph are validation errors. Entities without a graph derive transition validity from rules alone |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
@@ -1873,5 +2179,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **`demands`** | Direction marker in a `contracts:` clause indicating the counterpart must implement this contract |
 | **`fulfils`** | Direction marker in a `contracts:` clause indicating this surface supplies the contract's operations |
 | **Invariant** | A named, scoped assertion about a property. Two syntactic forms: `@invariant Name` (prose annotation, in contracts) and `invariant Name { expression }` (expression-bearing, at top-level and entity-level). Expression-bearing invariants are logical assertions over entity state, not runtime checks. Distinct from `@guarantee`, which annotates properties of the boundary as a whole |
+| **`@guarantee`** | Named prose annotation on a surface asserting a property of the boundary as a whole. PascalCase name required, unique within the surface. Structurally validated by the checker; prose content is not evaluated. Distinct from `@invariant` (scoped to a contract) and expression-bearing `invariant Name { }` (machine-readable) |
+| **`@guidance`** | Unnamed prose annotation providing non-normative implementation advice. Permitted in contracts, rules and surfaces. Must appear after all structural clauses and after all other annotations in its containing construct. Structurally validated; prose content is not evaluated |
 | **`implies`** | Boolean operator. `a implies b` is `not a or b`. Lowest boolean precedence, binding looser than `and` and `or`. Available in all expression contexts |
 | **Config reference** | A qualified reference in a config default (`param: Type = other/config.param`) that aliases a parameter from an imported module. Supports expression-form defaults with arithmetic operators |

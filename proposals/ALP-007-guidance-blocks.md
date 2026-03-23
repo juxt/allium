@@ -1,5 +1,7 @@
 # ALP-7: `guidance:` as a rule clause and standalone declaration
 
+**Status**: adopt (rule-level guidance adopted; standalone top-level blocks deferred)
+
 ## Problem
 
 The language documents `guidance:` as a surface clause for non-normative implementation advice. In practice, guidance is needed in two additional positions: inside rules (after `ensures:`, advising on how to implement the rule's postconditions) and as standalone top-level blocks (advising on cross-cutting concerns that don't belong to any single rule or surface).
