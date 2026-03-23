@@ -252,16 +252,18 @@ pre code {
 }
 
 .terminal .llm code {
-  color: #f9e2af;
+  color: inherit;
   background: none;
   padding: 0;
   font-size: inherit;
+  font-weight: 600;
 }
 
 .terminal .user code {
-  color: #f9e2af;
+  color: inherit;
   background: none;
   padding: 0;
+  font-weight: 600;
   font-size: inherit;
 }
 
