@@ -5,7 +5,7 @@ title: Allium v3
 
 <p class="hero">Allium v3</p>
 
-v3 turns your specs into property-based tests. Describe what your system should do, and your LLM generates real tests in whatever language and framework you already use.
+v3 turns your specs into property-based tests. Describe what your system should do, and your LLM generates tests in whatever language and framework you already use.
 
 ## Get started
 
@@ -55,15 +55,15 @@ If you don't have specs yet, start with `/allium` to distil from your codebase o
 
 ## Why this matters
 
-Most testing frameworks work bottom-up: you write tests, one at a time, hoping you've covered enough. Allium works top-down. The spec already describes every entity, every rule, every transition, every invariant. The tooling reads that description and tells your LLM exactly what needs testing. No gaps, no guesswork.
+Most testing frameworks work bottom-up: you write tests one at a time, hoping you've covered enough. Allium works top-down. The spec already describes your entities, rules, transitions and invariants, so the tooling can tell your LLM exactly what needs testing.
 
-Other spec-driven test tools constrain you to their DSL, their runner, their conventions. Allium doesn't generate tests itself. It gives your LLM a precise, structured brief, and the LLM writes real tests using your project's existing framework, your factories, your fixtures. The output is idiomatic code you can read, modify and maintain.
+Other spec-driven test tools constrain you to their DSL and their runner. Allium gives your LLM a structured brief, and the LLM writes tests using your project's existing framework, your existing fixtures. The output is idiomatic code you can maintain.
 
 ## What's new in the language
 
 ### State-dependent fields
 
-The headline feature. Fields declare when they exist:
+Fields declare when they exist:
 
 ```allium
 entity Document {
@@ -82,7 +82,7 @@ entity Document {
 }
 ```
 
-In v2, `deleted_at` would be `Timestamp?` with a comment explaining it's only present when deleted. The `?` is technically correct but semantically dishonest: when the document is deleted, `deleted_at` is guaranteed present, not optional. Every downstream derived value inherits false optionality. Every rule accessing it needs a defensive null check the lifecycle already prevents.
+In v2, `deleted_at` would be `Timestamp?` with a comment explaining it's only present when deleted. Technically correct, but semantically wrong: when the document is deleted, `deleted_at` is guaranteed present. Every downstream derived value inherits false optionality, and every rule accessing the field needs a null check the lifecycle already prevents.
 
 `when` clauses fix this. The checker enforces that any rule transitioning into the `when` set must set the field, and any rule transitioning out must clear it. The field's lifecycle is declared once, on the field, not scattered across rules.
 
@@ -108,11 +108,11 @@ entity Subscription {
 }
 ```
 
-The graph declares which transitions are structurally possible and which states are terminal. The checker verifies that every declared edge has a witnessing rule, and that undeclared transitions have no rule that could cause them. State machine tests walk every path through this graph, verifying invariants at each step.
+The graph declares which transitions are structurally possible and which states are terminal. The checker verifies that every declared edge has a witnessing rule, and that undeclared transitions have no rule that could cause them. State machine tests walk every path through the graph, verifying invariants at each step.
 
 ### Black box collection operations
 
-v3 draws a clear line between built-in operations and implementation-defined ones. Built-in operations use dot syntax, black box functions use free-standing syntax:
+v3 separates built-in operations from implementation-defined ones. Built-in operations use dot syntax, black box functions use free-standing syntax:
 
 ```allium
 -- Built-in: the language guarantees semantics
@@ -126,7 +126,7 @@ grouped_by(copies, c => c.output)
 min_by(pending, e => e.offset)
 ```
 
-This matters for test generation. Built-in operations have known semantics the test generator can reason about. Black box functions are opaque and require the implementation bridge.
+The distinction matters for test generation. Built-in operations have known semantics the test generator can reason about. Black box functions are opaque and require the implementation bridge.
 
 ### Backtick-quoted enum literals
 
@@ -137,11 +137,11 @@ enum InterfaceLanguage { en | de | fr | `de-CH-1996` | es | `zh-Hant-TW` | `sr-L
 enum CacheDirective { `no-cache` | `no-store` | `must-revalidate` | `max-age` }
 ```
 
-Backtick-quoted literals are values, not identifiers. They participate in comparison and assignment like any other enum value. The checker skips case convention rules inside backticks. Quoted and unquoted forms are distinct: `de_ch_1996` and `` `de-CH-1996` `` are different values with no implicit normalisation.
+Backtick-quoted literals are values, not identifiers. They participate in comparison and assignment like any other enum value, but the checker skips case convention rules inside backticks. Quoted and unquoted forms are distinct: `de_ch_1996` and `` `de-CH-1996` `` are different values with no implicit normalisation.
 
 ### Ordered collection semantics
 
-v3 distinguishes ordered from unordered collections. `Set<T>` is unordered, `Sequence<T>` preserves insertion order. Projections and `where` filters on ordered collections produce ordered results. `.first` and `.last` are only available on ordered collections.
+v3 distinguishes ordered from unordered collections. `Set<T>` is unordered, `Sequence<T>` preserves insertion order. Projections and `where` filters on ordered collections produce ordered results, and `.first` and `.last` are only available on ordered collections.
 
 ```allium
 entity Timeline {
@@ -152,19 +152,19 @@ entity Timeline {
 }
 ```
 
-This distinction matters for specs where ordering is part of the domain contract, not an implementation detail.
+This matters for specs where ordering is part of the domain contract rather than an implementation detail.
 
 ## How the CLI fits in
 
-The [Allium CLI](https://github.com/juxt/allium-tools) runs behind the scenes. When you ask your LLM to generate tests, the propagate skill calls two commands:
+The [Allium CLI](https://github.com/juxt/allium-tools) runs behind the scenes. When you ask your LLM to generate tests, the propagate skill calls two commands.
 
-**`allium plan`** reads your spec and emits every test obligation as structured JSON. Each rule gets a success case and failure cases. Each transition edge gets a validity check. Each invariant becomes a property to verify after every state change. Each state-dependent field gets presence and absence checks. The plan is exhaustive and deterministic: same spec, same obligations, every time.
+**`allium plan`** reads your spec and emits every test obligation as structured JSON. Rules get success and failure cases, transition edges get validity checks, invariants become properties to verify after state changes, and state-dependent fields get presence and absence checks. The plan is deterministic: same spec, same obligations.
 
 **`allium model`** extracts the domain model: entity shapes with field types and constraints, transition graphs showing valid state sequences, `when`-sets declaring which fields exist at which lifecycle states, and invariant expressions that constrain generated data. This is what the test generator needs to construct valid fixtures at any point in the lifecycle.
 
-Without the CLI, your LLM derives test obligations by reading the spec directly. This works, but an LLM reading prose will miss edge cases that a parser catches mechanically. The CLI extracts obligations from the AST. The plan is complete by construction.
+Without the CLI, your LLM derives test obligations by reading the spec directly. This works, but an LLM reading prose will miss edge cases that a parser catches mechanically. The CLI extracts obligations from the AST, so the plan is complete by construction.
 
-Install it with Homebrew or Cargo:
+Install with Homebrew or Cargo:
 
 ```
 brew tap juxt/allium && brew install allium
@@ -254,7 +254,7 @@ The dependency information tells the test generator whether a rule can be tested
 }
 ```
 
-To construct a valid Order at state `shipped`, the generator includes `tracking_number` and `shipped_at` (their `when_set` contains `shipped`) and omits fields whose `when_set` doesn't. The transition graph tells it which state sequences are valid for state machine tests. The invariant expression constrains generated values.
+To construct a valid Order at state `shipped`, the generator includes `tracking_number` and `shipped_at` (their `when_set` contains `shipped`) and omits fields whose `when_set` doesn't. The transition graph tells it which state sequences are valid for state machine tests, and the invariant expression constrains generated values.
 
 </details>
 
