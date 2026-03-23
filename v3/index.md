@@ -49,15 +49,15 @@ If you have existing Allium specs, update them and generate tests in two prompts
   </div>
 </div>
 
-"Tend" and "propagate" are Allium's built-in agent and skill. Tend evolves your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
+<code>tend</code> and <code>propagate</code> are Allium's built-in agent and skill. Tend updates your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
 
 If you don't have specs yet, start with `/allium` to distil from your codebase or build one through conversation.
 
 ## The big idea
 
-Most testing frameworks work bottom-up: you write tests one at a time, hoping you've covered enough. Allium works top-down. The spec already describes your entities, rules, transitions and invariants, so the tooling can tell your LLM exactly what needs testing.
+Most testing frameworks work bottom-up: you write tests one at a time. Allium works top-down. The spec already describes your entities, rules, transitions and invariants, so the tooling can tell your LLM what needs testing.
 
-Other spec-driven test tools constrain you to their DSL and their runner. Allium gives your LLM a structured brief, and the LLM writes tests using your project's existing framework, your existing fixtures. The output is idiomatic code you can maintain.
+Other spec-driven test tools constrain you to their DSL and their runner. Allium gives your LLM a structured brief, and the LLM writes tests using your project's existing framework and fixtures. The output is idiomatic code you can maintain.
 
 ## What's new in the language
 
@@ -126,7 +126,7 @@ grouped_by(copies, c => c.output)
 min_by(pending, e => e.offset)
 ```
 
-The distinction matters for test generation. Built-in operations have known semantics the test generator can reason about. Black box functions are opaque and require the implementation bridge.
+The test generator can reason about built-in operations because their semantics are known. Black box functions are opaque, so it maps them to your actual implementation instead.
 
 ### Backtick-quoted enum literals
 
@@ -141,7 +141,7 @@ Backtick-quoted literals are values, not identifiers. They participate in compar
 
 ### Ordered collection semantics
 
-v3 distinguishes ordered from unordered collections. `Set<T>` is unordered, `Sequence<T>` preserves insertion order. Projections and `where` filters on ordered collections produce ordered results, and `.first` and `.last` are only available on ordered collections.
+v3 distinguishes ordered from unordered collections. `Set<T>` is unordered, `Sequence<T>` preserves insertion order. Projections and `where` filters on ordered collections produce ordered results, and `.first` and `.last` are only available on ordered collections. When ordering is part of the domain contract, the spec should say so.
 
 ```allium
 entity Timeline {
@@ -152,15 +152,13 @@ entity Timeline {
 }
 ```
 
-This matters for specs where ordering is part of the domain contract rather than an implementation detail.
-
 ## How the CLI fits in
 
 The [Allium CLI](https://github.com/juxt/allium-tools) runs behind the scenes. When you ask your LLM to generate tests, the propagate skill calls two commands.
 
-**`allium plan`** reads your spec and emits every test obligation as structured JSON. Rules get success and failure cases, transition edges get validity checks, invariants become properties to verify after state changes, and state-dependent fields get presence and absence checks. The plan is deterministic: same spec, same obligations.
+**`allium plan`** reads your spec and emits every test obligation as structured JSON. Rules get success and failure cases, transition edges get validity checks. Invariants become properties to verify after state changes, state-dependent fields get presence and absence checks. The plan is deterministic: same spec, same obligations.
 
-**`allium model`** extracts the domain model: entity shapes with field types and constraints, transition graphs showing valid state sequences, `when`-sets declaring which fields exist at which lifecycle states, and invariant expressions that constrain generated data. This is what the test generator needs to construct valid fixtures at any point in the lifecycle.
+**`allium model`** extracts the domain model: entity shapes with field types and constraints, transition graphs showing valid state sequences, `when`-sets declaring which fields exist at which lifecycle states and invariant expressions that constrain generated data. This is what the test generator needs to construct valid fixtures at any point in the lifecycle.
 
 Without the CLI, your LLM derives test obligations by reading the spec directly. This works, but an LLM reading prose will miss edge cases that a parser catches mechanically. The CLI extracts obligations from the AST, so the plan is complete by construction.
 
