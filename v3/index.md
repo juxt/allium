@@ -83,15 +83,14 @@ Here's what `allium plan` produces for a single rule:
 
 ```json
 {
-  "id": "rule-success-ShipOrder",
+  "id": "rule-success.ShipOrder",
   "category": "rule_success",
   "description": "Verify rule ShipOrder succeeds when all preconditions are met",
   "source_construct": "ShipOrder",
-  "source_span": [300, 450],
+  "source_span": { "start": 300, "end": 450 },
   "dependencies": {
     "entities_read": ["Order", "Warehouse"],
     "entities_written": ["Order"],
-    "deferred_specs": [],
     "trigger_emissions": ["NotifyCustomer"],
     "trigger_source": "external"
   }
@@ -102,9 +101,11 @@ And for a state-dependent field entering its `when` set:
 
 ```json
 {
-  "id": "when-set-ShipOrder-Order-tracking_number",
-  "category": "when_presence_obligation",
+  "id": "when-set.ShipOrder.Order.tracking_number",
+  "category": "when_set",
   "description": "Verify ShipOrder sets Order.tracking_number when transitioning status from confirmed to shipped",
+  "source_construct": "ShipOrder",
+  "source_span": { "start": 300, "end": 450 },
   "detail": {
     "rule": "ShipOrder",
     "entity": "Order",
@@ -123,6 +124,7 @@ Here's what `allium model` produces for the same entity:
 ```json
 {
   "name": "Order",
+  "kind": "internal",
   "fields": [
     { "name": "status", "type_expr": "pending | confirmed | shipped | delivered | cancelled",
       "enum_values": ["pending", "confirmed", "shipped", "delivered", "cancelled"] },
@@ -131,19 +133,22 @@ Here's what `allium model` produces for the same entity:
     { "name": "shipped_at", "type_expr": "Timestamp",
       "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } }
   ],
-  "transition_graph": {
-    "field": "status",
-    "edges": [
-      { "from": "pending", "to": "confirmed" },
-      { "from": "confirmed", "to": "shipped" },
-      { "from": "shipped", "to": "delivered" },
-      { "from": "pending", "to": "cancelled" },
-      { "from": "confirmed", "to": "cancelled" }
-    ],
-    "terminal": ["delivered", "cancelled"]
-  },
+  "transition_graphs": [
+    {
+      "field": "status",
+      "edges": [
+        { "from": "pending", "to": "confirmed" },
+        { "from": "confirmed", "to": "shipped" },
+        { "from": "shipped", "to": "delivered" },
+        { "from": "pending", "to": "cancelled" },
+        { "from": "confirmed", "to": "cancelled" }
+      ],
+      "terminal": ["delivered", "cancelled"],
+      "states": ["cancelled", "confirmed", "delivered", "pending", "shipped"]
+    }
+  ],
   "invariants": [
-    { "name": "PositiveTotal", "expression": "total > 0" }
+    { "name": "PositiveTotal", "scope": "entity", "expression": "total > 0" }
   ]
 }
 ```
