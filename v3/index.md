@@ -22,7 +22,7 @@ If you have existing Allium specs, update them and generate tests in two prompts
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> Update our Allium specs to v3. Add transition graphs and when clauses where our entities have lifecycle state.
+      <span class="prompt">&gt;</span> Tend our Allium specs to v3. Add transition graphs and when clauses where our entities have lifecycle state.
     </div>
     <div class="turn llm">
       <span class="marker">✻</span> Found 4 specs. <code>orders.allium</code> has a status enum with 5 states — I've added a transition graph and moved <code>tracking_number</code> and <code>shipped_at</code> to <code>when status = shipped | delivered</code>. <code>subscriptions.allium</code> has trial/active/cancelled lifecycle, same treatment. The other two have no lifecycle fields, just bumped them to v3.
@@ -41,7 +41,7 @@ If you have existing Allium specs, update them and generate tests in two prompts
   </div>
   <div class="terminal-body">
     <div class="turn user">
-      <span class="prompt">&gt;</span> Now generate property-based tests from the orders spec.
+      <span class="prompt">&gt;</span> Propagate the orders spec into property-based tests.
     </div>
     <div class="turn llm">
       <span class="marker">✻</span> Running <code>allium plan</code> and <code>allium model</code> against <code>orders.allium</code>. 47 test obligations. Your existing tests cover 19. Generating the remaining 28, including property-based tests for the 6 invariants and state machine tests walking the order lifecycle. Writing to <code>src/test/kotlin/orders/</code>.
@@ -49,7 +49,7 @@ If you have existing Allium specs, update them and generate tests in two prompts
   </div>
 </div>
 
-The first prompt uses the tend agent to evolve your specs. The second uses the propagate skill to generate tests. Both work with whatever LLM tooling you have installed.
+"Tend" and "propagate" are Allium's built-in agent and skill. Tend evolves your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
 
 If you don't have specs yet, start with `/allium` to distil from your codebase or build one through conversation.
 
