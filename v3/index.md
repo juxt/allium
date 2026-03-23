@@ -224,6 +224,32 @@ min_by(pending, e => e.offset)
 
 This matters for test generation. Built-in operations have known semantics the test generator can reason about. Black box functions are opaque and require the implementation bridge.
 
+### Backtick-quoted enum literals
+
+Enum values that reference external standards often contain hyphens, dots or mixed case. v3 lets you use the canonical form directly:
+
+```allium
+enum InterfaceLanguage { en | de | fr | `de-CH-1996` | es | `zh-Hant-TW` | `sr-Latn` }
+enum CacheDirective { `no-cache` | `no-store` | `must-revalidate` | `max-age` }
+```
+
+Backtick-quoted literals are values, not identifiers. They participate in comparison and assignment like any other enum value. The checker skips case convention rules inside backticks. Quoted and unquoted forms are distinct: `de_ch_1996` and `` `de-CH-1996` `` are different values with no implicit normalisation.
+
+### Ordered collection semantics
+
+v3 distinguishes ordered from unordered collections. `Set<T>` is unordered, `Sequence<T>` preserves insertion order. Projections and `where` filters on ordered collections produce ordered results. `.first` and `.last` are only available on ordered collections.
+
+```allium
+entity Timeline {
+    events: Sequence<Event>
+
+    latest: events.last
+    has_errors: events.any(e => e.severity = error)
+}
+```
+
+This distinction matters for specs where ordering is part of the domain contract, not an implementation detail.
+
 ## Installing the CLI
 
 ```
@@ -236,4 +262,6 @@ With the CLI installed, Claude Code validates every `.allium` file after writing
 
 ## Upgrading from v2
 
-Change `-- allium: 2` to `-- allium: 3`. Adopt `when` clauses and transition graphs when you want state-dependent field precision and property-based test generation. Existing specs work unchanged.
+Change `-- allium: 2` to `-- allium: 3`. One breaking change: `produces` and `consumes` clauses on rules are removed. Replace them with `when` clauses on the fields themselves. The checker emits a migration diagnostic if it encounters the old syntax.
+
+Everything else is additive. Adopt `when` clauses, transition graphs and the other new features as you need them.
