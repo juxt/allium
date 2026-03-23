@@ -177,3 +177,5 @@ With the CLI installed, your LLM also validates every `.allium` file after writi
 ## Upgrading from v2
 
 Change `-- allium: 2` to `-- allium: 3`. Adopt the new features as you need them. Nothing was removed.
+
+The [v2 to v3 migration guide](https://github.com/juxt/allium/blob/main/references/migration-v2-to-v3.md) covers every change, with syntax rules, worked examples and a migration checklist.
