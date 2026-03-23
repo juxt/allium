@@ -1,6 +1,6 @@
 // Allium syntax highlighter
 document.addEventListener('DOMContentLoaded', function() {
-  var keywords = /^(rule|entity|when|requires|ensures|default|deferred|use|if|let|in|with|for|as|this|surface|invariant|contract|facing|context|exposes|provides|contracts|demands|fulfils|implies|where|config|enum|variant|becomes|transitions_to|related|timeout)$/;
+  var keywords = /^(rule|entity|when|requires|ensures|default|deferred|use|if|let|in|with|for|as|this|surface|invariant|contract|facing|context|exposes|provides|contracts|demands|fulfils|implies|where|config|enum|variant|becomes|transitions_to|transitions|terminal|related|timeout)$/;
   var builtins = /^(now|true|false|none)$/;
   var annotations = /^@(invariant|guarantee|guidance)$/;
 
@@ -29,6 +29,16 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           result.push(esc(word));
         }
+        i = j;
+        continue;
+      }
+
+      // Backtick-quoted enum literals
+      if (text[i] === '`') {
+        var j = i + 1;
+        while (j < text.length && text[j] !== '`') j++;
+        j++;
+        result.push(span('string', text.slice(i, j)));
         i = j;
         continue;
       }

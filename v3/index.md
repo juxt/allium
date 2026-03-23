@@ -53,7 +53,7 @@ If you have existing Allium specs, update them and generate tests in two prompts
 
 If you don't have specs yet, start with `/allium` to distil from your codebase or build one through conversation.
 
-## Why this matters
+## The big idea
 
 Most testing frameworks work bottom-up: you write tests one at a time, hoping you've covered enough. Allium works top-down. The spec already describes your entities, rules, transitions and invariants, so the tooling can tell your LLM exactly what needs testing.
 
@@ -175,88 +175,6 @@ cargo install allium-cli
 ```
 
 With the CLI installed, your LLM also validates every `.allium` file after writing or editing it, catching structural errors before they accumulate.
-
-<details>
-<summary>Example plan output for a single rule</summary>
-
-```json
-{
-  "id": "rule-success.ShipOrder",
-  "category": "rule_success",
-  "description": "Verify rule ShipOrder succeeds when all preconditions are met",
-  "source_construct": "ShipOrder",
-  "source_span": { "start": 300, "end": 450 },
-  "dependencies": {
-    "entities_read": ["Order", "Warehouse"],
-    "entities_written": ["Order"],
-    "trigger_emissions": ["NotifyCustomer"],
-    "trigger_source": "external"
-  }
-}
-```
-
-And for a state-dependent field entering its `when` set:
-
-```json
-{
-  "id": "when-set.ShipOrder.Order.tracking_number",
-  "category": "when_set",
-  "description": "Verify ShipOrder sets Order.tracking_number when transitioning status from confirmed to shipped",
-  "source_construct": "ShipOrder",
-  "source_span": { "start": 300, "end": 450 },
-  "detail": {
-    "rule": "ShipOrder",
-    "entity": "Order",
-    "field": "tracking_number",
-    "source_state": "confirmed",
-    "target_state": "shipped",
-    "qualifying_states": ["shipped", "delivered"]
-  }
-}
-```
-
-The dependency information tells the test generator whether a rule can be tested in isolation or needs integration wiring.
-
-</details>
-
-<details>
-<summary>Example model output for an entity</summary>
-
-```json
-{
-  "name": "Order",
-  "kind": "internal",
-  "fields": [
-    { "name": "status", "type_expr": "pending | confirmed | shipped | delivered | cancelled",
-      "enum_values": ["pending", "confirmed", "shipped", "delivered", "cancelled"] },
-    { "name": "tracking_number", "type_expr": "String",
-      "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } },
-    { "name": "shipped_at", "type_expr": "Timestamp",
-      "when_set": { "status_field": "status", "qualifying_states": ["shipped", "delivered"] } }
-  ],
-  "transition_graphs": [
-    {
-      "field": "status",
-      "edges": [
-        { "from": "pending", "to": "confirmed" },
-        { "from": "confirmed", "to": "shipped" },
-        { "from": "shipped", "to": "delivered" },
-        { "from": "pending", "to": "cancelled" },
-        { "from": "confirmed", "to": "cancelled" }
-      ],
-      "terminal": ["delivered", "cancelled"],
-      "states": ["cancelled", "confirmed", "delivered", "pending", "shipped"]
-    }
-  ],
-  "invariants": [
-    { "name": "PositiveTotal", "scope": "entity", "expression": "total > 0" }
-  ]
-}
-```
-
-To construct a valid Order at state `shipped`, the generator includes `tracking_number` and `shipped_at` (their `when_set` contains `shipped`) and omits fields whose `when_set` doesn't. The transition graph tells it which state sequences are valid for state machine tests, and the invariant expression constrains generated values.
-
-</details>
 
 ## Upgrading from v2
 
