@@ -302,6 +302,16 @@ The idiom "know your onions" means to understand a subject thoroughly. Engineers
 
 Like its namesake, working with Allium may produce tears during the peeling, but never at the table.
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=juxt%2Fallium&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=juxt/allium&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=juxt/allium&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=juxt/allium&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ---
 
 ## Copyright & License
