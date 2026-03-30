@@ -1,5 +1,6 @@
 import { execFileSync } from "child_process";
-import { extname } from "path";
+import { realpathSync } from "fs";
+import path from "path";
 
 let data = "";
 for await (const chunk of process.stdin) {
@@ -9,12 +10,29 @@ for await (const chunk of process.stdin) {
 const input = JSON.parse(data);
 const filePath = input.tool_input?.file_path;
 
-if (!filePath || extname(filePath) !== ".allium") {
+if (!filePath || path.extname(filePath) !== ".allium") {
+  process.exit(0);
+}
+
+let resolved;
+try {
+  resolved = realpathSync(filePath);
+} catch {
+  process.exit(0);
+}
+
+let projectRoot;
+try {
+  projectRoot = realpathSync(process.env.CLAUDE_PROJECT_ROOT ?? process.cwd());
+} catch {
+  process.exit(0);
+}
+if (!resolved.startsWith(projectRoot + path.sep)) {
   process.exit(0);
 }
 
 try {
-  execFileSync("allium", ["check", filePath], {
+  execFileSync("allium", ["check", resolved], {
     encoding: "utf-8",
     stdio: "pipe",
   });
