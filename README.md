@@ -284,9 +284,9 @@ Without the CLI, the skill falls back to validating against the language referen
 
 ## Language governance
 
-Every change to Allium is debated by a [nine-member review panel](TEAM.md) before adoption. Each panellist represents a distinct design priority: simplicity, machine reasoning, composability, readability, formal rigour, domain modelling, developer experience, creative ambition and backward compatibility. The panel exists to surface tensions that any single perspective would miss.
+Every change to Allium is debated by a [nine-member review panel](https://github.com/juxt/allium/blob/proposals/TEAM.md) before adoption. Each panellist represents a distinct design priority: simplicity, machine reasoning, composability, readability, formal rigour, domain modelling, developer experience, creative ambition and backward compatibility. The panel exists to surface tensions that any single perspective would miss.
 
-The panel operates in two modes. [Reviews](REVIEW.md) evaluate fixes to rough edges in the existing language, where the default is to fix the problem if a good fix exists. [Proposals](PROPOSE.md) evaluate new features and ambitious changes, where the default is to leave the language alone unless the case for change is strong. Both follow the same debate protocol: present, respond, rebut, synthesise, verdict.
+The panel operates in two modes. [Reviews](https://github.com/juxt/allium/blob/proposals/REVIEW.md) evaluate fixes to rough edges in the existing language, where the default is to fix the problem if a good fix exists. [Proposals](https://github.com/juxt/allium/blob/proposals/PROPOSE.md) evaluate new features and ambitious changes, where the default is to leave the language alone unless the case for change is strong. Both follow the same debate protocol: present, respond, rebut, synthesise, verdict.
 
 ## Feedback
 
