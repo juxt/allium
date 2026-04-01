@@ -30,8 +30,8 @@ Allium does NOT specify programming language or framework choices, database sche
 | Writing or reading `.allium` files | this skill | You need language syntax and structure |
 | Building a spec through conversation | `elicit` skill | User describes a feature or behaviour they want to build |
 | Extracting a spec from existing code | `distill` skill | User has implementation code and wants a spec from it |
-| Modifying an existing spec | `tend` agent | User wants targeted changes to `.allium` files |
-| Checking spec-to-code alignment | `weed` agent | User wants to find or fix divergences between spec and implementation |
+| Modifying an existing spec | `tend` skill | User wants targeted changes to `.allium` files |
+| Checking spec-to-code alignment | `weed` skill | User wants to find or fix divergences between spec and implementation |
 | Generating tests from a spec | `propagate` skill | User wants to generate tests, PBT properties or state machine tests from a specification |
 
 ## Quick syntax summary
