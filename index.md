@@ -3,7 +3,7 @@ layout: default
 title: Home
 ---
 
-<p class="hero">Give your AI agents something better than a prompt</p>
+<p class="hero">Give your AI agents something more useful than a prompt</p>
 
 <div class="terminal">
   <div class="terminal-titlebar">
