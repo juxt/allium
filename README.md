@@ -4,7 +4,7 @@
 
 ---
 
-A language for sharpening intent alongside implementation. [juxt.github.io/allium](https://juxt.github.io/allium/)
+Give your AI agents something more useful than a prompt. [juxt.github.io/allium](https://juxt.github.io/allium/)
 
 ## Get started
 

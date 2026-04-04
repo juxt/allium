@@ -1,6 +1,6 @@
 ---
 name: allium
-description: An LLM-native language for sharpening intent alongside implementation. Velocity through clarity.
+description: Give your AI agents something more useful than a prompt. Velocity through clarity.
 version: 3
 auto_trigger:
   - file_patterns: ["**/*.allium"]
