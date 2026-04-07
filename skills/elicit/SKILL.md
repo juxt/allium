@@ -335,7 +335,7 @@ A comment noting that two terms are equivalent is not a resolution. It guarantee
 
 ## After elicitation
 
-For targeted changes where you already know what you want, use the `tend` agent. For substantial additions that need structured discovery (new feature areas, complex entity relationships, unclear requirements), elicit is still the right tool even if a spec already exists. Checking alignment between specs and implementation belongs to the `weed` agent.
+For targeted changes where you already know what you want, use the `tend` skill. For substantial additions that need structured discovery (new feature areas, complex entity relationships, unclear requirements), elicit is still the right tool even if a spec already exists. Checking alignment between specs and implementation belongs to the `weed` skill.
 
 ## References
 
