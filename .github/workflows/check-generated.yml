@@ -1,20 +1,22 @@
-name: Check generated files
+name: Validate skills and agents
 
 on:
   pull_request:
     paths:
+      - 'SKILL.md'
       - '.claude/agents/**'
-      - 'skills/tend/**'
-      - 'skills/weed/**'
+      - 'skills/**'
       - '.github/agents/**'
+      - 'references/**'
       - 'scripts/generate-multi-editor.mjs'
+      - 'scripts/test-skills.mjs'
 
 jobs:
-  check:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node scripts/generate-multi-editor.mjs --check
+      - run: node scripts/test-skills.mjs
