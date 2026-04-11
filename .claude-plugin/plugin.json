@@ -1,0 +1,13 @@
+{
+  "name": "allium",
+  "version": "3.1.4",
+  "description": "Velocity through clarity.",
+  "author": {
+    "name": "JUXT",
+    "url": "https://juxt.pro"
+  },
+  "homepage": "https://juxt.github.io/allium/",
+  "repository": "https://github.com/juxt/allium",
+  "license": "MIT",
+  "keywords": ["specification", "behaviour", "behavior", "domain-modelling", "BDD", "property-based-testing", "generative-tests"]
+}

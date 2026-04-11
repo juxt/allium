@@ -13,8 +13,7 @@ Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40
 **Claude Code:**
 
 ```
-/plugin marketplace add juxt/claude-plugins
-/plugin install allium
+/plugin install juxt/allium
 ```
 
 **Cursor, Windsurf, Aider, Continue and other skills-compatible tools:**
@@ -24,6 +23,13 @@ npx skills add juxt/allium
 ```
 
 **GitHub Copilot:** agent files in `.github/agents/` are picked up automatically. No installation needed.
+
+Allium is also available through the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
+
+```
+/plugin marketplace add juxt/claude-plugins
+/plugin install allium
+```
 
 Once installed:
 

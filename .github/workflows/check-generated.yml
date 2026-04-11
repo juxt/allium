@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'SKILL.md'
-      - '.claude/agents/**'
+      - 'agents/**'
       - 'skills/**'
       - '.github/agents/**'
       - 'references/**'
