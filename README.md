@@ -8,58 +8,56 @@ Give your AI agents something more useful than a prompt. [juxt.github.io/allium]
 
 ## Get started
 
-**Claude Code** (via the JUXT plugin marketplace):
+Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but everything converges on the same skills and agents.
+
+**Claude Code:**
 
 ```
 /plugin marketplace add juxt/claude-plugins
 /plugin install allium
 ```
 
-**Cursor, Windsurf, Copilot, Aider, Continue and 40+ other tools:**
+**Cursor, Windsurf, Aider, Continue and other skills-compatible tools:**
 
 ```
 npx skills add juxt/allium
 ```
 
-Once installed, type `/allium` to get started. Allium examines your project and offers to distill from existing code or build a new spec through conversation. You can also jump straight to a specific mode:
+**GitHub Copilot:** agent files in `.github/agents/` are picked up automatically. No installation needed.
 
-- `/allium:elicit` — build a spec through structured conversation with stakeholders
-- `/allium:distill` — extract a spec from existing code
-- `/allium:propagate` — generate tests from a specification
+Once installed:
 
-Tend and propagate are Allium's built-in agent and skill. Tend updates your specs, propagate generates tests from them. Both work with whatever LLM tooling you have installed.
+- **Claude Code, Cursor, Windsurf, etc.** — type `/allium` to get started. Allium examines your project and offers to distill from existing code or build a new spec through conversation. You can also jump to `/allium:elicit`, `/allium:distill` or `/allium:propagate` directly.
+- **GitHub Copilot** — use `@tend` or `@weed` with a request. Copilot surfaces the agents directly; the slash-command skills are not available.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
-## Working with agents
+## Skills and agents
 
-A [rule](.claude/rules/allium.md) loads automatically whenever Claude Code works with `.allium` files. It provides syntax guidance, naming conventions and common pitfalls without needing to invoke the skill. This keeps routine spec reads and edits fast.
+Allium ships as both **skills** (interactive, invoked with `/allium`) and **agents** (autonomous, delegated to a subcontext). Different editors surface these differently.
 
-Two specialised agents handle `.allium` files in a delegated context. They load the language reference into their own conversation, keeping Allium syntax out of your main session and freeing you to work on implementation in parallel.
+| Capability | Claude Code | Copilot | Cursor, Windsurf, etc. |
+|---|---|---|---|
+| Skills (`/allium`, `/allium:elicit`, etc.) | `/allium` slash commands | — | `/allium` slash commands |
+| Tend agent | Automatic (natural language) | `@tend` agent | `/allium:tend` skill |
+| Weed agent | Automatic (natural language) | `@weed` agent | `/allium:weed` skill |
+| Auto-trigger on `.allium` files | Rule loads automatically | — | Skill auto-triggers |
 
-**[tend](.claude/agents/tend.md)** grows and shapes specifications. It translates new requirements into well-formed specs, challenges vague requests and won't let ambiguity through. It works on `.allium` files only.
+Across all editors, tend and weed load the language reference into their own context, keeping Allium syntax out of your main session.
 
-```
-"Tend: we need a cancellation policy for subscriptions
- with a cooling-off period and prorated refunds"
+**Tend** grows and shapes specifications. It translates new requirements into well-formed specs, challenges vague requests and won't let ambiguity through. It works on `.allium` files only.
 
-"Tend: add a circuit breaker entity to the infrastructure spec"
+| Claude Code | Copilot | Cursor, Windsurf, etc. |
+|---|---|---|
+| "add a cancellation policy to the subscription spec" | `@tend add a cancellation policy to the subscription spec` | `/allium:tend add a cancellation policy to the subscription spec` |
+| "restructure the auth spec, the rules have grown unwieldy" | `@tend restructure the auth spec` | `/allium:tend restructure the auth spec` |
 
-"Tend: restructure the authentication spec, the rules have grown unwieldy"
-```
+**Weed** finds where specifications and implementation have diverged. It reports mismatches and can update either side to match.
 
-**[weed](.claude/agents/weed.md)** finds where specifications and implementation have diverged. It reports mismatches and can update either side to match.
-
-```
-"Weed the auth spec against src/auth/"
-
-"Weed: update the spec to match what the payment code actually does"
-
-"Weed: the order spec says cancelled orders can't be refunded
- but the code allows it. Fix the code."
-```
-
-Use `/allium` for interactive spec work, `elicit` to build specs through conversation, `distill` to extract specs from code, `tend` to grow specs as requirements evolve, `weed` to catch drift between spec and code.
+| Claude Code | Copilot | Cursor, Windsurf, etc. |
+|---|---|---|
+| "check the auth spec against src/auth/" | `@weed check the auth spec against src/auth/` | `/allium:weed check the auth spec against src/auth/` |
+| "the order spec says cancelled orders can't be refunded but the code allows it. Fix the code." | `@weed fix the order cancellation code to match the spec` | `/allium:weed fix the order cancellation code to match the spec` |
 
 ## The problem with conversational context
 
@@ -72,7 +70,7 @@ Allium gives behavioural intent a durable form that doesn't drift with the conve
 
 Modern LLMs navigate codebases effectively, and many engineers find this sufficient. The limitation appears when you need to distinguish what the code *does* from what it *should do*. Code captures implementation, including bugs and expedient decisions. The model treats all of it as intended behaviour.
 
-Precise prompting helps, but precise prompting means specifying intent: which behaviours are deliberate, which constraints must be preserved. You end up writing descriptions of intent distributed across your prompts. Allium captures this in a form that persists. The next engineer, or the next model, or you next week, can understand not just what the system does but what it was meant to do.
+Precise prompting helps, but precise prompting means specifying intent: which behaviours are deliberate, which constraints must be preserved. You end up writing descriptions of intent distributed across your prompts. Allium captures this in a form that persists. The next engineer, or the next model, or you next week, can understand what the system does and what it was meant to do.
 
 ## Why not capture requirements in markdown?
 
@@ -82,11 +80,11 @@ Allium's structure makes contradictions visible. When two rules have incompatibl
 
 ## Iterating on specifications
 
-The specification and the code evolve together. Writing and refining a behavioural model alongside implementation sharpens your understanding of both the problem and your solution. Questions surface that you wouldn't have thought to ask; constraints emerge that only become visible when you try to formalise them.
+The specification and the code evolve together. Writing and refining a behavioural model alongside implementation deepens your understanding of both the problem and your solution. Questions surface that you wouldn't have thought to ask; constraints emerge that only become visible when you try to formalise them.
 
 Manual coding embedded this discovery in the act of implementation. LLMs generate code from descriptions, shifting where design thinking occurs. Allium captures it explicitly: the specification becomes the site of that thinking, the code its expression.
 
-Two processes feed this growth: **elicitation** works forward from intent through structured conversations with stakeholders, while **distillation** works backward from implementation to capture what the system actually does, including behaviours that were never explicitly decided. Distillation reveals what you built; elicitation clarifies what you meant. When these diverge, you've found something worth investigating.
+Two processes feed this growth: **elicitation** works forward from intent through structured conversations with stakeholders, while **distillation** works backward from implementation to capture what the system actually does, including behaviours that were never explicitly decided. When distillation and elicitation diverge, you've found something worth investigating.
 
 See the [elicitation guide](skills/elicit/SKILL.md) and the [distillation guide](skills/distill/SKILL.md) for detailed approaches.
 
@@ -94,7 +92,7 @@ See the [elicitation guide](skills/elicit/SKILL.md) and the [distillation guide]
 
 A common objection is that maintaining behavioural models alongside code violates the single source of truth principle. But code captures both intentional and accidental behaviour, with no mechanism to distinguish them. Is that authentication quirk a feature or a bug? The code can't tell you. You need something outside the code to even articulate "this behaviour is wrong". Engineers already accept this in other contexts: type systems express intent that code must satisfy, tests assert expected behaviour against actual behaviour. These aren't duplication.
 
-Allium applies the same pattern. Code excels at expressing *how*; behavioural models excel at expressing *what* and *under which conditions*. When these disagree, that disagreement is information. Perhaps the implementation drifted from intent, or perhaps the model was naive. Either might need to change. The gap between them surfaces questions you need to answer. Redundancy, in this context, isn't overhead. It's resilience.
+Allium applies the same pattern. Code excels at expressing *how*; behavioural models excel at expressing *what* and *under which conditions*. When these disagree, that disagreement is information. Perhaps the implementation drifted from intent, or perhaps the model was naive. Either might need to change. The gap between them surfaces questions you need to answer, and that redundancy is what makes the system resilient.
 
 ## What Allium captures
 
@@ -196,7 +194,7 @@ The [language reference](references/language-reference.md) covers entities, rule
 
 Allium has no compiler and no runtime. It is purely descriptive, defined entirely by its documentation.
 
-In an era where LLMs function as pseudocode compilers, executing informal descriptions into working code, a well-structured behavioural language becomes the mechanism for ensuring that what gets compiled is what you actually meant. The behavioural model is the primary artefact; the code that implements it is secondary.
+LLMs already function as pseudocode compilers, executing informal descriptions into working code. A well-structured behavioural language ensures that what gets compiled is what you actually meant. The behavioural model is the primary artefact; the code that implements it is secondary.
 
 ## What this looks like in practice
 
@@ -278,7 +276,7 @@ Code and intent diverge silently over time. Allium gives the LLM something to ch
 
 ## Verification
 
-When the [Allium CLI](https://github.com/juxt/allium-tools) is installed, `.allium` files are validated automatically after every write or edit in Claude Code. Install it via Homebrew (`brew tap juxt/allium && brew install allium`) or Cargo (`cargo install allium-cli`). Diagnostics appear inline and the model fixes issues in the same turn.
+When the [Allium CLI](https://github.com/juxt/allium-tools) is installed, `.allium` files are validated automatically after every write or edit. Install it via Homebrew (`brew tap juxt/allium && brew install allium`) or Cargo (`cargo install allium-cli`). Diagnostics appear inline and the model fixes issues in the same turn.
 
 Without the CLI, the skill falls back to validating against the language reference. The CLI catches more, particularly parser-level errors and cross-entity reference checks, so installing it is recommended if you're working with Allium regularly.
 

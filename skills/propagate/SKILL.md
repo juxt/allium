@@ -107,7 +107,7 @@ Once the map is built, the PBT framework can walk random valid paths: start at a
 
 ## The implementation bridge
 
-You correlate spec constructs with implementation code, the same way the weed agent correlates for divergence checking.
+You correlate spec constructs with implementation code, the same way the weed skill correlates for divergence checking.
 
 ### For surface tests
 

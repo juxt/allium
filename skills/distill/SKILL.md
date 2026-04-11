@@ -863,7 +863,7 @@ If any remain, ask: "Would a stakeholder include this in a requirements doc?"
 
 ## After distillation
 
-The extracted spec is a starting point. For targeted changes as requirements evolve, use the `tend` agent. For checking ongoing alignment between the spec and implementation, use the `weed` agent.
+The extracted spec is a starting point. For targeted changes as requirements evolve, use the `tend` skill. For checking ongoing alignment between the spec and implementation, use the `weed` skill.
 
 ## References
 
