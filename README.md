@@ -4,16 +4,17 @@
 
 ---
 
-Give your AI agents something more useful than a prompt. [juxt.github.io/allium](https://juxt.github.io/allium/)
+Feed your AI something healthier than Markdown. [juxt.github.io/allium](https://juxt.github.io/allium/)
 
 ## Get started
 
 Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but everything converges on the same skills and agents.
 
-**Claude Code:**
+**Claude Code** via the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
 
 ```
-/plugin install juxt/allium
+/plugin marketplace add juxt/claude-plugins
+/plugin install allium
 ```
 
 **Cursor, Windsurf, Aider, Continue and other skills-compatible tools:**
@@ -23,13 +24,6 @@ npx skills add juxt/allium
 ```
 
 **GitHub Copilot:** agent files in `.github/agents/` are picked up automatically. No installation needed.
-
-Allium is also available through the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
-
-```
-/plugin marketplace add juxt/claude-plugins
-/plugin install allium
-```
 
 Once installed:
 
