@@ -9,5 +9,17 @@
   "homepage": "https://juxt.github.io/allium/",
   "repository": "https://github.com/juxt/allium",
   "license": "MIT",
-  "keywords": ["specification", "behaviour", "behavior", "domain-modelling", "BDD", "property-based-testing", "generative-tests"]
+  "keywords": ["specification", "behaviour", "behavior", "domain-modelling", "BDD", "property-based-testing", "generative-tests"],
+  "skills": [
+    "./",
+    "./skills/distill",
+    "./skills/elicit",
+    "./skills/propagate",
+    "./skills/tend",
+    "./skills/weed"
+  ],
+  "agents": [
+    "./agents/tend.md",
+    "./agents/weed.md"
+  ]
 }
