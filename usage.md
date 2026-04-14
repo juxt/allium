@@ -5,7 +5,7 @@ title: Usage
 
 ## What this looks like in practice
 
-Type `/allium` in Claude Code and Allium examines your project, then offers to distill from existing code or build a new spec through conversation. If you already know which mode you want, you can go directly: `/allium:elicit` builds a spec through structured conversation, `/allium:distill` extracts one from existing code.
+Type `/allium` to get started and Allium examines your project, then offers to distill from existing code or build a new spec through conversation. If you already know which mode you want, go directly: `/allium:elicit` builds a spec through structured conversation, `/allium:distill` extracts one from existing code. If `/allium` isn't available in your editor, reach for `/allium:elicit` or `/allium:distill` directly.
 
 <div class="terminal">
   <div class="terminal-titlebar">

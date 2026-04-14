@@ -51,7 +51,7 @@ Allium's structure makes contradictions visible. When two rules have incompatibl
 
 ## Iterating on specifications
 
-The specification and the code evolve together. Writing and refining a behavioural model alongside implementation sharpens your understanding of both the problem and your solution. Questions surface that you wouldn't have thought to ask; constraints emerge that only become visible when you try to formalise them.
+The specification and the code evolve together. Writing and refining a behavioural model alongside implementation deepens your understanding of both the problem and your solution. Questions surface that you wouldn't have thought to ask; constraints emerge that only become visible when you try to formalise them.
 
 Manual coding embedded this discovery in the act of implementation. LLMs generate code from descriptions, shifting where design thinking occurs. Allium captures it explicitly: the specification becomes the site of that thinking, the code its expression.
 

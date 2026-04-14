@@ -12,13 +12,15 @@ title: Installation
 /plugin install allium
 ```
 
-### Cursor, Windsurf, Copilot, Aider, Continue and 40+ other tools
+### Cursor, Windsurf, Aider, Continue and other skills-compatible tools
 
 ```
 npx skills add juxt/allium
 ```
 
-Once installed, your LLM will load the skill when it encounters `.allium` files or when you mention Allium in conversation.
+### GitHub Copilot
+
+Copilot reads skills and agents from the repository automatically. No installation needed.
 
 ### Manual installation
 
@@ -26,7 +28,18 @@ Allium is just markdown files. If your tool isn't listed above, or you prefer to
 
 ## Using Allium
 
-In Claude Code, type `/allium` and Allium takes it from there. You can also go directly to a specific mode: `/allium:elicit` for building specs through conversation, `/allium:distill` for extracting specs from existing code.
+Type `/allium` to get started. This is an entry point that examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
+
+| Skill | Purpose |
+|---|---|
+| `/allium` | Entry point. Examines your project and routes you to the right skill. |
+| `/allium:elicit` | Build a spec through structured conversation. |
+| `/allium:distill` | Extract a spec from existing code. |
+| `/allium:propagate` | Generate tests from a spec. |
+| `/allium:tend` | Targeted changes to existing specs. |
+| `/allium:weed` | Find and fix divergences between spec and code. |
+
+Skills use the fully qualified form `/allium:skill` across all editors. Some editors also allow the short form (`/tend`, `/elicit`) when there's no ambiguity. The `/allium` entry point may not be available in all editors; if it isn't, reach for `/allium:elicit` or `/allium:distill` directly.
 
 <div class="terminal">
   <div class="terminal-titlebar">
