@@ -8,7 +8,7 @@ Feed your AI something healthier than Markdown. [juxt.github.io/allium](https://
 
 ## Get started
 
-Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but everything converges on the same skills and agents.
+Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
 
 **Claude Code** via the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
 
@@ -23,41 +23,42 @@ Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40
 npx skills add juxt/allium
 ```
 
-**GitHub Copilot:** agent files in `.github/agents/` are picked up automatically. No installation needed.
+**GitHub Copilot** reads skills and agents from the repository automatically. No installation needed.
 
-Once installed:
-
-- **Claude Code, Cursor, Windsurf, etc.** — type `/allium` to get started. Allium examines your project and offers to distill from existing code or build a new spec through conversation. You can also jump to `/allium:elicit`, `/allium:distill` or `/allium:propagate` directly.
-- **GitHub Copilot** — use `@tend` or `@weed` with a request. Copilot surfaces the agents directly; the slash-command skills are not available.
+Once installed, type `/allium` to get started. Allium examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
 ## Skills and agents
 
-Allium ships as both **skills** (interactive, invoked with `/allium`) and **agents** (autonomous, delegated to a subcontext). Different editors surface these differently.
+Allium provides five skills, an entry point and two autonomous agents.
 
-| Capability | Claude Code | Copilot | Cursor, Windsurf, etc. |
-|---|---|---|---|
-| Skills (`/allium`, `/allium:elicit`, etc.) | `/allium` slash commands | — | `/allium` slash commands |
-| Tend agent | Automatic (natural language) | `@tend` agent | `/allium:tend` skill |
-| Weed agent | Automatic (natural language) | `@weed` agent | `/allium:weed` skill |
-| Auto-trigger on `.allium` files | Rule loads automatically | — | Skill auto-triggers |
+| Skill | Purpose |
+|---|---|
+| `/allium` | Entry point. Examines your project and routes you to the right skill. |
+| `/allium:elicit` | Build a spec through structured conversation. |
+| `/allium:distill` | Extract a spec from existing code. |
+| `/allium:propagate` | Generate tests from a spec. |
+| `/allium:tend` | Targeted changes to existing specs. |
+| `/allium:weed` | Find and fix divergences between spec and code. |
 
-Across all editors, tend and weed load the language reference into their own context, keeping Allium syntax out of your main session.
+Skills use the fully qualified form `/allium:skill` across all editors. Some editors, including Claude Code, also allow the short form (`/tend`, `/elicit`) when there's no ambiguity. Skills auto-trigger when you open or edit `.allium` files.
 
-**Tend** grows and shapes specifications. It translates new requirements into well-formed specs, challenges vague requests and won't let ambiguity through. It works on `.allium` files only.
+**Tend** grows and shapes specifications. It translates new requirements into well-formed specs, challenges vague requests and won't let ambiguity through.
 
-| Claude Code | Copilot | Cursor, Windsurf, etc. |
-|---|---|---|
-| "add a cancellation policy to the subscription spec" | `@tend add a cancellation policy to the subscription spec` | `/allium:tend add a cancellation policy to the subscription spec` |
-| "restructure the auth spec, the rules have grown unwieldy" | `@tend restructure the auth spec` | `/allium:tend restructure the auth spec` |
+```
+/allium:tend add a cancellation policy to the subscription spec
+/allium:tend restructure the auth spec, the rules have grown unwieldy
+```
 
 **Weed** finds where specifications and implementation have diverged. It reports mismatches and can update either side to match.
 
-| Claude Code | Copilot | Cursor, Windsurf, etc. |
-|---|---|---|
-| "check the auth spec against src/auth/" | `@weed check the auth spec against src/auth/` | `/allium:weed check the auth spec against src/auth/` |
-| "the order spec says cancelled orders can't be refunded but the code allows it. Fix the code." | `@weed fix the order cancellation code to match the spec` | `/allium:weed fix the order cancellation code to match the spec` |
+```
+/allium:weed check the auth spec against src/auth/
+/allium:weed the order spec says cancelled orders can't be refunded but the code allows it. Fix the code.
+```
+
+Tend and weed are also available as autonomous **agents** that run in their own context, keeping Allium syntax out of your main session. Claude Code picks up agents from `agents/`, Copilot from `.github/agents/`. How editors discover skills and agents is still settling; we make these available in the most portable formats we can and expect to consolidate as conventions stabilise. If your editor doesn't pick something up, [raise an issue](https://github.com/juxt/allium/issues).
 
 ## The problem with conversational context
 
