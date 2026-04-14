@@ -2,7 +2,7 @@
 
 /**
  * Generates skill and VS Code agent variants from the canonical
- * Claude Code agent definitions in .claude/agents/.
+ * Claude Code agent definitions in agents/.
  *
  * Usage: node scripts/generate-multi-editor.mjs [--check]
  *
@@ -92,7 +92,7 @@ After every edit to a \`.allium\` file, run \`allium check\` against the modifie
 const SKILL_EXTRAS = { tend: SKILL_EXTRA_TEND, weed: SKILL_EXTRA_WEED };
 
 function generateSkill(name) {
-  const src = read(`.claude/agents/${name}.md`);
+  const src = read(`agents/${name}.md`);
   const { frontmatter, body } = parseFrontmatter(src);
   const adapted = adaptBody(body);
 
@@ -121,7 +121,7 @@ ${finalBody}`;
 // ---------------------------------------------------------------------------
 
 function generateVscodeAgent(name) {
-  const src = read(`.claude/agents/${name}.md`);
+  const src = read(`agents/${name}.md`);
   const { frontmatter, body } = parseFrontmatter(src);
   const adapted = adaptBody(body);
 

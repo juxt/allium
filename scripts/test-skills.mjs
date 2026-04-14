@@ -135,7 +135,7 @@ function claudeQuery(prompt, { cwd } = {}) {
 const rootSkill = path.join(ROOT, "SKILL.md");
 const skillNames = ["distill", "elicit", "propagate", "tend", "weed"];
 const skillPaths = [rootSkill, ...skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"))];
-const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".claude", "agents", `${n}.md`));
+const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
 const portableSkillNames = ["tend", "weed"];
 
@@ -365,7 +365,7 @@ if (shouldRun("discovery")) {
 
 // ---------------------------------------------------------------------------
 // Crosstalk — skills from the plugin don't bleed into unrelated projects,
-//             and local .claude/agents/ don't leak outside the repo
+//             and local agents/ don't leak outside the repo
 // ---------------------------------------------------------------------------
 
 if (shouldRun("crosstalk")) {
@@ -375,7 +375,7 @@ if (shouldRun("crosstalk")) {
     skip("crosstalk", "pass --live to enable (uses API tokens)");
   } else {
     // From a neutral directory (/tmp), only plugin-provided skills should
-    // appear. Local .claude/agents/ from the allium repo must not leak.
+    // appear. Local agents/ from the allium repo must not leak.
     // Note: plugin agents only load in the project where the plugin is
     // installed, so from /tmp we expect skills but not agents.
     try {
@@ -385,7 +385,7 @@ if (shouldRun("crosstalk")) {
         { cwd: "/tmp" }
       );
 
-      // Unprefixed names would mean local .claude/agents/ leaked
+      // Unprefixed names would mean local agents/ leaked
       const unprefixed = result.filter((s) => s === "tend" || s === "weed");
       if (unprefixed.length > 0) {
         fail("neutral dir", `local artifacts leaked: ${unprefixed.join(", ")}`);
@@ -429,7 +429,7 @@ if (shouldRun("crosstalk")) {
         fail("allium repo: plugin skills", `expected allium:tend and allium:weed, got: ${skills.join(", ")}`);
       }
 
-      // Local agents should also be present (from .claude/agents/)
+      // Local agents should also be present (from agents/)
       const localAgents = agents.filter((a) => a === "tend" || a === "weed");
       if (localAgents.length >= 2) {
         pass("allium repo: local agents present");
