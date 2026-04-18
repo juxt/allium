@@ -35,14 +35,14 @@ Allium provides five skills, an entry point and two autonomous agents.
 
 | Skill | Purpose |
 |---|---|
-| `/allium` | Entry point. Examines your project and routes you to the right skill. |
-| `/allium:elicit` | Build a spec through structured conversation. |
-| `/allium:distill` | Extract a spec from existing code. |
-| `/allium:propagate` | Generate tests from a spec. |
-| `/allium:tend` | Targeted changes to existing specs. |
-| `/allium:weed` | Find and fix divergences between spec and code. |
+| `/allium <prompt>` | Entry point. Examines your project or the prompt and routes you to the right skill. |
+| `/elicit <feature idea>` (or `/allium:elicit`) | Build a spec through structured conversation. |
+| `/distill <codebase area>` (or `/allium:distill`) | Extract a spec from existing code. |
+| `/propagate <optional constraints>` (or `/allium:propagate`) | Generate tests from a spec. |
+| `/tend <optional constraints>` (or `/allium:tend`) | Targeted changes to existing specs. |
+| `/weed <optional constraints>` (or `/allium:weed`) | Find and fix divergences between spec and code. |
 
-Skills use the fully qualified form `/allium:skill` across all editors. Some editors, including Claude Code, also allow the short form (`/tend`, `/elicit`) when there's no ambiguity. Skills auto-trigger when you open or edit `.allium` files.
+How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. Skills also auto-trigger when you open or edit `.allium` files.
 
 **Tend** grows and shapes specifications. It translates new requirements into well-formed specs, challenges vague requests and won't let ambiguity through.
 
