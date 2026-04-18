@@ -46,6 +46,8 @@ How skills appear depends on your editor. Some show the fully qualified form (`/
 
 Tend and weed are also available as autonomous **agents** that run in their own context, keeping Allium syntax out of your main session. Claude Code picks up agents from `agents/`, Copilot from `.github/agents/`. How editors discover skills and agents is still settling; we make these available in the most portable formats we can and expect to consolidate as conventions stabilise. If your editor doesn't pick something up, [raise an issue](https://github.com/juxt/allium/issues).
 
+For larger codebases, distillation and other ambitious tasks may need several passes to capture everything. Consider an iterative approach like the [Ralph Wiggum loop](https://www.reddit.com/r/ClaudeAI/comments/1l0avux/the_ralph_wiggum_loop_a_claude_code_pattern_for/), repeating until there's nothing further to do.
+
 ## Why not just point the LLM at the code?
 
 Within a session, meaning drifts: by prompt ten or twenty, the model is pattern-matching on its own outputs rather than the original intent. Across sessions, knowledge evaporates entirely. Modern LLMs navigate codebases effectively, but the limitation appears when you need to distinguish what the code *does* from what it *should do*. Code captures implementation, including bugs and expedient decisions. The model treats all of it as intended behaviour.
