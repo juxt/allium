@@ -44,32 +44,11 @@ Allium provides five skills, an entry point and two autonomous agents.
 
 How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. Skills also auto-trigger when you open or edit `.allium` files.
 
-**Tend** grows and shapes specifications. It translates new requirements into well-formed specs, challenges vague requests and won't let ambiguity through.
-
-```
-/allium:tend add a cancellation policy to the subscription spec
-/allium:tend restructure the auth spec, the rules have grown unwieldy
-```
-
-**Weed** finds where specifications and implementation have diverged. It reports mismatches and can update either side to match.
-
-```
-/allium:weed check the auth spec against src/auth/
-/allium:weed the order spec says cancelled orders can't be refunded but the code allows it. Fix the code.
-```
-
 Tend and weed are also available as autonomous **agents** that run in their own context, keeping Allium syntax out of your main session. Claude Code picks up agents from `agents/`, Copilot from `.github/agents/`. How editors discover skills and agents is still settling; we make these available in the most portable formats we can and expect to consolidate as conventions stabilise. If your editor doesn't pick something up, [raise an issue](https://github.com/juxt/allium/issues).
-
-## The problem with conversational context
-
-- Within a session, meaning drifts: by prompt ten or twenty, the model is pattern-matching on its own outputs rather than the original intent.
-- Across sessions, knowledge evaporates: assumptions and constraints disappear when the chat ends.
-
-Allium gives behavioural intent a durable form that doesn't drift with the conversation and persists across sessions.
 
 ## Why not just point the LLM at the code?
 
-Modern LLMs navigate codebases effectively, and many engineers find this sufficient. The limitation appears when you need to distinguish what the code *does* from what it *should do*. Code captures implementation, including bugs and expedient decisions. The model treats all of it as intended behaviour.
+Within a session, meaning drifts: by prompt ten or twenty, the model is pattern-matching on its own outputs rather than the original intent. Across sessions, knowledge evaporates entirely. Modern LLMs navigate codebases effectively, but the limitation appears when you need to distinguish what the code *does* from what it *should do*. Code captures implementation, including bugs and expedient decisions. The model treats all of it as intended behaviour.
 
 Precise prompting helps, but precise prompting means specifying intent: which behaviours are deliberate, which constraints must be preserved. You end up writing descriptions of intent distributed across your prompts. Allium captures this in a form that persists. The next engineer, or the next model, or you next week, can understand what the system does and what it was meant to do.
 
@@ -77,13 +56,10 @@ Precise prompting helps, but precise prompting means specifying intent: which be
 
 Markdown provides no framework for surfacing ambiguities and contradictions. You can write "users must be authenticated" in one section and "guest checkout is supported" in another without the format highlighting the tension. Capable models may resolve such ambiguities silently in ways you didn't intend; weaker models may not recognise that alternatives existed.
 
-Allium's structure makes contradictions visible. When two rules have incompatible preconditions, the formal syntax exposes the conflict. The model doesn't need to be clever enough to spot the issue in prose; the structure does that work. Markdown can capture robust behaviour with sufficient diligence, but that diligence falls entirely on the author. Allium's constraints guide you toward completeness and consistency.
-
+Allium's structure makes contradictions visible. When two rules have incompatible preconditions, the formal syntax exposes the conflict. The model doesn't need to be clever enough to spot the issue in prose; the structure does that work.
 ## Iterating on specifications
 
 The specification and the code evolve together. Writing and refining a behavioural model alongside implementation deepens your understanding of both the problem and your solution. Questions surface that you wouldn't have thought to ask; constraints emerge that only become visible when you try to formalise them.
-
-Manual coding embedded this discovery in the act of implementation. LLMs generate code from descriptions, shifting where design thinking occurs. Allium captures it explicitly: the specification becomes the site of that thinking, the code its expression.
 
 Two processes feed this growth: **elicitation** works forward from intent through structured conversations with stakeholders, while **distillation** works backward from implementation to capture what the system actually does, including behaviours that were never explicitly decided. When distillation and elicitation diverge, you've found something worth investigating.
 
@@ -91,9 +67,7 @@ See the [elicitation guide](skills/elicit/SKILL.md) and the [distillation guide]
 
 ## On single sources of truth
 
-A common objection is that maintaining behavioural models alongside code violates the single source of truth principle. But code captures both intentional and accidental behaviour, with no mechanism to distinguish them. Is that authentication quirk a feature or a bug? The code can't tell you. You need something outside the code to even articulate "this behaviour is wrong". Engineers already accept this in other contexts: type systems express intent that code must satisfy, tests assert expected behaviour against actual behaviour. These aren't duplication.
-
-Allium applies the same pattern. Code excels at expressing *how*; behavioural models excel at expressing *what* and *under which conditions*. When these disagree, that disagreement is information. Perhaps the implementation drifted from intent, or perhaps the model was naive. Either might need to change. The gap between them surfaces questions you need to answer, and that redundancy is what makes the system resilient.
+A common objection is that maintaining behavioural models alongside code violates the single source of truth principle. But code captures both intentional and accidental behaviour, with no mechanism to distinguish them. Is that authentication quirk a feature or a bug? The code can't tell you. You need something outside the code to even articulate "this behaviour is wrong". Engineers already accept this in other contexts: type systems express intent that code must satisfy, tests assert expected behaviour against actual behaviour. These aren't duplication. The gap between spec and code surfaces questions you need to answer, and that redundancy is what makes the system resilient.
 
 ## What Allium captures
 
@@ -165,37 +139,9 @@ rule CircuitProbes {
 }
 ```
 
-At the other end, an incident escalation rule captures operational policy that otherwise lives in runbooks, PagerDuty config and tribal knowledge, where drift between intent and implementation causes real damage:
-
-```allium
-config {
-    exec_notify_threshold: Integer = 2
-}
-
-deferred EscalationPolicy.at_level
-
-rule IncidentEscalates {
-    when: incident: Incident.declared_at + incident.sla_target <= now
-    requires: incident.status in {open, investigating}
-
-    ensures:
-        incident.escalation_level = incident.escalation_level + 1
-        OnCallPaged(
-            team: EscalationPolicy.at_level(incident.escalation_level),
-            priority: immediate
-        )
-        if incident.escalation_level >= config.exec_notify_threshold:
-            ExecBriefingSent(incident: incident)
-}
-```
-
 The [language reference](references/language-reference.md) covers entities, rules, triggers, relationships, projections, derived values, surfaces and actor declarations. The [v1 to v2 migration guide](references/migration-v1-to-v2.md) and [v2 to v3 migration guide](references/migration-v2-to-v3.md) cover what changed between versions and how to upgrade existing specs.
 
-### A language without a runtime
-
-Allium has no compiler and no runtime. It is purely descriptive, defined entirely by its documentation.
-
-LLMs already function as pseudocode compilers, executing informal descriptions into working code. A well-structured behavioural language ensures that what gets compiled is what you actually meant. The behavioural model is the primary artefact; the code that implements it is secondary.
+Allium has no compiler and no runtime. It is purely descriptive, defined entirely by its documentation. LLMs already function as pseudocode compilers, executing informal descriptions into working code. A well-structured behavioural language ensures that what gets compiled is what you actually meant. The behavioural model is the primary artefact; the code that implements it is secondary.
 
 ## What this looks like in practice
 
@@ -235,51 +181,9 @@ A developer starts a new session days later, working on a different feature.
 
 The developer never mentioned invoicing or payment method capture. The Allium did, from a session that ended days ago. Without it, the LLM would have implemented the trial with no awareness of these constraints, and the gaps would have surfaced in production.
 
-### Allium grounds a design conversation
-
-A developer asks for a straightforward feature.
-
----
-
-> ***> Add an endpoint so admins can view any user's payment history.***
->
-> ✻ Your Allium doesn't give admins blanket access. `AdminAction` requires the admin's scope to include the target resource. The current scopes are `billing`, `users` and `support`. Should this endpoint require `billing` scope?
->
-> ***> Yes, billing scope. But our support team needs to see payment history too, for resolving disputes. What are our options?***
->
-> ✻ You could add `billing` to the support role, but that also grants access to refunds and plan changes, which your Allium controls through the same scope.
->
-> ✻ Alternatively, split `billing` into `billing.read` and `billing.write`. Support gets read-only access, finance gets both. Your code in `admin/permissions.py` already distinguishes read and write operations but maps them both to the same scope check, so the implementation is halfway there.
->
-> ***> Go with the read/write split. Update the Allium first, then refactor the scope checks to match.***
-
----
-
-Without Allium, the LLM would likely have implemented a simple `is_admin` check. Instead, the conversation surfaced a scoping model, explored its implications for a second team, and arrived at a design that aligns the behavioural model with a distinction the code already made but never formalised.
-
-### Distillation catches drift
-
-A developer asks the LLM to check whether the code still matches the Allium.
-
----
-
-> ***> Can you check whether our authentication code matches the Allium?***
->
-> ✻ I found a divergence. Your Allium says `LoginFailure` checks `user.failed_login_attempts >= config.max_login_attempts`, configured as 5. But `auth/login.py` line 47 hardcodes the limit at 3 and doesn't reset the counter after a successful login. The Allium says `LoginSuccess` ensures `user.failed_login_attempts = 0`.
->
-> ✻ Either the code drifted or the Allium is aspirational. Which should we trust?
->
-> ***> The Allium is right. Fix the code to match.***
-
----
-
-Code and intent diverge silently over time. Allium gives the LLM something to check against, turning "does this look right?" into a concrete comparison with a definitive answer.
-
 ## Verification
 
-When the [Allium CLI](https://github.com/juxt/allium-tools) is installed, `.allium` files are validated automatically after every write or edit. Install it via Homebrew (`brew tap juxt/allium && brew install allium`) or Cargo (`cargo install allium-cli`). Diagnostics appear inline and the model fixes issues in the same turn.
-
-Without the CLI, the skill falls back to validating against the language reference. The CLI catches more, particularly parser-level errors and cross-entity reference checks, so installing it is recommended if you're working with Allium regularly.
+When the [Allium CLI](https://github.com/juxt/allium-tools) is installed, `.allium` files are validated automatically after every write or edit. Install it via Homebrew (`brew tap juxt/allium && brew install allium`) or Cargo (`cargo install allium-cli`). Diagnostics appear inline and the model fixes issues in the same turn. Without the CLI the skill falls back to the language reference, so installing it is recommended if you're working with Allium regularly.
 
 ## Language governance
 
@@ -295,9 +199,7 @@ We'd love to hear how you get on with Allium. Success stories, rough edges, miss
 
 Allium is the botanical family containing onions and shallots. The name continues a tradition in behaviour specification tooling: Cucumber and Gherkin established botanical naming as a convention in behaviour-driven development, followed by tools like Lettuce and Spinach.
 
-The phonetic echo of "LLM" is intentional, reflecting where we expect these models to be most useful.
-
-The idiom "know your onions" means to understand a subject thoroughly. Engineers have always held two models: what the system should do and what it currently does. Code formalised implementation; intent remained scattered across documents, emails and Slack messages. LLMs generate implementations from descriptions, so Allium consolidates that scattered understanding into an explicit form models can reference reliably.
+The phonetic echo of "LLM" is intentional, reflecting where we expect these models to be most useful. "Know your onions" means to understand a subject thoroughly, and Allium consolidates scattered intent into an explicit form that models can reference reliably.
 
 Like its namesake, working with Allium may produce tears during the peeling, but never at the table.
 
