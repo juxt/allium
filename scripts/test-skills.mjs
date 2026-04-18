@@ -132,9 +132,8 @@ function claudeQuery(prompt, { cwd } = {}) {
 }
 
 // Known paths
-const rootSkill = path.join(ROOT, "SKILL.md");
-const skillNames = ["distill", "elicit", "propagate", "tend", "weed"];
-const skillPaths = [rootSkill, ...skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"))];
+const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
+const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
 const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
 const portableSkillNames = ["tend", "weed"];
@@ -276,13 +275,14 @@ if (shouldRun("links")) {
 }
 
 // ---------------------------------------------------------------------------
-// Routing — root SKILL.md routing table matches actual skill directories
+// Routing — allium SKILL.md routing table matches actual skill directories
 // ---------------------------------------------------------------------------
 
 if (shouldRun("routing")) {
   console.log("\n── routing: skill routing table ──\n");
 
-  const rootSrc = readFileSync(rootSkill, "utf-8");
+  const rootSkillPath = path.join(ROOT, "skills", "allium", "SKILL.md");
+  const rootSrc = readFileSync(rootSkillPath, "utf-8");
   const routingRefs = [...rootSrc.matchAll(/`(\w+)` skill/g)].map((m) => m[1]);
   for (const name of routingRefs) {
     if (name === "this") continue;
@@ -295,7 +295,7 @@ if (shouldRun("routing")) {
   }
 
   // Reverse check: every skill directory should be referenced in the routing table
-  for (const name of skillNames) {
+  for (const name of skillNames.filter((n) => n !== "allium")) {
     if (routingRefs.includes(name)) {
       pass(`${name} in routing table`);
     } else {

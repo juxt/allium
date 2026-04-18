@@ -11,7 +11,7 @@
   "license": "MIT",
   "keywords": ["specification", "behaviour", "behavior", "domain-modelling", "BDD", "property-based-testing", "generative-tests"],
   "skills": [
-    "./",
+    "./skills/allium",
     "./skills/distill",
     "./skills/elicit",
     "./skills/propagate",
