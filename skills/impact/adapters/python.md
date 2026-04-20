@@ -12,9 +12,29 @@ Activate this adapter if any of the following is present in the target project:
 
 ## 2. LSP plugin
 
-**Plugin:** `pyright-lsp`.
+**Plugin:** `pyright-lsp` (from Anthropic's `claude-plugins-official` marketplace).
 
-**Sentinel:** pick a PascalCase entity name from the spec you are mapping. Call LSP `workspaceSymbol` with that name. If the result is empty and at least one `*.py` file in the project defines a symbol of that name (verified by a quick `Grep`), pyright is not indexing — tell the user to install or enable `pyright-lsp`.
+**Install:**
+
+```bash
+# 1. Install the pyright language server binary. uv tool keeps it isolated
+#    from project virtualenvs, which is usually what you want:
+uv tool install pyright
+
+# Or project-local, if you'd rather pin it per-project:
+uv pip install pyright
+
+# (pip install pyright and npm install -g pyright also work — the plugin
+#  invokes whichever `pyright` is on PATH.)
+
+# 2. In Claude Code, add the marketplace and install the plugin:
+/plugin marketplace add anthropics/claude-plugins-official
+/plugin install pyright-lsp
+```
+
+After install, run `/reload-plugins` (or restart the session) and the built-in `LSP` tool will route Python files to pyright.
+
+**Sentinel:** pick a PascalCase entity name from the spec you are mapping. Call LSP `workspaceSymbol` with that name. If the result is empty and at least one `*.py` file in the project defines a symbol of that name (verified by a quick `Grep`), pyright is not indexing — tell the user to install or enable `pyright-lsp` per the steps above.
 
 If the spec has no entities yet (greenfield distillation), use `__init__` as the sentinel query — every non-trivial Python project has at least one.
 
@@ -69,16 +89,19 @@ Given a spec identifier (PascalCase in Allium), emit variants following Python c
 ### API surfaces
 
 **Flask:**
+
 - Decorators: `@app.route`, `@<blueprint>.route`.
 - Functions: `app.add_url_rule(...)`.
 - View-class pattern: `MethodView` subclasses registered via `add_url_rule(..., view_func=View.as_view(...))`.
 
 **FastAPI / Starlette:**
+
 - Decorators: `@app.get`, `@app.post`, `@app.put`, `@app.delete`, `@app.patch`, `@app.head`, `@app.options`.
 - Router decorators: `@router.<method>` where `router = APIRouter(...)`.
 - Dependency injection: `Depends(...)` arguments indicate the surface's dependencies and belong in the surface's `demands` contracts when present.
 
 **Django:**
+
 - URL patterns: `path(...)` and `re_path(...)` entries in `urls.py` / `urlpatterns`.
 - Class-based views: subclasses of `View`, `TemplateView`, `ListView`, `DetailView`, `CreateView`, `UpdateView`, `DeleteView`.
 - DRF: subclasses of `APIView`, `ViewSet`, `ModelViewSet`, `GenericAPIView`; `@api_view(...)` decorator for function-based DRF views.
@@ -88,21 +111,25 @@ Given a spec identifier (PascalCase in Allium), emit variants following Python c
 ### UI surfaces
 
 Rare for Python backends. When present:
+
 - Jinja / Django template rendering points (`render_template`, `TemplateResponse`) — treat the view function as the surface entry point, not the template itself.
 
 ### Integration surfaces
 
 **Task queues:**
+
 - Celery: `@celery.task`, `@app.task`, `@shared_task`.
 - RQ: functions enqueued via `queue.enqueue(func, ...)` — grep the call sites to find the handlers.
 - Dramatiq: `@dramatiq.actor`.
 
 **Message bus / event handlers:**
+
 - Kafka/faust: `@app.agent(topic)`.
 - pub/sub libraries: `@subscriber(...)`, `@consumer(...)`, `@on_event(...)`.
 - AWS Lambda: functions matching `def handler(event, context)` or `def lambda_handler(event, context)`.
 
 **SDK / client surfaces (outbound):**
+
 - Service client classes exposing public methods — look for classes named `<Name>Client`, `<Name>SDK`, `<Name>Gateway`. Public (non-underscore) methods are the surface entry points.
 
 ### What not to match as surfaces
