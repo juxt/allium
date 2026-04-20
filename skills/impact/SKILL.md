@@ -106,6 +106,7 @@ On startup, detect the target language by fingerprint:
 | Fingerprint | Adapter |
 |---|---|
 | `pyproject.toml`, `setup.py`, `setup.cfg`, or `**/*.py` files | [python.md](./adapters/python.md) |
+| `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle*`, `build.xml`, or `**/*.java` files | [java.md](./adapters/java.md) |
 
 A spec may also declare its target language explicitly via a `language:` field on its `use` declarations or the caller may pass `--language <name>`. Explicit selection overrides auto-detection.
 
@@ -114,6 +115,7 @@ If a project mixes languages (e.g. a Python service with a TypeScript frontend),
 ### Currently supported
 
 - **Python** — pyright-lsp. Covers Flask/FastAPI/Django surfaces, PascalCase classes, snake_case functions, `create_X`/`X_service`/`X_repository` patterns. `pyproject.toml` or `setup.py` defines the project root.
+- **Java** — jdtls-lsp (requires JDK 17+). Covers Spring Boot / Spring MVC / JAX-RS / Micronaut / Quarkus / gRPC / Kafka / RabbitMQ / JMS / Scheduled / AWS Lambda surfaces; `<Name>Service` / `<Name>Repository` / `<Name>Controller` / `<Name>Impl` / `<Name>Dto` / `<Name>Factory` layered-architecture name variants. Maven `pom.xml` or Gradle `settings.gradle*` defines the project root, with multi-module support.
 
 ### Adding a language
 
