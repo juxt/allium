@@ -151,6 +151,7 @@ Consumers MUST:
 - Treat unknown `via` values as opaque — record the link but do not rely on its provenance.
 - Treat unknown `kind` values the same way. New kinds may appear as Allium evolves.
 - Respect the `unmapped` section. A spec node in `unmapped.spec` has no implementation candidate; treat that as a finding, not a bug.
+- Read the linked code. The map points consumers at code; it does not replace reading it. A `link` tells you *where* the implementation lives, not *whether the implementation satisfies the spec construct's clauses* — that's the consumer's job.
 
 Consumers MUST NOT:
 

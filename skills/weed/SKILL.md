@@ -29,11 +29,30 @@ If no mode is specified, default to **check** and report all findings.
 
 ## How you work
 
-Drive divergence detection from the impact map:
+Drive divergence detection from the impact map. For every linked spec construct, you MUST do both the structural and the behavioural pass — stopping at structural is the most common weeding failure mode, and produces reports rich in field/type mismatches but blind to whether the code actually does what the rule promises.
 
-1. **Spec → code.** For each entity, rule, trigger or surface in the spec, follow `links[*].to` to the implementing symbol. Read that symbol and check whether its behaviour matches the spec construct (preconditions, ensures clauses, invariants, transition graph). Low-confidence links (`confidence: "low"` or `via: "name-match+ambiguous"`) deserve extra scrutiny — the map surfaces candidates but does not guarantee them.
-2. **Unmapped spec.** Every entry in `unmapped.spec` is a spec construct with no confirmed implementation. Decide whether this is a missing-code divergence (the code should implement it), an aspirational-design gap (intentional, not yet built) or a spec bug (the construct should not exist).
-3. **Unmapped code.** Every entry in `unmapped.code` is a code symbol the spec is silent about. Decide whether the code is incidental (infrastructure, not domain-level), represents undocumented behaviour the spec should cover, or is dead/legacy code the spec deliberately omits.
+1. **Structural pass.** For each link, confirm the `to` symbol still exists, is a plausible implementation (not a stub, re-export or test fixture), and matches the spec construct's shape: fields on entities, parameters on rules, return types on value functions. Record shape-level divergences (missing fields, extra fields, type mismatches, renamed parameters).
+
+2. **Behavioural pass.** For every linked spec construct that carries semantic clauses — rules, surfaces, invariants — read those clauses alongside the implementation end-to-end. The clauses vary by construct; iterate all three scopes, not just rules.
+
+   **For each `spec:Rule.*` link:**
+   - Each `requires` clause — find the guard, assert or early-return in code that enforces it. Missing guards are divergences.
+   - Each `ensures` clause — find the state change in code (entity mutation, creation via constructor/factory, trigger or event emission, notification, side effect). Missing state changes are divergences.
+   - Each referenced `config` value — confirm the code reads from the config layer rather than hardcoding the value.
+
+   **For each `spec:Surface.*` link:**
+   - Each `provides` operation — the operation exists in code (route, UI control, handler) and its availability matches the spec's `when` / `requires`.
+   - Each `exposes` entry — the data is accessible to the declared actor and not to others; context and within scoping are honoured.
+   - Each `@guarantee` and `@guidance` annotation — the narrative claim holds end-to-end in the linked code flow. "Messages are streamed to the user" must correspond to a streaming API call; "the user is informed on failure" must correspond to an error-path notification. **This is the weakest-signal sub-check and the easiest to skip — don't.** Surface-attached narrative is load-bearing and is exactly what a structural pass misses.
+   - Each `contracts: demands X` / `fulfils Y` — the code relies on X from its counterpart, and supplies Y; signatures match.
+
+   **For each `spec:Invariant.*` link:** expression-bearing `invariant Name { expr }` should correspond to a runtime assertion or a structural guarantee in code. Prose-only `@invariant` cannot be mechanically checked — flag it as such and move on, do not silently treat absence as satisfaction.
+
+   Report an obligation-by-obligation tally, not a single yes/no. Low-confidence links (`confidence: "low"` or `via: "name-match+ambiguous"`) deserve extra scrutiny in every scope — the map surfaces candidates but does not guarantee them.
+
+3. **Unmapped spec.** Every entry in `unmapped.spec` is a spec construct with no confirmed implementation. Decide whether this is a missing-code divergence (the code should implement it), an aspirational-design gap (intentional, not yet built) or a spec bug (the construct should not exist).
+
+4. **Unmapped code.** Every entry in `unmapped.code` is a code symbol the spec is silent about. Decide whether the code is incidental (infrastructure, not domain-level), represents undocumented behaviour the spec should cover, or is dead/legacy code the spec deliberately omits.
 
 If the map is missing a link you know exists (e.g. you spot the implementation manually), refresh the map rather than working around it — a stale map hurts future invocations. Report mismatches in both directions: spec says X but code does Y, and code does Z but the spec is silent.
 
