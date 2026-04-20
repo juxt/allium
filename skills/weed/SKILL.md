@@ -50,23 +50,23 @@ Drive divergence detection from the impact map. For every linked spec construct,
    - Each `@guarantee` and `@guidance` annotation — the narrative claim holds end-to-end in the linked code flow. "Messages are streamed to the user" must correspond to a streaming API call; "the user is informed on failure" must correspond to an error-path notification. **This is the weakest-signal sub-check and the easiest to skip — don't.** Surface-attached narrative is load-bearing and is exactly what a structural pass misses.
    - Each `contracts: demands X` / `fulfils Y` — the code relies on X from its counterpart, and supplies Y; signatures match.
 
-   **Required output format for surfaces.** Every visited `spec:Surface.*` MUST appear in the report as a tick-list sub-section listing every obligation it declares — one row per `provides`, `exposes`, `@guarantee`, `@guidance`, and each contract obligation. Mark each ✓ (honoured, cite file:line), ✗ (divergence — describe in a row immediately below), or ⚠ (partial / aspirational). All-✓ surfaces still belong in the report as positive alignment evidence. A surface that appears in the report without a tick-list has **not** been behaviourally visited, regardless of any prose you wrote about it — go back and complete it. This is the mechanism that catches `@guidance` / `@guarantee` divergences reliably; collapsing a surface's obligations into a single summary sentence consistently loses narrative-level findings like "messages are streamed".
+   **Required obligation walk for surfaces.** For every visited `spec:Surface.*`, walk every obligation it declares — `provides`, `exposes`, `@guarantee`, `@guidance`, and each contract obligation — and check each internally against the linked code. This exhaustive walk is load-bearing: it is the mechanism that catches `@guidance` / `@guarantee` divergences reliably. Collapsing a surface's obligations into a single summary sentence consistently loses narrative-level findings like "messages are streamed".
 
-   Example shape:
+   **Output only divergences.** Emit a subsection for a surface only if it has at least one ✗ (divergence) or ⚠ (partial / aspirational) row after the walk. Do not emit ✓ rows — a surface with no issues produces no output. When you do emit a subsection, cite `file:line` for the code side of every row.
+
+   Example shape (only the non-✓ rows from a fuller internal walk):
 
    ```
    ### Surface.ConversationChat (chat-with-data.allium:498)
-   - provides SendMessage — chat_page.py:244 ✓
-   - provides RetryQuery — sql_generator.py:89 ⚠ (retry budget wired to _MAX_FC_TURNS=4, not config.max_query_retries)
-   - exposes conversation.messages — chat_page.py:210 ✓
-   - @guarantee MessagesOrderedByTime — db_models.py:173 (ORDER BY created_at) ✓
-   - @guidance "SQL queries shown in a code block" — chat_page.py:258 (st.code) ✓
-   - @guidance "Messages are streamed to the user as the LLM generates them" — sql_generator.py:212 uses non-streaming generate_content ✗
+   - ⚠ provides RetryQuery — sql_generator.py:89 retry budget wired to _MAX_FC_TURNS=4, not config.max_query_retries
+   - ✗ @guidance "Messages are streamed to the user as the LLM generates them" — sql_generator.py:212 uses non-streaming generate_content
    ```
 
    **For each `spec:Invariant.*` link:** expression-bearing `invariant Name { expr }` should correspond to a runtime assertion or a structural guarantee in code. Prose-only `@invariant` cannot be mechanically checked — flag it as such and move on, do not silently treat absence as satisfaction.
 
-   Report an obligation-by-obligation tally, not a single yes/no. Low-confidence links (`confidence: "low"` or `via: "name-match+ambiguous"`) deserve extra scrutiny in every scope — the map surfaces candidates but does not guarantee them.
+   **For each spec's `config` block:** enumerate every declared config value. For each, check (a) at least one rule in this spec references it by qualified name (e.g. `config.batch_size`), and (b) code reads the value from an app-level config layer using the same name (or a documented env-var alias). Missing either side is a divergence. A config value consumed by a rule but hardcoded in code defeats the config mechanism (e.g. spec `config.batch_size = 200`, code `BATCH_SIZE = 200` as a module constant not read from config). A config value declared in the spec but never referenced by any rule is dead spec. Rule-level "each referenced `config` value" above only covers case (b) for values a rule happens to mention; this pass covers every declared value independently.
+
+   Walk exhaustively; emit only ✗ / ⚠ rows.
 
 3. **Unmapped spec.** Every entry in `unmapped.spec` is a spec construct with no confirmed implementation. Decide whether this is a missing-code divergence (the code should implement it), an aspirational-design gap (intentional, not yet built) or a spec bug (the construct should not exist).
 
