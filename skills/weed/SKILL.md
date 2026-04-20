@@ -31,6 +31,10 @@ If no mode is specified, default to **check** and report all findings.
 
 Drive divergence detection from the impact map. For every linked spec construct, you MUST do both the structural and the behavioural pass — stopping at structural is the most common weeding failure mode, and produces reports rich in field/type mismatches but blind to whether the code actually does what the rule promises.
 
+**Coverage constraint.** List every `.allium` spec file that has at least one link in the map, and visit every one before completing the report. Each visited spec must produce either at least one finding or an explicit "no divergences found" note naming the spec. A report that covers two specs out of nine and leaves the rest unvisited is incomplete, not concise — fix it before presenting. This is a testable constraint: count the specs in the map, count the specs mentioned in your report, the two numbers must match.
+
+**Per-spec budget.** Do the behavioural pass on a spec's rules, surfaces and invariants before collecting its structural and orphan findings. Structural signal accumulates quickly — orphan fields, type mismatches, unmapped code — and will crowd out behavioural coverage on later specs if you interleave the two. If you find yourself several hundred words deep on one spec's structural minutiae, you have almost certainly under-covered another spec's behavioural obligations — move on. Collect structural/orphan findings as a batch after every spec has been behaviourally walked.
+
 1. **Structural pass.** For each link, confirm the `to` symbol still exists, is a plausible implementation (not a stub, re-export or test fixture), and matches the spec construct's shape: fields on entities, parameters on rules, return types on value functions. Record shape-level divergences (missing fields, extra fields, type mismatches, renamed parameters).
 
 2. **Behavioural pass.** For every linked spec construct that carries semantic clauses — rules, surfaces, invariants — read those clauses alongside the implementation end-to-end. The clauses vary by construct; iterate all three scopes, not just rules.
@@ -45,6 +49,20 @@ Drive divergence detection from the impact map. For every linked spec construct,
    - Each `exposes` entry — the data is accessible to the declared actor and not to others; context and within scoping are honoured.
    - Each `@guarantee` and `@guidance` annotation — the narrative claim holds end-to-end in the linked code flow. "Messages are streamed to the user" must correspond to a streaming API call; "the user is informed on failure" must correspond to an error-path notification. **This is the weakest-signal sub-check and the easiest to skip — don't.** Surface-attached narrative is load-bearing and is exactly what a structural pass misses.
    - Each `contracts: demands X` / `fulfils Y` — the code relies on X from its counterpart, and supplies Y; signatures match.
+
+   **Required output format for surfaces.** Every visited `spec:Surface.*` MUST appear in the report as a tick-list sub-section listing every obligation it declares — one row per `provides`, `exposes`, `@guarantee`, `@guidance`, and each contract obligation. Mark each ✓ (honoured, cite file:line), ✗ (divergence — describe in a row immediately below), or ⚠ (partial / aspirational). All-✓ surfaces still belong in the report as positive alignment evidence. A surface that appears in the report without a tick-list has **not** been behaviourally visited, regardless of any prose you wrote about it — go back and complete it. This is the mechanism that catches `@guidance` / `@guarantee` divergences reliably; collapsing a surface's obligations into a single summary sentence consistently loses narrative-level findings like "messages are streamed".
+
+   Example shape:
+
+   ```
+   ### Surface.ConversationChat (chat-with-data.allium:498)
+   - provides SendMessage — chat_page.py:244 ✓
+   - provides RetryQuery — sql_generator.py:89 ⚠ (retry budget wired to _MAX_FC_TURNS=4, not config.max_query_retries)
+   - exposes conversation.messages — chat_page.py:210 ✓
+   - @guarantee MessagesOrderedByTime — db_models.py:173 (ORDER BY created_at) ✓
+   - @guidance "SQL queries shown in a code block" — chat_page.py:258 (st.code) ✓
+   - @guidance "Messages are streamed to the user as the LLM generates them" — sql_generator.py:212 uses non-streaming generate_content ✗
+   ```
 
    **For each `spec:Invariant.*` link:** expression-bearing `invariant Name { expr }` should correspond to a runtime assertion or a structural guarantee in code. Prose-only `@invariant` cannot be mechanically checked — flag it as such and move on, do not silently treat absence as satisfaction.
 
