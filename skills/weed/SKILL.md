@@ -12,7 +12,8 @@ You weed the Allium garden. You compare `.allium` specifications against impleme
 1. Read [language reference](../allium/references/language-reference.md) for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (search the project to find them if not specified).
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct.
-4. Read the corresponding implementation code.
+4. Invoke the [`impact` skill](../impact/SKILL.md) in `refresh` mode (or `build` mode if no map exists yet) so the spec↔code mapping is current. Read the resulting `.allium/impact/<spec>.json`. This replaces the old "grep for corresponding code" step: `links` tells you where each spec construct is implemented, and `unmapped.*` is your candidate list for divergences. If the impact skill returns `degraded: true` (no adapter, LSP unavailable), note the reason once to the user and fall back to grep-based correlation for the rest of this run — do not refuse the work.
+5. Read the corresponding implementation code, guided by the map (or by grep, in degraded mode).
 
 ## Modes
 
@@ -28,7 +29,13 @@ If no mode is specified, default to **check** and report all findings.
 
 ## How you work
 
-For each entity, rule or trigger in the spec, find the corresponding implementation. For each significant code path, check whether the spec accounts for it. Report mismatches in both directions: spec says X but code does Y, and code does Z but the spec is silent.
+Drive divergence detection from the impact map:
+
+1. **Spec → code.** For each entity, rule, trigger or surface in the spec, follow `links[*].to` to the implementing symbol. Read that symbol and check whether its behaviour matches the spec construct (preconditions, ensures clauses, invariants, transition graph). Low-confidence links (`confidence: "low"` or `via: "name-match+ambiguous"`) deserve extra scrutiny — the map surfaces candidates but does not guarantee them.
+2. **Unmapped spec.** Every entry in `unmapped.spec` is a spec construct with no confirmed implementation. Decide whether this is a missing-code divergence (the code should implement it), an aspirational-design gap (intentional, not yet built) or a spec bug (the construct should not exist).
+3. **Unmapped code.** Every entry in `unmapped.code` is a code symbol the spec is silent about. Decide whether the code is incidental (infrastructure, not domain-level), represents undocumented behaviour the spec should cover, or is dead/legacy code the spec deliberately omits.
+
+If the map is missing a link you know exists (e.g. you spot the implementation manually), refresh the map rather than working around it — a stale map hurts future invocations. Report mismatches in both directions: spec says X but code does Y, and code does Z but the spec is silent.
 
 ### Process-level checks
 

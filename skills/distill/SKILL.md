@@ -314,11 +314,19 @@ The presence of multiple implementations suggests the variation itself is a doma
 
 ## Distillation process
 
+### Step 0: Build the impact map
+
+If a spec skeleton already exists (even just entity names), invoke the [`impact` skill](../impact/SKILL.md) in `build` mode first. The resulting `.allium/impact/<spec>.json` gives you a head start: existing links tell you which code symbols already correspond to spec constructs, and `unmapped.code` is your candidate pool for new spec nodes to extract.
+
+If you are distilling from a completely empty spec (no skeleton), skip this step and come back to it once you have enough entities named to seed the map.
+
+If the impact skill returns `degraded: true` (no adapter for this language, or the target LSP is unavailable), note the reason once and proceed without a map — distillation worked with grep + read alone before the map existed and still does. Come back to building a map in a later pass if the language adapter gap is worth filling.
+
 ### Step 1: Map the territory
 
 Before extracting any specification, understand the codebase structure:
 
-1. **Identify entry points.** API routes, CLI commands, message handlers, scheduled jobs.
+1. **Identify entry points.** API routes, CLI commands, message handlers, scheduled jobs. If the impact map exists, its surface links and `call_edges` entry points are your starting list.
 2. **Find the domain models.** Usually in `models/`, `entities/`, `domain/`.
 3. **Locate business logic.** Services, use cases, handlers.
 4. **Note external integrations.** What third parties does it talk to?

@@ -41,6 +41,8 @@ If the caller describes a feature in implementation terms ("the API returns a 40
 
 **Be minimal.** Add what's needed and nothing more. Don't speculatively add fields, rules or config that weren't asked for. Don't restructure working specs for aesthetic reasons.
 
+**Check for orphaned links before renaming.** If a `.allium/impact/<spec>.json` exists in the project, check it before renaming or removing a spec construct. Invoke the [`impact` skill](../impact/SKILL.md) in `query` mode to ask which code symbols are currently linked to the construct you are changing. If links exist, warn the caller that the rename will orphan those links until the map is refreshed and suggest running `weed` after the edit to resolve the resulting divergences. Never silently edit a construct that the map says has implementation. If the impact skill returns `degraded: true` or no map exists, skip this check and proceed — the warning is a best-effort convenience, not a gate.
+
 ## Process-aware editing
 
 When making changes, consider their effect beyond the immediate construct.
