@@ -17,15 +17,17 @@ Activate this adapter if any of the following is present in the target project:
 **Install:**
 
 ```bash
-# 1. Install the pyright language server binary. uv tool keeps it isolated
-#    from project virtualenvs, which is usually what you want:
+# 1. Install pyright so that `pyright-langserver` resolves on the global
+#    PATH. The Claude Code LSP tool spawns this binary from PATH — it
+#    does not inspect per-project venvs — so `uv pip install pyright`
+#    inside a project venv will NOT work for Claude Code:
 uv tool install pyright
 
-# Or project-local, if you'd rather pin it per-project:
-uv pip install pyright
+# (pip install pyright and npm install -g pyright also work, provided
+#  their install location ends up on PATH.)
 
-# (pip install pyright and npm install -g pyright also work — the plugin
-#  invokes whichever `pyright` is on PATH.)
+# Verify:
+which pyright-langserver   # must print a path
 
 # 2. In Claude Code, add the marketplace and install the plugin:
 /plugin marketplace add anthropics/claude-plugins-official
@@ -34,9 +36,16 @@ uv pip install pyright
 
 After install, run `/reload-plugins` (or restart the session) and the built-in `LSP` tool will route Python files to pyright.
 
-**Sentinel:** pick a PascalCase entity name from the spec you are mapping. Call LSP `workspaceSymbol` with that name. If the result is empty and at least one `*.py` file in the project defines a symbol of that name (verified by a quick `Grep`), pyright is not indexing — tell the user to install or enable `pyright-lsp` per the steps above.
+**Caveat — single-file indexing:** In the Claude Code harness, pyright runs per invocation against the file passed in `filePath`; it does not index the wider workspace. Empirically:
 
-If the spec has no entities yet (greenfield distillation), use `__init__` as the sentinel query — every non-trivial Python project has at least one.
+- `documentSymbol` and `hover` return the expected per-file results.
+- `findReferences` only returns hits in the single file, not across the workspace.
+- `workspaceSymbol` returns empty.
+- Cross-file `goToDefinition` does not resolve project-internal imports (they appear as `reportMissingImports`).
+
+Treat the LSP tool as a **single-file symbol and type oracle**, not a workspace index. The impact-skill pipeline reflects this: symbol discovery uses Glob + per-file `documentSymbol`, not `workspaceSymbol`. Do not issue `workspaceSymbol` calls expecting workspace-wide results — they will mislead the caller.
+
+**Sentinel:** open any `.py` file in the project and call `documentSymbol` on it. If pyright returns a non-empty symbol tree, the LSP server is live. If the call errors with `Executable not found in $PATH`, pyright is not installed — tell the user to run the install steps above.
 
 ## 3. Name-variant generator
 

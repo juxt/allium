@@ -12,7 +12,7 @@ You weed the Allium garden. You compare `.allium` specifications against impleme
 1. Read [language reference](../allium/references/language-reference.md) for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (search the project to find them if not specified).
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct.
-4. Invoke the [`impact` skill](../impact/SKILL.md) in `refresh` mode (or `build` mode if no map exists yet) so the spec↔code mapping is current. Read the resulting `.allium/impact/<spec>.json`. This replaces the old "grep for corresponding code" step: `links` tells you where each spec construct is implemented, and `unmapped.*` is your candidate list for divergences. If the impact skill returns `degraded: true` (no adapter, LSP unavailable), note the reason once to the user and fall back to grep-based correlation for the rest of this run — do not refuse the work.
+4. Invoke the [`impact` skill](../impact/SKILL.md) in `refresh` mode (or `build` mode if no map exists yet) so the spec↔code mapping is current. Read the resulting `.allium/impact/<spec>.json`. This replaces the old "grep for corresponding code" step: `links` tells you where each spec construct is implemented, and `unmapped.*` is your candidate list for divergences. If the impact skill returns `degraded: true`, quote the `reason` tag and `details` string **verbatim** to the user once — do not paraphrase, as paraphrase becomes its own bug — then fall back to grep-based correlation for the rest of this run. Do not refuse the work.
 5. Read the corresponding implementation code, guided by the map (or by grep, in degraded mode).
 
 ## Modes

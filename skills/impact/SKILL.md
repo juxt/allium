@@ -15,7 +15,7 @@ You are narrow and mechanical. You do not write specs, you do not write implemen
 2. Read [impact map reference](../../references/impact-map.md) for the schema and integration contract.
 3. Locate the `.allium` files for the spec(s) being mapped.
 4. Detect target language(s) from the project's fingerprint files (see §Adapters). Load the matching adapter(s) from `skills/impact/adapters/`. If no adapter matches, exit degraded (see §Degraded exit).
-5. Verify the LSP tool is available for each chosen language. Call `workspaceSymbol` with a sentinel query (the adapter supplies one). If the LSP is not responding, exit degraded.
+5. Verify the LSP tool is available for each chosen language by running the adapter's sentinel — typically a `documentSymbol` call against any source file, since in the Claude Code harness LSP servers often run in single-file mode rather than workspace-indexed mode. If the call errors with `Executable not found in $PATH` or equivalent, exit degraded with `reason: lsp-unavailable`. If the call returns an empty result on a file that is known to contain symbols, exit degraded with `reason: lsp-not-indexing`.
 6. If the `allium` CLI is available, run `allium plan <spec>` and `allium model <spec>` to seed the spec-side nodes. Fall back to reading the `.allium` file directly.
 
 ### Degraded exit
@@ -23,10 +23,17 @@ You are narrow and mechanical. You do not write specs, you do not write implemen
 The impact map is an optimisation, not a prerequisite. If you cannot produce a map — no adapter matches, the required LSP plugin is missing, LSP is installed but not indexing — do not refuse the invocation outright. Instead:
 
 1. Do not write or modify any `.allium/impact/<spec>.json`.
-2. Print a short, actionable message naming the exact cause (which fingerprints were checked, which LSP plugin to install).
-3. Return a summary with `degraded: true` and a `reason` tag (`no-adapter`, `lsp-unavailable`, `lsp-not-indexing`).
+2. Print a short, actionable message quoting the exact cause. Callers will relay this message verbatim to the user; do not paraphrase.
+3. Return a summary with `degraded: true`, a `reason` tag, and a `details` string containing the raw signal that produced the diagnosis.
 
-The callers (weed, distill, propagate, tend) treat a degraded response as "no map available" and fall back to manual correlation. They must not hard-fail on your behalf.
+**Reason tags** (use exactly one):
+
+- `no-adapter` — no language adapter matched the project's fingerprints. `details` should list which fingerprints were checked.
+- `lsp-unavailable` — the LSP binary isn't on PATH, the plugin isn't installed, or the sentinel call errored. `details` should quote the LSP tool's error message (e.g. `Executable not found in $PATH: "pyright-langserver"`).
+- `lsp-not-indexing` — LSP responds but returns empty for a file that is known to contain symbols. Typically means single-file mode (no workspace index) or mis-rooted workspace detection. `details` should say which sentinel was used and what it returned.
+- `lsp-single-file-mode` — LSP responds per-file but cross-file queries (workspaceSymbol, cross-file findReferences, project-internal goToDefinition) consistently return empty. This is the **expected** behaviour for Claude Code's pyright wrapper today; see the Python adapter. `details` should note that symbol discovery will be driven by `documentSymbol` + Glob rather than workspace-wide calls.
+
+The callers (weed, distill, propagate, tend) treat a degraded response as "no map available" and fall back to manual correlation. They must not hard-fail on your behalf, and they must quote the `reason` tag and `details` string verbatim to the user — never paraphrase, because the paraphrase becomes its own bug (one recent weed run turned `Executable not found in $PATH` into `workspaceSymbol doesn't accept query strings`, which is false).
 
 ## Modes
 
@@ -56,16 +63,22 @@ Every step below uses only the built-in LSP tool and language-neutral Allium con
 
 2. **Generate name variants.** For each spec node, ask the **adapter** for the identifier variants a programmer would likely choose in the target language. Do not invent variants — rely on the adapter's rules.
 
-3. **Find candidate code symbols.** For each variant, call LSP `workspaceSymbol`. Collect candidates. Exclude test files per the adapter's project-root and test-directory rules.
+3. **Find candidate code symbols.** The Claude Code LSP tool typically runs language servers in single-file mode (confirmed for pyright as of this writing; see the Python adapter), so `workspaceSymbol` cannot be relied on for workspace-wide search. Instead:
+   a. Use Glob over the adapter's source-file globs (e.g. `**/*.py` minus exclusions) to enumerate candidate files.
+   b. For each candidate file, call LSP `documentSymbol` to get its symbol tree.
+   c. Match each variant from step 2 against the symbol trees. A match is a (file, symbol name, line) tuple.
+   d. Exclude test files per the adapter's project-root and test-directory rules.
 
-4. **Confirm candidates.** For each candidate, call LSP `hover` and `documentSymbol`. Use the adapter's confidence heuristic to decide:
+   Optional: where the LSP server does support workspaceSymbol (rare), use it as an additional source; merge results with the Glob+documentSymbol pass. Never rely on it alone.
+
+4. **Confirm candidates.** For each candidate, call LSP `hover` at the symbol's position to get type/docstring. Use the adapter's confidence heuristic to decide:
    - *Exact.* Single match, docstring/type/signature lines up → record a high-confidence link with `via: "name-match+hover"`.
    - *Ambiguous.* Multiple plausible matches → record each with `via: "name-match+ambiguous"` and mark low-confidence.
    - *None.* No candidate survives → add the spec node to `unmapped.spec`. Do not force a match.
 
-5. **Expand the code-side graph.** For each confirmed code node, call `prepareCallHierarchy`, then `incomingCalls` and `outgoingCalls`. Record each edge in `call_edges`. Stop expanding at the project boundary defined by the adapter (same `pyproject.toml`, same `go.mod`, etc.). Stop at depth 2 by default; the adapter may override.
+5. **Expand the code-side graph.** For each confirmed code node, call `prepareCallHierarchy`, then `incomingCalls` and `outgoingCalls`. Record each edge in `call_edges`. Stop expanding at the project boundary defined by the adapter (same `pyproject.toml`, same `go.mod`, etc.). Stop at depth 2 by default; the adapter may override. Note: in single-file LSP mode these calls may only return in-file results; treat missing cross-file edges as a known limitation, not a divergence.
 
-6. **Map surfaces.** For each spec `surface` block, ask the adapter for framework entry-point patterns (Python: `@app.route`, `@router.post`, `APIRouter` etc.; Go: `http.HandleFunc` etc.). Resolve them via `workspaceSymbol` and `findReferences`. Link surfaces to their entry points.
+6. **Map surfaces.** For each spec `surface` block, ask the adapter for framework entry-point patterns (Python: `@app.route`, `@router.post`, `APIRouter` etc.; Go: `http.HandleFunc` etc.). Use Grep to locate the pattern's occurrences in project files, then resolve each hit to its containing function via `documentSymbol` on that file. Link surfaces to the resolved entry points.
 
 7. **Collect unmapped code.** Walk the project's source files per the adapter's globs. For each top-level symbol not referenced by any confirmed link or `call_edges` node, record the symbol in `unmapped.code`. This is the honest bit — `weed` reads it to find behaviour the spec is silent about.
 
@@ -73,7 +86,8 @@ Every step below uses only the built-in LSP tool and language-neutral Allium con
 
 ### Disambiguation
 
-When `workspaceSymbol` returns multiple candidates for a spec name, never silently drop any of them:
+When step 3 returns multiple candidates for a spec name, never silently drop any of them:
+
 - If the adapter's confidence heuristic picks one decisively, record the winner with high confidence and the losers under a `rejected_candidates` field on the link for debugging.
 - If the heuristic is indecisive, record every surviving candidate as a separate link with low confidence. `weed` and `propagate` know how to read these.
 

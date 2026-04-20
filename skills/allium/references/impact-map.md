@@ -98,8 +98,8 @@ Every node has a stable string ID: `spec:<name>` or `code:<fqn>`. IDs are the on
 
 ### `via` values
 
-- `name-match+hover` — workspaceSymbol hit plus hover/docstring confirmation. Strongest automatic signal.
-- `name-match+single` — workspaceSymbol returned exactly one candidate; no secondary signal needed.
+- `name-match+hover` — symbol-index hit (via `documentSymbol` walk or `workspaceSymbol` if available) confirmed by LSP `hover` docstring/type. Strongest automatic signal.
+- `name-match+single` — the symbol-index walk returned exactly one candidate; no secondary signal needed.
 - `name-match+ambiguous` — multiple candidates survived; this link is one of several recorded at low confidence.
 - `surface-decorator` — matched via framework entry-point pattern from the adapter (e.g. Flask route decorator).
 - `docstring-ref` — code docstring explicitly references the spec construct by name.
