@@ -25,6 +25,8 @@ npx skills add juxt/allium
 
 **GitHub Copilot** reads skills and agents from the repository automatically. No installation needed.
 
+**Other editors:** If your editor doesn't read from `.agents/skills/`, symlink the installed skills into wherever it does look (e.g. `ln -s .agents/skills/allium .continue/rules/allium`, or `mklink /J` on Windows). Use a symlink rather than copying; the skill files contain relative links to reference material that a copy would break.
+
 Once installed, type `/allium` to get started. Allium examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
