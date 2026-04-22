@@ -31,6 +31,26 @@ Once installed, type `/allium` to get started. Allium examines your project and 
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
+## Command-line tooling
+
+The [Allium CLI](https://github.com/juxt/allium-tools) validates specs and catches structural issues such as missing transition witnesses and unreachable triggers. It also generates tests from specs.
+
+The architecture combines LLM reasoning with formal inference over specifications. The CLI performs structural analysis that language models cannot do reliably on their own, such as tracing data flow across rules or verifying that every entity lifecycle can reach a terminal state. The LLM uses these findings to ask better questions during elicitation and produce more complete specs. The language model handles domain knowledge and natural language; the checker handles logical properties of the spec's formal structure.
+
+The skills work without the CLI, falling back to the language reference, but installing it means every edit is formally checked and the results feed straight into the conversation.
+
+Install via [Homebrew](https://brew.sh/) or [crates.io](https://crates.io/crates/allium-cli):
+
+```
+brew tap juxt/allium && brew install allium
+```
+
+```
+cargo install allium-cli
+```
+
+See the [allium-tools repo](https://github.com/juxt/allium-tools) for details.
+
 ## Skills and agents
 
 Allium provides five skills, an entry point and two autonomous agents.
@@ -187,7 +207,7 @@ The developer never mentioned invoicing or payment method capture. The Allium di
 
 ## Verification
 
-When the [Allium CLI](https://github.com/juxt/allium-tools) is installed, `.allium` files are validated automatically after every write or edit. Install it via Homebrew (`brew tap juxt/allium && brew install allium`) or Cargo (`cargo install allium-cli`). Diagnostics appear inline and the model fixes issues in the same turn. Without the CLI the skill falls back to the language reference, so installing it is recommended if you're working with Allium regularly.
+When the CLI is installed, `.allium` files are validated automatically after every write or edit. Diagnostics appear inline and the model fixes issues in the same turn.
 
 ## Language governance
 
