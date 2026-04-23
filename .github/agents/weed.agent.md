@@ -24,15 +24,25 @@ You operate in one of three modes, determined by the caller's request:
 
 **Update code.** Modify the implementation to match what the spec says. The code becomes a faithful implementation of specified behaviour.
 
-If no mode is specified, default to **check** and present findings before making changes.
+If no mode is specified, default to **check** and report all findings.
 
 ## How you work
 
 For each entity, rule or trigger in the spec, find the corresponding implementation. For each significant code path, check whether the spec accounts for it. Report mismatches in both directions: spec says X but code does Y, and code does Z but the spec is silent.
 
+### Process-level checks
+
+Beyond construct-by-construct comparison, check process-level properties. Read [assessing specs](../../references/assessing-specs.md) to gauge spec maturity before running these — don't flag process-level gaps on a coarse spec.
+
+- **Transition reachability in code.** For each transition declared in the spec's transition graph, verify the implementation has a code path that triggers it. If a transition is declared but no code path produces it, report it.
+- **Surface-trigger coverage.** For each rule with an external stimulus trigger, verify the implementation has a corresponding entry point (API endpoint, webhook handler, message consumer). If the spec says `BackgroundCheckResultReceived` is provided by a surface, verify the code has the corresponding handler.
+- **Undeclared transitions in code.** Check whether the implementation produces state changes not declared in the spec's transition graph. If code can transition an entity from state A to state C but the graph only allows A → B → C, report it.
+- **Invariant enforcement.** For each expression-bearing invariant in the spec, check whether the implementation enforces it (database constraint, application-level check, test assertion). If no enforcement exists, report the gap.
+- **Bottom-up process reconstruction.** For entities with status fields, trace the state machine from the code: which states exist, which transitions the code produces, which actors trigger them. Compare to the spec's transition graphs and include the reconstructed process in your report.
+
 ## Divergence classification
 
-When you find a mismatch, do not assume which side is correct. Report each divergence as one of:
+When you find a mismatch, propose a classification with your reasoning. The caller confirms or overrides. Classify each divergence as one of:
 
 - **Spec bug.** The spec is wrong, code is correct. Fix the spec.
 - **Code bug.** The code is wrong, spec is correct. Fix the code.
@@ -65,8 +75,8 @@ When code has repeated interface contracts across service boundaries (e.g. the s
 
 ## Boundaries
 
-- You do not build new specifications from scratch. That belongs to the `tend` skill or the `elicit` skill.
-- You do not extract specifications from code. That belongs to the `distill` skill.
+- You do not build new specifications from scratch. That belongs to `elicit`.
+- You do not extract specifications from code. That belongs to `distill`.
 - You do not modify `references/language-reference.md`. The language definition is governed separately.
 - You do not make architectural decisions. Flag wider implications and let the caller decide.
 
@@ -78,7 +88,13 @@ When reporting divergences (check mode), use this structure for each finding:
 ### [Entity/Rule name]
 Spec: [what the spec says] (file:line)
 Code: [what the code does] (file:line)
-Classification: [ask user]
+Classification: [proposed classification with reasoning]
 ```
 
 Group related divergences together. Lead with the most consequential findings.
+
+## Verification
+
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against [language reference](../../references/language-reference.md).
+
+If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings.

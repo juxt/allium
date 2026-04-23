@@ -18,7 +18,7 @@ Before propagating tests, you need:
 3. **Test obligations** — from `allium plan <spec>` (JSON listing every required test)
 4. **Domain model** — from `allium model <spec>` (JSON describing entity shapes, constraints, state machines)
 
-If the CLI tools are not available, derive test obligations manually from the spec using the test-generation taxonomy in `references/test-generation.md`.
+If the CLI tools are not available, derive test obligations manually from the spec using the test-generation taxonomy in [`references/test-generation.md`](../../references/test-generation.md).
 
 ## Modes
 
@@ -61,6 +61,12 @@ Categories from the test-generation taxonomy:
 - **Transition graph tests** — every declared edge is reachable via its witnessing rule, undeclared transitions are rejected, terminal states have no outbound rules, non-terminal states have at least one exit, exact correspondence between enum values and graph edges
 - **State-dependent field tests** — presence when in qualifying state, absence when outside, presence obligations on entering the `when` set, absence obligations on leaving, no obligation when moving within or outside, convergent transitions all set the field, guard required to access `when`-qualified fields, derived value `when` inference via input intersection
 - **Scenario tests** — happy path, edge cases, order independence
+- **Data flow chain tests** — exercise full chains from surface capture through rules to downstream rule preconditions. For each chain (surface provides trigger → rule ensures field → downstream rule requires field), generate an integration test that submits data through the surface and verifies it reaches the downstream precondition.
+- **Reachability tests** — walk from each initial state (via `.created()`) to each terminal state, following a valid path through the transition graph. Each test exercises a complete lifecycle.
+- **Deadlock scenario tests** — for states where `allium analyse` identifies potential deadlocks, generate tests that put the entity in the stuck state and verify whether it can progress.
+- **Cross-entity process tests** — for processes spanning multiple entities, generate integration tests that exercise the full process from start to terminal state across all participating entities.
+
+If `allium analyse` is available, use its findings to prioritise test generation. A `missing_producer` or `dead_transition` finding indicates a gap worth exercising with a test. A `deadlock` finding should generate a test documenting that the entity cannot escape the stuck state. Consult [actioning findings](../../references/actioning-findings.md) for the finding type taxonomy.
 
 ## Test output kinds
 
@@ -140,9 +146,10 @@ Before generating cross-module tests:
 1. Trace the trigger emission graph from the plan output: which rules emit triggers, and which rules in other specs receive them
 2. Check whether the codebase has an existing integration test fixture that wires the participating components (a pipeline test, an end-to-end test helper, a test harness class)
 3. If a fixture exists, reuse it. Cross-module tests should compose existing wiring, not rebuild it
-4. If no fixture exists, generate only the test skeleton with TODOs marking where component wiring is needed
+4. If no fixture exists but the codebase structure is clear enough to understand the wiring (service constructors, dependency injection, event bus configuration), generate the fixture and the test
+5. If the wiring is too complex or opaque to generate confidently, generate a test skeleton with TODOs marking where component wiring is needed
 
-Cross-module tests are integration tests by nature. They verify that the spec's trigger chains are faithfully implemented across component boundaries, but the setup cost is high. Prioritise them after single-component tests are passing.
+Cross-module tests are integration tests by nature. They verify that the spec's trigger chains are faithfully implemented across component boundaries. Prioritise them after single-component tests are passing.
 
 ### Reusing existing tests
 
@@ -161,7 +168,7 @@ Deferred specifications are fully specified in separate files. When the target c
 
 ## Process
 
-1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults
+1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults. Read [assessing specs](../../references/assessing-specs.md) to gauge the spec's maturity. A coarse spec (entities and transition graphs but no rules) will produce limited test obligations — mostly structural tests. If the spec is too coarse for meaningful test generation, suggest using the `elicit` or `distill` skill to develop it further before propagating tests. A spec with rules and surfaces enables the full test taxonomy including data flow chain tests and reachability tests.
 2. **Read test obligations** — from `allium plan` output or manual derivation
 3. **Read domain model** — from `allium model` output or manual derivation
 4. **Explore the codebase** — find existing tests, test framework, entity implementations, rule implementations
@@ -205,5 +212,5 @@ When generator specs are available, use them to produce valid test data:
 
 - Generated tests are a starting point. They may need adjustment for project-specific patterns.
 - The implementation bridge is LLM-mediated. Complex or unusual codebases may need manual guidance on the mapping.
-- Cross-module test generation is not yet supported. Each spec generates tests independently.
+- Cross-module tests require understanding component wiring across service boundaries. When the codebase structure is clear, full tests can be generated. When wiring is opaque, tests are generated as skeletons with TODOs for manual setup.
 - Runtime trace validation and model checking are separate workstreams.
