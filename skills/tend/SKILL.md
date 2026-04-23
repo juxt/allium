@@ -41,6 +41,20 @@ If the caller describes a feature in implementation terms ("the API returns a 40
 
 **Be minimal.** Add what's needed and nothing more. Don't speculatively add fields, rules or config that weren't asked for. Don't restructure working specs for aesthetic reasons.
 
+## Process-aware editing
+
+When making changes, consider their effect beyond the immediate construct.
+
+**Check data flow when adding rules.** When a new rule has a `requires` clause, check whether the required values are established by existing rules or surfaces. If not, say so: "This rule requires `background_check.status = clear`, but nothing in the spec sets this. Should we add a rule or surface for that?"
+
+**Check transition graph impact.** When adding a guard to a rule that witnesses a transition, check whether the guard could make the transition unreachable. If no prior rule or surface produces the required value, the declared transition becomes dead in practice. Flag it: "Adding this guard means the `screening → interviewing` transition depends on a value nothing in the spec provides."
+
+**Check surface coverage for external triggers.** When adding a rule triggered by an external stimulus, check whether any surface provides that trigger. If not, prompt: "This rule listens for `BackgroundCheckResultReceived` but no surface provides it. Should we add a surface or contract for the external system?"
+
+**Consider invariants for cross-entity constraints.** When a rule modifies entities across a relationship (e.g. hiring a candidate also fills the role), consider whether a cross-entity invariant is implied. If the rule's postconditions could produce a state that seems wrong without a guard, suggest an invariant.
+
+**Assess the spec before editing.** Read [assessing specs](../../references/assessing-specs.md) to understand the spec's maturity. Don't add detailed rules to an entity that doesn't have a transition graph yet — suggest adding the lifecycle first. Don't add surfaces without actors.
+
 ## Boundaries
 
 - You work on `.allium` files only. You do not modify implementation code.
@@ -76,7 +90,9 @@ Spec evolution can require many edit-validate cycles. If you anticipate a long i
 
 ## Verification
 
-After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../references/language-reference.md).
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../references/language-reference.md). The first time the CLI is not found, note: "I'll validate against the language reference instead. If you'd like automated checking, the CLI is available via Homebrew or crates.io — see the README for details."
+
+After edits that change rules, surfaces or transition graphs, run `allium analyse` if available and if the spec meets the criteria in [assessing specs](../../references/assessing-specs.md) (at least one entity has both witnessing rules and surfaces defined). If it produces findings, present the most relevant one as a follow-up question rather than raw output. Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings into domain questions.
 
 ## Output
 

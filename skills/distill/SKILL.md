@@ -358,6 +358,14 @@ entity Invitation {
 
 Look for enum definitions, status or state columns, constants like `STATUS_PENDING = 'pending'`, and state machine libraries (e.g. `transitions`, `django-fsm`).
 
+### Step 2.5: Identify candidate processes
+
+After extracting entities and their states, scan for state machines that suggest end-to-end processes. Trace where each status value gets set across the codebase (where does `status = 'interviewing'` happen?). Present candidate processes to the user for validation: "I see an entity with states `applied → screening → interviewing → deciding → hired/rejected`. Is this a process the system is meant to support?"
+
+Also trace cross-entity data flow. If a rule on entity A requires a field from entity B, follow the chain: where does entity B's field get set, and what triggers that? Present the chain: "The hiring decision requires `background_check_status = clear`. This gets set by a webhook handler at `/api/webhooks/background-check`. Does this chain look right?"
+
+Generate transition graphs from the extracted rules. The graph is a derived view of the code. If it has gaps (states with no outbound transitions that aren't terminal), flag them as potential issues.
+
 ### Step 3: Extract transitions
 
 Find where status changes happen:
@@ -516,6 +524,17 @@ external entity Candidate {
 
 When repeated interface patterns appear across service boundaries (e.g. the same serialisation contract expected by multiple consumers), these suggest `contract` declarations for reuse rather than duplicated inline obligation blocks.
 
+### Step 5.5: Identify actors from auth patterns
+
+After extracting surfaces from API endpoints, identify actors by examining authentication and authorisation patterns. Different auth contexts suggest different actors:
+
+- API key authentication → system actor (external service)
+- Role-based access (`user.role == 'admin'`) → distinct actor per role
+- Scoped access (`user.org_id == resource.org_id`) → actor with `within` scoping
+- Unauthenticated endpoints → public-facing actor or system webhook
+
+Ask the user to confirm: "This endpoint requires admin role authentication. Is 'Admin' a distinct actor, or is this the same person as the regular user with elevated permissions?"
+
 ### Step 6: Abstract away implementation
 
 Now make a pass through your extracted spec and remove implementation details.
@@ -564,100 +583,38 @@ Common findings:
 - "Actually we wanted X but never built it"
 - "These two code paths should be the same but aren't"
 
+Before running further checks, read [assessing specs](../../references/assessing-specs.md) to gauge the distilled spec's maturity. This tells you whether the spec is ready for process-level analysis or still needs structural work.
+
+If the Allium CLI is available, run `allium check` on the distilled spec to catch structural issues, then `allium analyse` to identify process-level gaps. Findings from `analyse` can drive validation questions: "The distilled spec has a rule that requires `background_check.status = clear` but no surface captures background check results. Is this handled by a part of the codebase we haven't looked at?" Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings into domain questions.
+
 ## Recognising library spec candidates
 
-During distillation, stay alert for code that implements **generic integration patterns** rather than application-specific logic. These belong in library specs, not your main specification.
-
-The same principle applies in elicitation. When a stakeholder describes "we use Google for login" or "payments go through Stripe", pause and consider whether this is a library spec.
+During distillation, stay alert for code that implements generic integration patterns rather than application-specific logic. These belong in library specs. See [recognising library spec opportunities](../elicit/references/library-spec-signals.md) for the full decision framework (questions to ask, how to handle, common extractions).
 
 ### Signals in the code
 
+Look for these patterns that suggest a library spec:
+
 **Third-party integration modules:**
 ```python
-# Finding code like this suggests a library spec
 class StripeWebhookHandler:
     def handle_invoice_paid(self, event):
-        ...
-    def handle_subscription_cancelled(self, event):
         ...
 
 class GoogleOAuthProvider:
     def exchange_code(self, code):
         ...
-    def refresh_token(self, refresh_token):
-        ...
 ```
-
-**Generic patterns with specific providers:**
-- OAuth flows (Google, Microsoft, GitHub)
-- Payment processing (Stripe, PayPal)
-- Email delivery (SendGrid, Postmark, SES)
-- Calendar sync (Google Calendar, Outlook)
-- ATS integrations (Greenhouse, Lever)
-- File storage (S3, GCS)
 
 **Configuration-driven integrations:**
 ```python
-# Heavy configuration suggests the integration itself is separable
 OAUTH_CONFIG = {
     'google': {'client_id': ..., 'scopes': ...},
     'microsoft': {'client_id': ..., 'scopes': ...},
 }
 ```
 
-### Questions to ask
-
-1. **"Is this integration logic, or application logic?"**
-   Integration: how to talk to Stripe.
-   Application: what to do when payment succeeds.
-
-2. **"Would another application integrate the same way?"**
-   If yes, library spec candidate. If no, probably application-specific.
-
-3. **"Does the code separate integration from application concerns?"**
-   If cleanly separated, easy to extract to library spec. If tangled, might need refactoring first (but the spec should still separate them).
-
-### How to handle
-
-**Option 1: Reference an existing library spec**
-
-If a standard library spec exists for this integration:
-```
-use "github.com/allium-specs/stripe-billing/abc123" as stripe
-
--- Application responds to Stripe events
-rule ActivateSubscription {
-    when: stripe/PaymentSucceeded(invoice)
-    ...
-}
-```
-
-**Option 2: Create a separate library spec**
-
-If no standard spec exists but the integration is generic:
-```
--- greenhouse-ats.allium (library spec)
--- Specifies: Greenhouse webhook events, candidate sync, etc.
-
--- interview-scheduling.allium (application spec)
-use "./greenhouse-ats.allium" as greenhouse
-
-rule ImportCandidate {
-    when: greenhouse/CandidateCreated(data)
-    ensures: Candidacy.created(...)
-}
-```
-
-**Option 3: Abstract and move on**
-
-If the integration is minor, just abstract it:
-```
--- Don't specify Slack details, just:
-ensures: Notification.created(
-    to: interviewers,
-    channel: slack
-)
-```
+**Generic patterns with specific providers:** OAuth flows, payment processing, email delivery, calendar sync, ATS integrations, file storage.
 
 ### Red flags: integration logic in your spec
 
@@ -667,11 +624,8 @@ If you find yourself writing spec like this, stop and reconsider:
 -- TOO DETAILED - this is Stripe's domain, not yours
 rule ProcessStripeWebhook {
     when: WebhookReceived(payload, signature)
-
     requires: verify_stripe_signature(payload, signature)
-
     let event = parse_stripe_event(payload)
-
     if event.type = "invoice.paid":
         ...
 }
@@ -686,18 +640,7 @@ rule PaymentReceived {
 }
 ```
 
-### Common library spec extractions
-
-| Code pattern found | Library spec candidate |
-|-------------------|----------------------|
-| OAuth token exchange, refresh, session management | `oauth2.allium` |
-| Stripe webhook handling, subscription lifecycle | `stripe-billing.allium` |
-| Email sending with templates, bounce handling | `email-delivery.allium` |
-| Calendar event sync, availability checking | `calendar-integration.allium` |
-| ATS candidate import, status sync | `greenhouse-ats.allium`, `lever-ats.allium` |
-| File upload, virus scanning, thumbnail generation | `file-storage.allium` |
-
-See patterns.md Pattern 8 for detailed examples of integrating library specs.
+See [patterns.md Pattern 8](../../references/patterns.md) for detailed examples of integrating library specs.
 
 ## Common distillation challenges
 
@@ -863,9 +806,11 @@ If any remain, ask: "Would a stakeholder include this in a requirements doc?"
 
 ## After distillation
 
-The extracted spec is a starting point. For targeted changes as requirements evolve, use the `tend` skill. For checking ongoing alignment between the spec and implementation, use the `weed` skill.
+The extracted spec is a starting point. If distillation reveals gaps that need structured discovery (unclear requirements, complex entity relationships, unstated business rules), use the `elicit` skill to fill them. For targeted changes as requirements evolve, use the `tend` skill. For checking ongoing alignment between the spec and implementation, use the `weed` skill.
 
 ## References
 
 - [Language reference](../../references/language-reference.md), full Allium syntax
+- [Assessing specs](../../references/assessing-specs.md), how to assess spec maturity and choose the right level of analysis
+- [Actioning findings](../../references/actioning-findings.md), translating checker findings into domain questions
 - [Worked examples](./references/worked-examples.md), complete code-to-spec examples in Python, TypeScript and Java

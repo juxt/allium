@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Generates skill and VS Code agent variants from the canonical
- * Claude Code agent definitions in agents/.
+ * Generates VS Code agent variants from the canonical Claude Code
+ * agent definitions in agents/.
+ *
+ * Skills (skills/tend/SKILL.md, skills/weed/SKILL.md) are hand-maintained
+ * independently of agents. Skills are interactive; agents are autonomous.
+ * The two diverge intentionally in tone and behaviour.
  *
  * Usage: node scripts/generate-multi-editor.mjs [--check]
  *
@@ -57,63 +61,20 @@ function adaptBody(body) {
         /`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/language-reference\.md`/g,
         "[language reference](../../references/language-reference.md)"
       )
+      .replace(
+        /`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/assessing-specs\.md`/g,
+        "[assessing specs](../../references/assessing-specs.md)"
+      )
+      .replace(
+        /`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/actioning-findings\.md`/g,
+        "[actioning findings](../../references/actioning-findings.md)"
+      )
       // Replace Claude Code tool names with generic instructions
       .replace(/\(use `Glob` to find them if not specified\)/g, "(search the project to find them if not specified)")
       // Replace "agent" cross-references with "skill" for portable contexts
       .replace(/the `weed` agent/g, "the `weed` skill")
       .replace(/the `tend` agent/g, "the `tend` skill")
   );
-}
-
-// ---------------------------------------------------------------------------
-// Skill generation
-// ---------------------------------------------------------------------------
-
-const SKILL_EXTRA_TEND = `
-## Context management
-
-Spec evolution can require many edit-validate cycles. If you anticipate a long iterative session, or if the context is growing large, advise the user to open a fresh chat specifically for tending the spec. Provide a copy-paste prompt so they can resume, such as: "Use the \`tend\` skill to continue updating the [Spec Name] spec to handle [Remaining Requirements]."
-
-## Verification
-
-After every edit to a \`.allium\` file, run \`allium check\` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../references/language-reference.md).
-`;
-
-const SKILL_EXTRA_WEED = `
-## Context management
-
-Spec alignment checks can require many edit-validate cycles. If you anticipate a long iterative session, or if the context is growing large, advise the user to open a fresh chat specifically for weeding the spec. Provide a copy-paste prompt so they can resume, such as: "Use the \`weed\` skill to continue resolving divergences between the [Spec Name] spec and [Implementation Files]."
-
-## Verification
-
-After every edit to a \`.allium\` file, run \`allium check\` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../references/language-reference.md).
-`;
-
-const SKILL_EXTRAS = { tend: SKILL_EXTRA_TEND, weed: SKILL_EXTRA_WEED };
-
-function generateSkill(name) {
-  const src = read(`agents/${name}.md`);
-  const { frontmatter, body } = parseFrontmatter(src);
-  const adapted = adaptBody(body);
-
-  // Insert extra sections before the final ## Output or ## Output format section
-  const extra = SKILL_EXTRAS[name];
-  let finalBody = adapted;
-  const outputMatch = adapted.match(/\n(## Output\b[^\n]*)/);
-  if (outputMatch) {
-    const idx = adapted.indexOf(outputMatch[0]);
-    finalBody = adapted.slice(0, idx) + extra + adapted.slice(idx);
-  } else {
-    finalBody = adapted + extra;
-  }
-
-  const skill = `---
-name: ${name}
-description: "${frontmatter.description}"
----
-${finalBody}`;
-
-  return skill;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,10 +105,6 @@ ${adapted}`;
 let dirty = false;
 
 for (const name of AGENTS) {
-  if (write(`skills/${name}/SKILL.md`, generateSkill(name))) {
-    console.log(`${CHECK ? "out of date" : "wrote"}: skills/${name}/SKILL.md`);
-    dirty = true;
-  }
   if (write(`.github/agents/${name}.agent.md`, generateVscodeAgent(name))) {
     console.log(
       `${CHECK ? "out of date" : "wrote"}: .github/agents/${name}.agent.md`
