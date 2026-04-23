@@ -6,6 +6,10 @@
 
 Feed your AI something healthier than Markdown. [juxt.github.io/allium](https://juxt.github.io/allium/)
 
+## What this is
+
+Allium is a skill for clarifying intent during agentic engineering. The LLM builds and maintains a behavioural specification alongside your code, capturing what the system should do in a form that persists across sessions. Paired with a CLI that validates syntax and draws semantic inferences, it catches design gaps, surfaces implications you missed and generates tests from the formal behaviours of your system.
+
 ## Get started
 
 Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
