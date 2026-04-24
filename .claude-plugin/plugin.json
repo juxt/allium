@@ -21,5 +21,6 @@
   "agents": [
     "./agents/tend.md",
     "./agents/weed.md"
-  ]
+  ],
+  "hooks": "./hooks/hooks.json"
 }
