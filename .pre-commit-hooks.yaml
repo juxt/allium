@@ -1,0 +1,7 @@
+- id: allium-check
+  name: allium check
+  description: Validate .allium specification files.
+  entry: allium check
+  language: system
+  files: '\.allium$'
+  pass_filenames: true

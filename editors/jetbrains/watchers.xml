@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectTasksOptions">
+    <TaskOptions isEnabled="true">
+      <option name="arguments" value="check $FilePath$" />
+      <option name="checkSyntaxErrors" value="false" />
+      <option name="description" value="Validate .allium specification files on save" />
+      <option name="exitCodeBehavior" value="ERROR" />
+      <option name="fileExtension" value="allium" />
+      <option name="immediateSync" value="true" />
+      <option name="name" value="allium check" />
+      <option name="output" value="" />
+      <option name="outputFilters">
+        <array />
+      </option>
+      <option name="outputFromStdout" value="false" />
+      <option name="program" value="allium" />
+      <option name="runOnExternalChanges" value="true" />
+      <option name="scopeName" value="Project Files" />
+      <option name="trackOnlyRoot" value="false" />
+      <option name="workingDir" value="$ProjectFileDir$" />
+      <envs />
+    </TaskOptions>
+  </component>
+</project>

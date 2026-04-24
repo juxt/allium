@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "post_write_code": [
+      {
+        "command": "node ./hooks/allium-check.mjs",
+        "show_output": true
+      }
+    ]
+  }
+}

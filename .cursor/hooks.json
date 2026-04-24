@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "node ./hooks/allium-check.mjs"
+      }
+    ]
+  }
+}
