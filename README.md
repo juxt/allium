@@ -37,9 +37,7 @@ Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
 ## Command-line tooling
 
-The [Allium CLI](https://github.com/juxt/allium-tools) validates specs and catches structural issues such as missing transition witnesses and unreachable triggers. It also generates tests from specs.
-
-The architecture combines LLM reasoning with formal inference over specifications. The CLI performs structural analysis that language models cannot do reliably on their own, such as tracing data flow across rules or verifying that every entity lifecycle can reach a terminal state. The LLM uses these findings to ask better questions during elicitation and produce more complete specs. The language model handles domain knowledge and natural language; the checker handles logical properties of the spec's formal structure.
+The [Allium CLI](https://github.com/juxt/allium-tools) checks specs for structural problems and generates tests. It catches things language models can't do reliably on their own: tracing data flow across rules, verifying that every entity lifecycle can reach a terminal state, spotting dead ends. The LLM uses these findings to ask better questions and produce more complete specs.
 
 The skills work without the CLI, falling back to the language reference, but installing it means every edit is formally checked and the results feed straight into the conversation.
 
