@@ -58,16 +58,16 @@ function adaptBody(body) {
     body
       // Replace ${CLAUDE_PLUGIN_ROOT} paths with relative markdown links
       .replace(
-        /`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/language-reference\.md`/g,
-        "[language reference](../../references/language-reference.md)"
+        /`\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/allium\/references\/language-reference\.md`/g,
+        "[language reference](../../skills/allium/references/language-reference.md)"
       )
       .replace(
-        /`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/assessing-specs\.md`/g,
-        "[assessing specs](../../references/assessing-specs.md)"
+        /`\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/allium\/references\/assessing-specs\.md`/g,
+        "[assessing specs](../../skills/allium/references/assessing-specs.md)"
       )
       .replace(
-        /`\$\{CLAUDE_PLUGIN_ROOT\}\/references\/actioning-findings\.md`/g,
-        "[actioning findings](../../references/actioning-findings.md)"
+        /`\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/allium\/references\/actioning-findings\.md`/g,
+        "[actioning findings](../../skills/allium/references/actioning-findings.md)"
       )
       // Replace Claude Code tool names with generic instructions
       .replace(/\(use `Glob` to find them if not specified\)/g, "(search the project to find them if not specified)")

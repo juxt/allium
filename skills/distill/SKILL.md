@@ -583,9 +583,9 @@ Common findings:
 - "Actually we wanted X but never built it"
 - "These two code paths should be the same but aren't"
 
-Before running further checks, read [assessing specs](../../references/assessing-specs.md) to gauge the distilled spec's maturity. This tells you whether the spec is ready for process-level analysis or still needs structural work.
+Before running further checks, read [assessing specs](../allium/references/assessing-specs.md) to gauge the distilled spec's maturity. This tells you whether the spec is ready for process-level analysis or still needs structural work.
 
-If the Allium CLI is available, run `allium check` on the distilled spec to catch structural issues, then `allium analyse` to identify process-level gaps. Findings from `analyse` can drive validation questions: "The distilled spec has a rule that requires `background_check.status = clear` but no surface captures background check results. Is this handled by a part of the codebase we haven't looked at?" Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings into domain questions.
+If the Allium CLI is available, run `allium check` on the distilled spec to catch structural issues, then `allium analyse` to identify process-level gaps. Findings from `analyse` can drive validation questions: "The distilled spec has a rule that requires `background_check.status = clear` but no surface captures background check results. Is this handled by a part of the codebase we haven't looked at?" Consult [actioning findings](../allium/references/actioning-findings.md) for how to translate findings into domain questions.
 
 ## Recognising library spec candidates
 
@@ -640,7 +640,7 @@ rule PaymentReceived {
 }
 ```
 
-See [patterns.md Pattern 8](../../references/patterns.md) for detailed examples of integrating library specs.
+See [patterns.md Pattern 8](../allium/references/patterns.md) for detailed examples of integrating library specs.
 
 ## Common distillation challenges
 
@@ -810,7 +810,7 @@ The extracted spec is a starting point. If distillation reveals gaps that need s
 
 ## References
 
-- [Language reference](../../references/language-reference.md), full Allium syntax
-- [Assessing specs](../../references/assessing-specs.md), how to assess spec maturity and choose the right level of analysis
-- [Actioning findings](../../references/actioning-findings.md), translating checker findings into domain questions
+- [Language reference](../allium/references/language-reference.md), full Allium syntax
+- [Assessing specs](../allium/references/assessing-specs.md), how to assess spec maturity and choose the right level of analysis
+- [Actioning findings](../allium/references/actioning-findings.md), translating checker findings into domain questions
 - [Worked examples](./references/worked-examples.md), complete code-to-spec examples in Python, TypeScript and Java

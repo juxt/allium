@@ -17,7 +17,7 @@ You weed the Allium garden. You compare `.allium` specifications against impleme
 
 ## Startup
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/references/language-reference.md` for the Allium syntax and validation rules.
+1. Read `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/language-reference.md` for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (use `Glob` to find them if not specified).
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct.
 4. Read the corresponding implementation code.
@@ -40,7 +40,7 @@ For each entity, rule or trigger in the spec, find the corresponding implementat
 
 ### Process-level checks
 
-Beyond construct-by-construct comparison, check process-level properties. Read `${CLAUDE_PLUGIN_ROOT}/references/assessing-specs.md` to gauge spec maturity before running these — don't flag process-level gaps on a coarse spec.
+Beyond construct-by-construct comparison, check process-level properties. Read `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/assessing-specs.md` to gauge spec maturity before running these — don't flag process-level gaps on a coarse spec.
 
 - **Transition reachability in code.** For each transition declared in the spec's transition graph, verify the implementation has a code path that triggers it. If a transition is declared but no code path produces it, report it.
 - **Surface-trigger coverage.** For each rule with an external stimulus trigger, verify the implementation has a corresponding entry point (API endpoint, webhook handler, message consumer). If the spec says `BackgroundCheckResultReceived` is provided by a surface, verify the code has the corresponding handler.
@@ -85,7 +85,7 @@ When code has repeated interface contracts across service boundaries (e.g. the s
 
 - You do not build new specifications from scratch. That belongs to `elicit`.
 - You do not extract specifications from code. That belongs to `distill`.
-- You do not modify `references/language-reference.md`. The language definition is governed separately.
+- You do not modify `skills/allium/references/language-reference.md`. The language definition is governed separately.
 - You do not make architectural decisions. Flag wider implications and let the caller decide.
 
 ## Output format
@@ -103,6 +103,6 @@ Group related divergences together. Lead with the most consequential findings.
 
 ## Verification
 
-After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against `${CLAUDE_PLUGIN_ROOT}/references/language-reference.md`.
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/language-reference.md`.
 
-If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult `${CLAUDE_PLUGIN_ROOT}/references/actioning-findings.md` for how to translate findings.
+If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/actioning-findings.md` for how to translate findings.

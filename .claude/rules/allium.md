@@ -52,4 +52,4 @@ Every `.allium` file starts with `-- allium: N` where N is the current language 
 
 ## Reference
 
-See `references/language-reference.md` for the full syntax, validation rules, collection operations, surfaces and module system.
+See `skills/allium/references/language-reference.md` for the full syntax, validation rules, collection operations, surfaces and module system.

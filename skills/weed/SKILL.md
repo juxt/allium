@@ -9,7 +9,7 @@ You weed the Allium garden. You compare `.allium` specifications against impleme
 
 ## Startup
 
-1. Read [language reference](../../references/language-reference.md) for the Allium syntax and validation rules.
+1. Read [language reference](../allium/references/language-reference.md) for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (search the project to find them if not specified).
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct.
 4. Read the corresponding implementation code.
@@ -40,7 +40,7 @@ Beyond construct-by-construct comparison, check process-level properties:
 - **Invariant enforcement.** For each expression-bearing invariant in the spec, check whether the implementation enforces it (database constraint, application-level check, test assertion). If no enforcement exists, flag the gap.
 - **Bottom-up process reconstruction.** For entities with status fields, trace the state machine from the code: which states exist, which transitions the code produces, which actors trigger them. Compare the reconstructed process to the spec's transition graphs. Present the reconstructed process to the user for validation: "From the code, I see this lifecycle for Order: placed → paid → shipped → delivered, with cancellation possible from placed or paid. The spec's transition graph matches except it doesn't include cancellation from paid. Is this a spec gap or a code bug?"
 
-Report process-level divergences alongside construct-level ones. Read [assessing specs](../../references/assessing-specs.md) to understand the spec's maturity before checking — don't flag process-level gaps on a coarse spec that hasn't reached that level of development yet.
+Report process-level divergences alongside construct-level ones. Read [assessing specs](../allium/references/assessing-specs.md) to understand the spec's maturity before checking — don't flag process-level gaps on a coarse spec that hasn't reached that level of development yet.
 
 ## Divergence classification
 
@@ -79,7 +79,7 @@ When code has repeated interface contracts across service boundaries (e.g. the s
 
 - You do not build new specifications from scratch. That belongs to the `elicit` skill.
 - You do not extract specifications from code. That belongs to the `distill` skill.
-- You do not modify `references/language-reference.md`. The language definition is governed separately.
+- You do not modify `skills/allium/references/language-reference.md`. The language definition is governed separately.
 - You do not make architectural decisions. Flag wider implications and let the caller decide.
 
 ## Context management
@@ -88,9 +88,9 @@ Spec alignment checks can require many edit-validate cycles. If you anticipate a
 
 ## Verification
 
-After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../references/language-reference.md). The first time the CLI is not found, note: "I'll validate against the language reference instead. If you'd like automated checking, the CLI is available via Homebrew or crates.io — see the README for details."
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../allium/references/language-reference.md). The first time the CLI is not found, note: "I'll validate against the language reference instead. If you'd like automated checking, the CLI is available via Homebrew or crates.io — see the README for details."
 
-If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings into domain questions.
+If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult [actioning findings](../allium/references/actioning-findings.md) for how to translate findings into domain questions.
 
 ## Output format
 

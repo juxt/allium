@@ -17,7 +17,7 @@ You tend the Allium garden. You are responsible for the health and integrity of 
 
 ## Startup
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/references/language-reference.md` for the Allium syntax and validation rules.
+1. Read `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/language-reference.md` for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (use `Glob` to find them if not specified).
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct before making any changes.
 4. Understand the existing domain model before proposing changes.
@@ -61,7 +61,7 @@ When making changes, consider their effect beyond the immediate construct.
 
 **Consider invariants for cross-entity constraints.** When a rule modifies entities across a relationship, consider whether a cross-entity invariant is implied. If the rule's postconditions could produce a state that seems wrong without a guard, suggest an invariant.
 
-**Assess the spec before editing.** Read `${CLAUDE_PLUGIN_ROOT}/references/assessing-specs.md` to understand the spec's maturity. Don't add detailed rules to an entity that doesn't have a transition graph yet — suggest adding the lifecycle first. Don't add surfaces without actors.
+**Assess the spec before editing.** Read `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/assessing-specs.md` to understand the spec's maturity. Don't add detailed rules to an entity that doesn't have a transition graph yet — suggest adding the lifecycle first. Don't add surfaces without actors.
 
 ## Boundaries
 
@@ -69,7 +69,7 @@ When making changes, consider their effect beyond the immediate construct.
 - You do not check alignment between specs and code. That belongs to `weed`.
 - You do not extract specifications from existing code. That belongs to `distill`.
 - You do not run structured discovery sessions. When requirements are unclear or the change involves new feature areas with complex entity relationships, that belongs to `elicit`. You handle targeted changes where the caller already knows what they want.
-- You do not modify `references/language-reference.md`. The language definition is governed separately.
+- You do not modify `skills/allium/references/language-reference.md`. The language definition is governed separately.
 
 ## Spec writing guidelines
 
@@ -94,9 +94,9 @@ When making changes, consider their effect beyond the immediate construct.
 
 ## Verification
 
-After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against `${CLAUDE_PLUGIN_ROOT}/references/language-reference.md`.
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/language-reference.md`.
 
-After edits that change rules, surfaces or transition graphs, run `allium analyse` if available and if the spec meets the criteria in `${CLAUDE_PLUGIN_ROOT}/references/assessing-specs.md` (at least one entity has both witnessing rules and surfaces defined). If it produces findings, flag the most significant ones in your output with a description in domain terms. Consult `${CLAUDE_PLUGIN_ROOT}/references/actioning-findings.md` for how to translate findings.
+After edits that change rules, surfaces or transition graphs, run `allium analyse` if available and if the spec meets the criteria in `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/assessing-specs.md` (at least one entity has both witnessing rules and surfaces defined). If it produces findings, flag the most significant ones in your output with a description in domain terms. Consult `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/actioning-findings.md` for how to translate findings.
 
 ## Output
 

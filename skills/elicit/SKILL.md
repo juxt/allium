@@ -158,7 +158,7 @@ Before choosing an approach, assess what the user is bringing. The initial promp
 
 **The user has existing code.** "We have a payments service and I want to capture what it does." This is distillation with elicitation. Point them to the `distill` skill, or combine both: distill the structure from code, elicit the intent from the stakeholder.
 
-**The user has an existing spec.** Read the spec first. Use [assessing specs](../../references/assessing-specs.md) to determine what level of development each entity is at. Skip phases the spec has already covered — don't re-ask scope questions for a spec that already has scope comments, or re-discover processes for a spec that already has transition graphs. Start at the level each entity needs: detail elicitation for entities with lifecycles but no rules, obstacle elicitation for entities with rules but no failure paths.
+**The user has an existing spec.** Read the spec first. Use [assessing specs](../allium/references/assessing-specs.md) to determine what level of development each entity is at. Skip phases the spec has already covered — don't re-ask scope questions for a spec that already has scope comments, or re-discover processes for a spec that already has transition graphs. Start at the level each entity needs: detail elicitation for entities with lifecycles but no rules, obstacle elicitation for entities with rules but no failure paths.
 
 ## Elicitation methodology
 
@@ -195,7 +195,7 @@ If Phase 0 was skipped, also ask: "What are the key processes this system suppor
 
 **Goal:** Trace the main journey from start to finish.
 
-If Phase 0 produced a walking skeleton (see [process discovery](./references/process-discovery.md)), use it as the starting point. Otherwise, ask: "If we could only build one path through this process, what would it be?" Write the skeleton as a coarse spec and describe it back to the user in domain terms (see [assessing specs](../../references/assessing-specs.md#communicating-with-stakeholders)).
+If Phase 0 produced a walking skeleton (see [process discovery](./references/process-discovery.md)), use it as the starting point. Otherwise, ask: "If we could only build one path through this process, what would it be?" Write the skeleton as a coarse spec and describe it back to the user in domain terms (see [assessing specs](../allium/references/assessing-specs.md#communicating-with-stakeholders)).
 
 Then flesh out: "What triggers each step? Who's involved? What changes?" Follow one entity through its lifecycle, capturing state transitions, actors and triggers.
 
@@ -238,7 +238,7 @@ After writing rules and exception transitions, run `allium check` if the CLI is 
 
 Consult [assumption checking](./references/assumption-checking.md) for techniques. Describe what the spec says in domain terms and test it against the user's mental model. Trace concrete scenarios through the spec. Test ordering assumptions. Verify actor assignments.
 
-If the Allium CLI is available, run `allium check` and use diagnostics to identify structural gaps. If `allium analyse` is available and the spec has rules and surfaces, run it and use findings to surface process-level gaps. Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings into domain questions.
+If the Allium CLI is available, run `allium check` and use diagnostics to identify structural gaps. If `allium analyse` is available and the spec has rules and surfaces, run it and use findings to surface process-level gaps. Consult [actioning findings](../allium/references/actioning-findings.md) for how to translate findings into domain questions.
 
 Questions to ask:
 
@@ -358,9 +358,9 @@ For targeted changes where you already know what you want, use the `tend` skill.
 
 ## References
 
-- [Language reference](../../references/language-reference.md), full Allium syntax
-- [Assessing specs](../../references/assessing-specs.md), how to assess spec maturity and choose the right level of analysis
-- [Actioning findings](../../references/actioning-findings.md), translating checker findings into domain questions
+- [Language reference](../allium/references/language-reference.md), full Allium syntax
+- [Assessing specs](../allium/references/assessing-specs.md), how to assess spec maturity and choose the right level of analysis
+- [Actioning findings](../allium/references/actioning-findings.md), translating checker findings into domain questions
 - [Process discovery](./references/process-discovery.md), techniques for when the user hasn't articulated the process yet
 - [Detail elicitation](./references/detail-elicitation.md), techniques for filling in rules, surfaces and data dependencies
 - [Obstacle elicitation](./references/obstacle-elicitation.md), techniques for exploring failure paths, timeouts and handoffs

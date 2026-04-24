@@ -206,7 +206,7 @@ contract Codec {
 }
 ```
 
-Contracts are module-level declarations referenced by name in surface `contracts:` clauses (`demands Codec`, `fulfils EventSubmitter`). See [Contracts](../../references/language-reference.md#contracts) for declaration syntax and referencing rules.
+Contracts are module-level declarations referenced by name in surface `contracts:` clauses (`demands Codec`, `fulfils EventSubmitter`). See [Contracts](./references/language-reference.md#contracts) for declaration syntax and referencing rules.
 
 ### Expressions
 
@@ -248,7 +248,7 @@ invariant NonNegativeBalance {
 }
 ```
 
-Expression-bearing invariants (`invariant Name { expression }`) assert properties over entity state. They are logical assertions, not runtime checks. Distinct from prose annotations (`@invariant Name`) in contracts, which use the `@` sigil to mark content the checker does not evaluate. See [Invariants](../../references/language-reference.md#invariants).
+Expression-bearing invariants (`invariant Name { expression }`) assert properties over entity state. They are logical assertions, not runtime checks. Distinct from prose annotations (`@invariant Name`) in contracts, which use the `@` sigil to mark content the checker does not evaluate. See [Invariants](./references/language-reference.md#invariants).
 
 ### Transition graph (v3)
 
@@ -302,10 +302,10 @@ open question "Admin ownership - should admins be assigned to specific roles?"
 
 ## Verification
 
-When the `allium` CLI is installed, a hook validates `.allium` files automatically after every write or edit. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../references/language-reference.md).
+When the `allium` CLI is installed, a hook validates `.allium` files automatically after every write or edit. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](./references/language-reference.md).
 
 ## References
 
-- [Language reference](../../references/language-reference.md) — full syntax for entities, rules, expressions, surfaces, contracts, invariants and validation
-- [Test generation](../../references/test-generation.md) — generating tests from specifications
-- [Patterns](../../references/patterns.md) — 9 worked patterns: auth, RBAC, invitations, soft delete, notifications, usage limits, comments, library spec integration, framework integration contract
+- [Language reference](./references/language-reference.md) — full syntax for entities, rules, expressions, surfaces, contracts, invariants and validation
+- [Test generation](./references/test-generation.md) — generating tests from specifications
+- [Patterns](./references/patterns.md) — 9 worked patterns: auth, RBAC, invitations, soft delete, notifications, usage limits, comments, library spec integration, framework integration contract
