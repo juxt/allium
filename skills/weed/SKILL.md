@@ -12,8 +12,9 @@ You weed the Allium garden. You compare `.allium` specifications against impleme
 1. Read [language reference](../allium/references/language-reference.md) for the Allium syntax and validation rules.
 2. Read the relevant `.allium` files (search the project to find them if not specified).
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct.
-4. Invoke the [`impact` skill](../impact/SKILL.md) in `refresh` mode (or `build` mode if no map exists yet) so the spec↔code mapping is current. Read the resulting `.allium/impact/<spec>.json`. This replaces the old "grep for corresponding code" step: `links` tells you where each spec construct is implemented, and `unmapped.*` is your candidate list for divergences. If the impact skill returns `degraded: true`, quote the `reason` tag and `details` string **verbatim** to the user once — do not paraphrase, as paraphrase becomes its own bug — then fall back to grep-based correlation for the rest of this run. Do not refuse the work.
-5. Read the corresponding implementation code, guided by the map (or by grep, in degraded mode).
+4. Read the corresponding implementation code. Search the codebase for symbols matching spec construct names (entity names, rule names, surface names), then read the matching files.
+
+If the user has explicitly asked you to use the impact map, switch to map mode — see the [Map mode](#map-mode) appendix at the end of this document for how the startup, coverage and behavioural passes change.
 
 ## Modes
 
@@ -29,28 +30,28 @@ If no mode is specified, default to **check** and report all findings.
 
 ## How you work
 
-Drive divergence detection from the impact map. For every linked spec construct, you MUST do both the structural and the behavioural pass — stopping at structural is the most common weeding failure mode, and produces reports rich in field/type mismatches but blind to whether the code actually does what the rule promises.
+Drive divergence detection from spec→code correlation. For every spec construct you have located implementation code for, you MUST do both the structural and the behavioural pass — stopping at structural is the most common weeding failure mode, and produces reports rich in field/type mismatches but blind to whether the code actually does what the rule promises.
 
-**Coverage constraint.** List every `.allium` spec file that has at least one link in the map, and visit every one before completing the report. Each visited spec must produce either at least one finding or an explicit "no divergences found" note naming the spec. A report that covers two specs out of nine and leaves the rest unvisited is incomplete, not concise — fix it before presenting. This is a testable constraint: count the specs in the map, count the specs mentioned in your report, the two numbers must match.
+**Coverage constraint.** List every `.allium` spec file in scope (passed in by the user, or found by searching the project), and visit every one before completing the report. Each visited spec must produce either at least one finding or an explicit "no divergences found" note naming the spec. A report that covers two specs out of nine and leaves the rest unvisited is incomplete, not concise — fix it before presenting. This is a testable constraint: count the specs in scope, count the specs mentioned in your report, the two numbers must match.
 
-**Per-spec budget.** Do the behavioural pass on a spec's rules, surfaces and invariants before collecting its structural and orphan findings. Structural signal accumulates quickly — orphan fields, type mismatches, unmapped code — and will crowd out behavioural coverage on later specs if you interleave the two. If you find yourself several hundred words deep on one spec's structural minutiae, you have almost certainly under-covered another spec's behavioural obligations — move on. Collect structural/orphan findings as a batch after every spec has been behaviourally walked.
+**Per-spec budget.** Do the behavioural pass on a spec's rules, surfaces and invariants before collecting its structural and orphan findings. Structural signal accumulates quickly — orphan fields, type mismatches — and will crowd out behavioural coverage on later specs if you interleave the two. If you find yourself several hundred words deep on one spec's structural minutiae, you have almost certainly under-covered another spec's behavioural obligations — move on. Collect structural/orphan findings as a batch after every spec has been behaviourally walked.
 
-1. **Structural pass.** For each link, confirm the `to` symbol still exists, is a plausible implementation (not a stub, re-export or test fixture), and matches the spec construct's shape: fields on entities, parameters on rules, return types on value functions. Record shape-level divergences (missing fields, extra fields, type mismatches, renamed parameters).
+1. **Structural pass.** For each spec construct with located implementation, confirm the implementation symbol still exists, is a plausible implementation (not a stub, re-export or test fixture), and matches the spec construct's shape: fields on entities, parameters on rules, return types on value functions. Record shape-level divergences (missing fields, extra fields, type mismatches, renamed parameters).
 
-2. **Behavioural pass.** For every linked spec construct that carries semantic clauses — rules, surfaces, invariants — read those clauses alongside the implementation end-to-end. The clauses vary by construct; iterate all three scopes, not just rules.
+2. **Behavioural pass.** For every spec construct that carries semantic clauses — rules, surfaces, invariants — read those clauses alongside the implementation end-to-end. The clauses vary by construct; iterate all three scopes, not just rules.
 
-   **For each `spec:Rule.*` link:**
+   **For each rule:**
    - Each `requires` clause — find the guard, assert or early-return in code that enforces it. Missing guards are divergences.
    - Each `ensures` clause — find the state change in code (entity mutation, creation via constructor/factory, trigger or event emission, notification, side effect). Missing state changes are divergences.
    - Each referenced `config` value — confirm the code reads from the config layer rather than hardcoding the value.
 
-   **For each `spec:Surface.*` link:**
+   **For each surface:**
    - Each `provides` operation — the operation exists in code (route, UI control, handler) and its availability matches the spec's `when` / `requires`.
    - Each `exposes` entry — the data is accessible to the declared actor and not to others; context and within scoping are honoured.
    - Each `@guarantee` and `@guidance` annotation — the narrative claim holds end-to-end in the linked code flow. "Messages are streamed to the user" must correspond to a streaming API call; "the user is informed on failure" must correspond to an error-path notification. **This is the weakest-signal sub-check and the easiest to skip — don't.** Surface-attached narrative is load-bearing and is exactly what a structural pass misses.
    - Each `contracts: demands X` / `fulfils Y` — the code relies on X from its counterpart, and supplies Y; signatures match.
 
-   **Required obligation walk for surfaces.** For every visited `spec:Surface.*`, walk every obligation it declares — `provides`, `exposes`, `@guarantee`, `@guidance`, and each contract obligation — and check each internally against the linked code. This exhaustive walk is load-bearing: it is the mechanism that catches `@guidance` / `@guarantee` divergences reliably. Collapsing a surface's obligations into a single summary sentence consistently loses narrative-level findings like "messages are streamed".
+   **Required obligation walk for surfaces.** For every visited surface, walk every obligation it declares — `provides`, `exposes`, `@guarantee`, `@guidance`, and each contract obligation — and check each internally against the implementation code. This exhaustive walk is load-bearing: it is the mechanism that catches `@guidance` / `@guarantee` divergences reliably. Collapsing a surface's obligations into a single summary sentence consistently loses narrative-level findings like "messages are streamed".
 
    **Output only divergences.** Emit a subsection for a surface only if it has at least one ✗ (divergence) or ⚠ (partial / aspirational) row after the walk. Do not emit ✓ rows — a surface with no issues produces no output. When you do emit a subsection, cite `file:line` for the code side of every row.
 
@@ -62,17 +63,15 @@ Drive divergence detection from the impact map. For every linked spec construct,
    - ✗ @guidance "Messages are streamed to the user as the LLM generates them" — sql_generator.py:212 uses non-streaming generate_content
    ```
 
-   **For each `spec:Invariant.*` link:** expression-bearing `invariant Name { expr }` should correspond to a runtime assertion or a structural guarantee in code. Prose-only `@invariant` cannot be mechanically checked — flag it as such and move on, do not silently treat absence as satisfaction.
+   **For each invariant:** expression-bearing `invariant Name { expr }` should correspond to a runtime assertion or a structural guarantee in code. Prose-only `@invariant` cannot be mechanically checked — flag it as such and move on, do not silently treat absence as satisfaction.
 
    **For each spec's `config` block:** enumerate every declared config value. For each, check (a) at least one rule in this spec references it by qualified name (e.g. `config.batch_size`), and (b) code reads the value from an app-level config layer using the same name (or a documented env-var alias). Missing either side is a divergence. A config value consumed by a rule but hardcoded in code defeats the config mechanism (e.g. spec `config.batch_size = 200`, code `BATCH_SIZE = 200` as a module constant not read from config). A config value declared in the spec but never referenced by any rule is dead spec. Rule-level "each referenced `config` value" above only covers case (b) for values a rule happens to mention; this pass covers every declared value independently.
 
    Walk exhaustively; emit only ✗ / ⚠ rows.
 
-3. **Unmapped spec.** Every entry in `unmapped.spec` is a spec construct with no confirmed implementation. Decide whether this is a missing-code divergence (the code should implement it), an aspirational-design gap (intentional, not yet built) or a spec bug (the construct should not exist).
+3. **Spec constructs without implementation.** For every spec construct you could not locate implementation for, decide whether this is a missing-code divergence (the code should implement it), an aspirational-design gap (intentional, not yet built) or a spec bug (the construct should not exist).
 
-4. **Unmapped code.** Every entry in `unmapped.code` is a code symbol the spec is silent about. Decide whether the code is incidental (infrastructure, not domain-level), represents undocumented behaviour the spec should cover, or is dead/legacy code the spec deliberately omits.
-
-If the map is missing a link you know exists (e.g. you spot the implementation manually), refresh the map rather than working around it — a stale map hurts future invocations. Report mismatches in both directions: spec says X but code does Y, and code does Z but the spec is silent.
+Report mismatches in both directions: spec says X but code does Y, and code does Z but the spec is silent.
 
 ### Process-level checks
 
@@ -138,6 +137,8 @@ If `allium analyse` is available, run it after completing divergence checks. Use
 
 ## Output format
 
+Open every report with a one-line mode announcement so the caller can never be confused about which path you took: "Running weed in default (grep) mode" or "Running weed in map mode" (see [Map mode](#map-mode)).
+
 When reporting divergences (check mode), use this structure for each finding:
 
 ```
@@ -148,3 +149,33 @@ Classification: [proposed classification with reasoning]
 ```
 
 Group related divergences together. Lead with the most consequential findings.
+
+## Map mode
+
+The default flow above uses grep + read to correlate spec constructs with code. If the user has explicitly directed map use ("use the impact map", "in map mode", "via impact"), switch to map mode: the [`impact` skill](../impact/SKILL.md) maintains a JSON spec↔code map that turns correlation from a search problem into a lookup. Do not enter map mode silently — the user must ask. The presence of `.allium/impact/<spec>.json` is **not** by itself an opt-in signal.
+
+### Trigger
+
+Enter map mode only when the user's request mentions the impact map (or a synonym like "code map" or "via impact"). Otherwise, run the default flow above. If you enter map mode, announce it in the first sentence of your output.
+
+### Step overrides
+
+The following steps in the default flow are replaced when running in map mode:
+
+- **Startup step 4** is replaced by: "Invoke the [`impact` skill](../impact/SKILL.md) in `refresh` mode (or `build` mode if no map exists yet) so the spec↔code mapping is current. Read the resulting `.allium/impact/<spec>.json`. `links` tells you where each spec construct is implemented; `unmapped.*` is your candidate list for divergences. If the impact skill returns `degraded: true`, quote the `reason` tag and `details` string **verbatim** to the user once — do not paraphrase, as paraphrase becomes its own bug — then fall back to the default grep-based flow for the rest of this run. Do not refuse the work."
+- **"How you work" opener** is replaced by: "Drive divergence detection from the impact map. For every linked spec construct, you MUST do both the structural and the behavioural pass."
+- **Coverage constraint** is replaced by: "List every `.allium` spec file with at least one link in the map, plus every spec the user passed in that the map does not cover. Visit every one before completing the report. Count the specs visited, count the specs mentioned in your report, the two numbers must match."
+- **Structural pass step (1)** is replaced by: "For each link, confirm the `to` symbol still exists, is a plausible implementation (not a stub, re-export or test fixture), and matches the spec construct's shape. Record shape-level divergences."
+- **Surface obligation walk** uses the linked code as the authoritative anchor; cite both the spec line and the linked code's `file:line` for every row.
+
+### Findings only available in map mode
+
+These findings are surfaceable only when a map exists; the default grep flow cannot produce them reliably:
+
+- **Unmapped code.** Every entry in `unmapped.code` is a code symbol the spec is silent about. Decide whether the code is incidental (infrastructure, not domain-level), represents undocumented behaviour the spec should cover, or is dead/legacy code the spec deliberately omits. The default flow cannot enumerate this category — only the map can.
+- **Stale-link detection.** If the map asserts a link to a code symbol that no longer exists, that's a stale-map signal. Refresh rather than working around it.
+- **Cross-module call-edge analysis.** `call_edges` with `cross_module: true` highlight integration boundaries the structural pass would otherwise miss.
+
+### Recovering the default flow under degradation
+
+If the impact skill returns `degraded: true`, do not abandon the run. Quote its `reason` and `details` once to the caller, then continue under the default (grep) flow for the rest of this invocation.

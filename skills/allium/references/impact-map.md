@@ -159,21 +159,30 @@ Consumers MUST NOT:
 - Invent links. If the map says a spec node is unmapped, the consumer does not silently "find" a match.
 - Cross-reference maps from different specs. Each map is scoped to one `.allium` file.
 
+### Opting in
+
+Consumer skills do not auto-invoke this map. Their default flows (`weed`, `propagate`, `distill`) use grep + read correlation, just as they did before the impact map existed. The user (or the user's prompt to the consumer skill) selects map mode explicitly — typically by saying "use the impact map", "in map mode" or "via impact" in the request.
+
+The presence of `.allium/impact/<spec>.json` is **not** by itself an opt-in signal for `weed`, `propagate` or `distill` — they ignore it unless the user asks. The exception is `tend`, whose pre-rename orphan-link warning fires defensively whenever a map exists; that's a one-shot warning, not a gate.
+
+The map's value is on demand; its absence is not a bug for any consumer.
+
 ### When to rebuild
 
-The `impact` skill decides when a rebuild is needed. Consumers request a rebuild by invoking `impact` in `refresh` mode (cheap) or `build` mode (full). Typical triggers:
+The `impact` skill decides when a rebuild is needed. Consumers request a rebuild by invoking `impact` in `refresh` mode (cheap) or `build` mode (full). Typical triggers — all conditional on the user having opted into map mode for the consumer skill in question:
 
-- Before running `weed` — refresh.
-- Before running `propagate` — refresh.
-- After a large refactor — build.
-- When `weed` reports a surprising volume of divergences, suggesting the map is stale — refresh.
+- Map mode `weed` run — refresh first if the map exists, build if it does not.
+- Map mode `propagate` run — refresh first if the map exists, build if it does not.
+- Map mode `distill` on a spec with an existing skeleton — build.
+- After a large refactor — build (user-initiated, ahead of the next map-mode consumer run).
+- When map mode `weed` reports a surprising volume of divergences, suggesting the map is stale — refresh.
 
 ### Graceful degradation
 
-The map is an optimisation, not a prerequisite. When the `impact` skill returns `degraded: true` (no language adapter matches the project, the required LSP plugin is missing, or the LSP is installed but not indexing), consumers MUST fall back to pre-map behaviour (`grep` + `read` correlation) rather than refusing the work. Consumers should:
+This section applies once the user has opted into map mode and the map cannot be built or refreshed. The map is an optimisation, not a prerequisite. When the `impact` skill returns `degraded: true` (no language adapter matches the project, the required LSP plugin is missing, or the LSP is installed but not indexing), consumers MUST fall back to their default (grep + read) flow rather than refusing the work. Consumers should:
 
 - Note the degradation reason to the user once, not on every step.
-- Proceed with manual correlation as they would have before the map existed.
+- Proceed with the default flow as they would have without map mode requested.
 - Not write a stub or partial JSON to `.allium/impact/` — only the `impact` skill produces map files, and it writes nothing when degraded.
 
 ### Versioning
@@ -272,4 +281,4 @@ The produced map:
 }
 ```
 
-A `weed` run reads this map, sees every spec node linked and no unmapped code, and reports no structural divergences. It then reads the rule's `requires` (`status = active`) and compares to the code (`assert candidacy.status == "active"`) — that check is unchanged by the map, but the map got `weed` straight to the right file in one hop instead of greping.
+A `weed` run in **map mode** (the user asked for it) reads this map, sees every spec node linked and no unmapped code, and reports no structural divergences. It then reads the rule's `requires` (`status = active`) and compares to the code (`assert candidacy.status == "active"`) — that check is unchanged by the map, but in map mode the map got `weed` straight to the right file in one hop instead of grep'ing. The default `weed` flow does not consult this map; it greps for `Candidacy` and `ScheduleInterview` and reads the matches.
