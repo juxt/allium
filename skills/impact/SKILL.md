@@ -1,0 +1,183 @@
+---
+name: impact
+description: "Build and query the repository impact map — a bidirectional graph linking Allium spec constructs to implementation code symbols. Use when the user wants to build or refresh the impact map, ask which code implements a spec entity or rule, ask which spec constructs cover a given symbol, or trace the blast radius of a proposed code change. Python is supported today; extensible to any language with an LSP via an adapter file."
+---
+
+# Impact
+
+You build and query the repository impact map. The map is a bidirectional graph linking Allium spec constructs (entities, rules, triggers, surfaces) to implementation code symbols (functions, classes, methods). Other Allium skills read the map to avoid re-discovering spec↔code correspondences on every invocation.
+
+You are narrow and mechanical. You do not write specs, you do not write implementation code, and you do not judge divergences. Your only side effect is writing JSON under `.allium/impact/` in the target project.
+
+## Startup
+
+1. Read [language reference](../../references/language-reference.md) for the Allium syntax.
+2. Read [impact map reference](../../references/impact-map.md) for the schema and integration contract.
+3. Locate the `.allium` files for the spec(s) being mapped.
+4. Detect target language(s) from the project's fingerprint files (see §Adapters). Load the matching adapter(s) from `skills/impact/adapters/`. If no adapter matches, exit degraded (see §Degraded exit).
+5. Verify the LSP tool is available for each chosen language by running the adapter's sentinel — typically a `documentSymbol` call against any source file, since in the Claude Code harness LSP servers often run in single-file mode rather than workspace-indexed mode. If the call errors with `Executable not found in $PATH` or equivalent, exit degraded with `reason: lsp-unavailable`. If the call returns an empty result on a file that is known to contain symbols, exit degraded with `reason: lsp-not-indexing`.
+6. If the `allium` CLI is available, run `allium plan <spec>` and `allium model <spec>` to seed the spec-side nodes. Fall back to reading the `.allium` file directly.
+
+### Degraded exit
+
+The impact map is an optimisation, not a prerequisite. If you cannot produce a map — no adapter matches, the required LSP plugin is missing, LSP is installed but not indexing — do not refuse the invocation outright. Instead:
+
+1. Do not write or modify any `.allium/impact/<spec>.json`.
+2. Print a short, actionable message quoting the exact cause. Callers will relay this message verbatim to the user; do not paraphrase.
+3. Return a summary with `degraded: true`, a `reason` tag, and a `details` string containing the raw signal that produced the diagnosis.
+
+**Reason tags** (use exactly one):
+
+- `no-adapter` — no language adapter matched the project's fingerprints. `details` should list which fingerprints were checked.
+- `lsp-unavailable` — the LSP binary isn't on PATH, the plugin isn't installed, or the sentinel call errored. `details` should quote the LSP tool's error message (e.g. `Executable not found in $PATH: "pyright-langserver"`).
+- `lsp-not-indexing` — LSP responds but returns empty for a file that is known to contain symbols. Typically means single-file mode (no workspace index) or mis-rooted workspace detection. `details` should say which sentinel was used and what it returned.
+- `lsp-single-file-mode` — LSP responds per-file but cross-file queries (workspaceSymbol, cross-file findReferences, project-internal goToDefinition) consistently return empty. This is the **expected** behaviour for Claude Code's pyright wrapper today; see the Python adapter. `details` should note that symbol discovery will be driven by `documentSymbol` + Glob rather than workspace-wide calls.
+
+The callers (weed, distill, propagate, tend) treat a degraded response as "no map available" and fall back to manual correlation. They must not hard-fail on your behalf, and they must quote the `reason` tag and `details` string verbatim to the user — never paraphrase, because the paraphrase becomes its own bug (one recent weed run turned `Executable not found in $PATH` into `workspaceSymbol doesn't accept query strings`, which is false).
+
+## Modes
+
+You operate in one of three modes, determined by the caller's request:
+
+**Build.** Run the pipeline end-to-end for one or more spec files. Overwrite `.allium/impact/<spec>.json`. Emit a summary: node counts, link counts, count of `unmapped.spec`, count of `unmapped.code`, count of low-confidence links. Do not try to resolve unmapped nodes by guessing.
+
+**Query.** Answer a targeted question against the existing map without rebuilding. Typical queries:
+- "What code implements `Candidacy`?" → lookup `links` with `from: spec:Candidacy`.
+- "What spec constructs reference `create_candidacy`?" → lookup `links` with `to: code:...create_candidacy`.
+- "Which rules fan out from `ScheduleInterview`?" → walk `call_edges` from the mapped code node.
+- "What breaks if I edit `src/foo/bar.py:42`?" → find code nodes at or containing that line, report their linked spec nodes and transitive callers.
+
+If the map file does not exist, tell the caller to run Build first. Do not auto-build.
+
+**Refresh.** Rebuild only the links whose target files have changed since the map's `commit` field (compare to `git log`), plus any links marked low-confidence. Do not touch high-confidence links pointing at unchanged files. Output the same summary as Build, plus the count of links refreshed vs skipped.
+
+If no mode is specified, default to **Build** and warn the caller that refresh would be cheaper if a map already exists.
+
+## How you work
+
+### The pipeline (Build and Refresh)
+
+Every step below uses only the built-in LSP tool and language-neutral Allium constructs. Per-language knowledge lives in the adapter. Ask the adapter at the marked steps; do not hardcode language specifics in this skill.
+
+1. **Seed spec nodes.** From `allium plan` / `allium model` output (or direct `.allium` parse), list every entity, rule, trigger, surface, contract and invariant. Each becomes a `spec:<name>` node with `file` and `line` from the spec.
+
+2. **Generate name variants.** For each spec node, ask the **adapter** for the identifier variants a programmer would likely choose in the target language. Do not invent variants — rely on the adapter's rules.
+
+3. **Find candidate code symbols.** The Claude Code LSP tool typically runs language servers in single-file mode (confirmed for pyright as of this writing; see the Python adapter), so `workspaceSymbol` cannot be relied on for workspace-wide search. Instead:
+   a. Use Glob over the adapter's source-file globs (e.g. `**/*.py` minus exclusions) to enumerate candidate files.
+   b. For each candidate file, call LSP `documentSymbol` to get its symbol tree.
+   c. Match each variant from step 2 against the symbol trees. A match is a (file, symbol name, line) tuple.
+   d. Exclude test files per the adapter's project-root and test-directory rules.
+
+   Optional: where the LSP server does support workspaceSymbol (rare), use it as an additional source; merge results with the Glob+documentSymbol pass. Never rely on it alone.
+
+4. **Confirm candidates.** For each candidate, call LSP `hover` at the symbol's position to get type/docstring. Use the adapter's confidence heuristic to decide:
+   - *Exact.* Single match, docstring/type/signature lines up → record a high-confidence link with `via: "name-match+hover"`.
+   - *Ambiguous.* Multiple plausible matches → record each with `via: "name-match+ambiguous"` and mark low-confidence.
+   - *None.* No candidate survives → add the spec node to `unmapped.spec`. Do not force a match.
+
+5. **Expand the code-side graph.** For each confirmed code node, call `prepareCallHierarchy`, then `incomingCalls` and `outgoingCalls`. Record each edge in `call_edges`. Stop expanding at the project boundary defined by the adapter (same `pyproject.toml`, same `go.mod`, etc.). Stop at depth 2 by default; the adapter may override. Note: in single-file LSP mode these calls may only return in-file results; treat missing cross-file edges as a known limitation, not a divergence.
+
+6. **Map surfaces.** For each spec `surface` block, ask the adapter for framework entry-point patterns (Python: `@app.route`, `@router.post`, `APIRouter` etc.; Go: `http.HandleFunc` etc.). Use Grep to locate the pattern's occurrences in project files, then resolve each hit to its containing function via `documentSymbol` on that file. Link surfaces to the resolved entry points.
+
+7. **Collect unmapped code.** Walk the project's source files per the adapter's globs. For each top-level symbol not referenced by any confirmed link or `call_edges` node, record the symbol in `unmapped.code`. This is the honest bit — `weed` reads it to find behaviour the spec is silent about.
+
+8. **Emit JSON.** Write `.allium/impact/<spec>.json` atomically. On first build, also write `.allium/impact/.gitignore` with `*` so the cache never enters version control. Print the summary described in §Modes.
+
+### Disambiguation
+
+When step 3 returns multiple candidates for a spec name, never silently drop any of them:
+
+- If the adapter's confidence heuristic picks one decisively, record the winner with high confidence and the losers under a `rejected_candidates` field on the link for debugging.
+- If the heuristic is indecisive, record every surviving candidate as a separate link with low confidence. `weed` and `propagate` know how to read these.
+
+### Honesty about unmapped
+
+The `unmapped` section is load-bearing. `weed` uses `unmapped.spec` to find spec constructs that have no implementation and `unmapped.code` to find implementation behaviour the spec does not describe. If you suppress unmapped entries to make the summary look cleaner, you are actively hiding divergences. Do not do that.
+
+## Adapters
+
+Adapters are short Markdown files under `skills/impact/adapters/`. Each defines the five pieces of language-specific knowledge the pipeline needs. See [adapters/README.md](./adapters/README.md) for the authoring contract.
+
+### Language selection
+
+On startup, detect the target language by fingerprint:
+
+| Fingerprint | Adapter |
+|---|---|
+| `pyproject.toml`, `setup.py`, `setup.cfg`, or `**/*.py` files | [python.md](./adapters/python.md) |
+| `pom.xml`, `build.gradle`, `build.gradle.kts`, `settings.gradle*`, `build.xml`, or `**/*.java` files | [java.md](./adapters/java.md) |
+| `tsconfig.json`, `jsconfig.json`, `package.json`, or `**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}` files | [typescript.md](./adapters/typescript.md) |
+| `build.gradle.kts`, `settings.gradle.kts`, Kotlin-plugin'd `pom.xml`, `AndroidManifest.xml`, or `**/*.{kt,kts}` files | [kotlin.md](./adapters/kotlin.md) |
+| `deps.edn`, `project.clj`, `build.boot`, `shadow-cljs.edn`, `bb.edn`, or `**/*.{clj,cljs,cljc,edn,bb}` files | [clojure.md](./adapters/clojure.md) |
+
+A spec may also declare its target language explicitly via a `language:` field on its `use` declarations or the caller may pass `--language <name>`. Explicit selection overrides auto-detection.
+
+If a project mixes languages (e.g. a Python service with a TypeScript frontend), load every adapter whose fingerprint matches and run the pipeline once per language. Merge the results into a single map keyed by language.
+
+### Currently supported
+
+- **Python** — pyright-lsp. Covers Flask/FastAPI/Django surfaces, PascalCase classes, snake_case functions, `create_X`/`X_service`/`X_repository` patterns. `pyproject.toml` or `setup.py` defines the project root.
+- **Java** — jdtls-lsp (requires JDK 17+). Covers Spring Boot / Spring MVC / JAX-RS / Micronaut / Quarkus / gRPC / Kafka / RabbitMQ / JMS / Scheduled / AWS Lambda surfaces; `<Name>Service` / `<Name>Repository` / `<Name>Controller` / `<Name>Impl` / `<Name>Dto` / `<Name>Factory` layered-architecture name variants. Maven `pom.xml` or Gradle `settings.gradle*` defines the project root, with multi-module support.
+- **TypeScript / JavaScript** — typescript-lsp (requires Node + `typescript-language-server` + `typescript` on PATH). Covers Express / Fastify / Koa / NestJS / Hono / Next.js (Pages + App Router) / tRPC / GraphQL / React component and hook surfaces; BullMQ / node-cron / Kafka / NATS / WebSocket / AWS Lambda / Vercel / Cloudflare Workers integration surfaces. Monorepo-aware (npm/pnpm/yarn workspaces, Nx, Turborepo). Excludes generated code (`*.generated.ts`, `graphql-codegen`, Prisma, Protobuf).
+- **Kotlin** — kotlin-lsp (JetBrains' official LSP server; requires JDK 17+). Covers Ktor routing DSL, Spring Boot / Micronaut / Quarkus / JAX-RS / gRPC / graphql-kotlin API surfaces; Android Activity / Fragment / Jetpack Compose / WorkManager UI and background surfaces; coroutines (`Flow` collectors, `Channel` receivers, `suspend` handlers), Kafka, RabbitMQ, Retrofit interface integration surfaces. Name variants include clean-architecture / Android MVVM suffixes (`<Name>UseCase`, `<Name>ViewModel`, `<Name>UiState`, companion-object factories). Multi-module Gradle-aware, Kotlin Multiplatform source-set-aware, mixed Kotlin/Java supported by loading the Java adapter alongside.
+- **Clojure / ClojureScript** — clojure-lsp (GraalVM-native binary; optional JDK 11+ for the JAR distribution). Covers Ring / Compojure / Reitit / Pedestal / Liberator / Yada / Lacinia GraphQL / protojure gRPC API surfaces; Reagent / Re-frame / Fulcro UI surfaces; Kafka (jackdaw, kinsky) / RabbitMQ (langohr) / core.async / Manifold / Quartzite / chime integration surfaces; Integrant / Component / Mount lifecycle wiring; Babashka task surfaces. Kebab-case-first name variants with bang / question-mark suffix conventions, `->Record` and `map->Record` auto-factories, multimethod dispatch values, protocol extension via `extend-protocol`, and namespace-aliased calls. Honours `:paths` / `:source-paths` declared in `deps.edn`, `project.clj` and `shadow-cljs.edn`; reader-conditional-aware for `.cljc`; clj-kondo-hook-aware for custom macros.
+
+### Adding a language
+
+Create `skills/impact/adapters/<lang>.md` following [adapters/README.md](./adapters/README.md). Add its fingerprint row to the table above. No change to this file's pipeline steps is required; if you find yourself editing them to support a new language, the adapter contract has a gap and should be extended instead.
+
+## Called by other skills
+
+Other Allium skills invoke you via the `Skill` tool as a precursor to their own work:
+
+- **weed** calls you in `refresh` mode before doing divergence classification.
+- **distill** calls you in `build` mode before starting spec extraction from an existing codebase.
+- **propagate** calls you in `refresh` mode before building its implementation bridge.
+- **tend** optionally calls you in `query` mode to check for orphaned links before writing a spec edit.
+
+When called by another skill, emit the JSON and the summary. The caller reads the JSON directly; it does not need a narrative explanation.
+
+## Boundaries
+
+- You do not modify `.allium` files. That is `tend` or `weed` in spec-update mode.
+- You do not modify implementation code. That is `weed` in code-update mode.
+- You do not extract new spec content from code. That is `distill`.
+- You do not generate tests. That is `propagate`.
+- You do not classify divergences as spec bugs or code bugs. That is `weed`. You surface candidates; `weed` judges them.
+- You do not edit files outside `.allium/impact/`.
+
+## Verification
+
+After every Build or Refresh, sanity-check your output before returning:
+
+- Every spec node from the `allium plan` output is either in `links` (as a `from`) or in `unmapped.spec`. No silent drops.
+- Every link's `to` points at an existing file and line (the LSP result you got, not an invented location).
+- `unmapped.code` does not contain files outside the project root.
+- The JSON parses.
+
+If any check fails, do not emit the file. Tell the caller what went wrong.
+
+## Output format
+
+**Build / Refresh summary:**
+
+```
+Impact map: <spec>.json
+  Spec nodes: <n>   (<k> linked, <u> unmapped)
+  Code nodes: <m>   (<k> linked, <u> unmapped)
+  Call edges: <e>
+  Low-confidence links: <lc>
+  Refreshed / skipped: <r> / <s>   (Refresh mode only)
+```
+
+**Degraded summary** (when no map could be produced):
+
+```
+Impact map: degraded
+  Reason: <no-adapter | lsp-unavailable | lsp-not-indexing>
+  Details: <which fingerprints / which plugin / what the sentinel returned>
+  Action: <install <plugin> | add an adapter for <language> | check pyright config>
+```
+
+**Query response:** plain text answering the specific question, followed by the relevant JSON fragment for the caller to quote.

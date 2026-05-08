@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "Read(//home/matt/.claude/**)",
+      "Edit(~/.claude/skills/code-map/**)"
+    ],
+    "additionalDirectories": [
+      "/home/matt/.claude/skills/code-map"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

@@ -65,12 +65,15 @@ Allium provides five skills, an entry point and two autonomous agents.
 | `/propagate <optional constraints>` (or `/allium:propagate`) | Generate tests from a spec. |
 | `/tend <optional constraints>` (or `/allium:tend`) | Targeted changes to existing specs. |
 | `/weed <optional constraints>` (or `/allium:weed`) | Find and fix divergences between spec and code. |
+| `/impact <spec>` (or `/allium:impact`) | Build the spec↔code impact map that `distill`, `weed` and `propagate` read to avoid re-discovering the mapping on every invocation. Python is supported today via `pyright-lsp`; additional languages are added by dropping an adapter into `skills/impact/adapters/`. |
 
 How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. Skills also auto-trigger when you open or edit `.allium` files.
 
 Tend and weed are also available as autonomous **agents** that run in their own context, keeping Allium syntax out of your main session. Claude Code picks up agents from `agents/`, Copilot from `.github/agents/`. How editors discover skills and agents is still settling; we make these available in the most portable formats we can and expect to consolidate as conventions stabilise. If your editor doesn't pick something up, [raise an issue](https://github.com/juxt/allium/issues).
 
 For larger codebases, distillation and other ambitious tasks may need several passes to capture everything. Consider an iterative approach like the [Ralph Wiggum loop](https://ghuntley.com/ralph/), repeating until there's nothing further to do.
+
+The [`impact` skill](skills/impact/SKILL.md) makes each pass yield better results, not just faster ones. Grep finds names that match; the LSP-backed map resolves actual references, catching implementations text search misses — methods reached through polymorphism, framework dependency injection or dynamic dispatch. Its `unmapped` section makes "no implementation found" a finding rather than an oversight. And because `weed`, `distill` and `propagate` read one persisted mapping instead of each re-discovering it per run, their conclusions stay consistent across a long loop rather than drifting against one another.
 
 ## Why not just point the LLM at the code?
 

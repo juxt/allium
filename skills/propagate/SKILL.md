@@ -104,33 +104,36 @@ For entities with status enums. When a transition graph is declared, walk every 
 State machine tests require an **action map**: a function per transition edge that takes the entity in the source state and produces it in the target state by calling the actual implementation code. Without this map, the test framework can describe valid paths through the graph but cannot execute them.
 
 To build the action map:
-1. For each edge in the transition graph, find the witnessing rule in the spec
-2. Find the code implementing that rule (the implementation bridge)
-3. Write a test action that sets up the preconditions (`requires` clauses), invokes the code, and returns the entity in the target state
-4. Register the action under the `(from_state, to_state)` key
+1. For each edge in the transition graph, find the witnessing rule in the spec.
+2. Find the code implementing that rule by reading the spec's clauses, then locating the matching function in the codebase via grep + read.
+3. Write a test action that sets up the preconditions (`requires` clauses), invokes the code, and returns the entity in the target state.
+4. Register the action under the `(from_state, to_state)` key.
 
 Once the map is built, the PBT framework can walk random valid paths: start at any non-terminal state, pick a random outbound edge, apply its action, check all entity-level invariants, repeat. The path length and starting state are generated randomly. This is the fullest expression of the spec's transition graph as a test.
 
 ## The implementation bridge
 
-You correlate spec constructs with implementation code, the same way the weed skill correlates for divergence checking.
+You correlate spec constructs with implementation code by reading the spec, then exploring the codebase. For each construct, search for symbols that match its name (entity → class/struct/model, rule → function/method, surface → route/handler/controller), open the matching files and confirm the implementation. If a construct has no plausible code match, generate a pending test skeleton and flag it.
+
+If the user has explicitly directed you to use the impact map ("use the impact map", "in map mode", "via impact"), switch to map mode for this section — see the [Map mode](#map-mode) appendix at the end of this document.
 
 ### For surface tests
 
-Map surfaces to their implementation:
-- API surfaces map to endpoints (REST routes, GraphQL resolvers, gRPC services)
-- UI surfaces map to components or pages
-- Integration surfaces map to message handlers or SDK methods
+Find each surface's implementation by searching for its declared operations:
+- API surfaces: search routes/controllers for handler functions matching the surface's `provides` operations.
+- UI surfaces: search components or pages for the named operation.
+- Integration surfaces: search for message handlers or SDK methods.
 
-Discover the mapping by reading the codebase. Look for naming patterns, route definitions and handler registrations.
+If no implementation can be found, the surface is either unimplemented (aspirational — generate a pending test skeleton) or wired through a framework pattern your search did not anticipate (note the gap and generate the test against the spec, marking it pending).
 
 ### For internal tests
 
-For each rule in the spec:
-1. Find the code implementing the rule (service method, event handler, state machine transition)
-2. Determine how to instantiate the entities involved (factories, builders, fixtures)
-3. Determine how to invoke the rule (API call, method call, event dispatch)
-4. Determine how to assert postconditions (database queries, return values, event assertions)
+For each rule in the spec, locate its implementation by searching the codebase for functions whose name or behaviour matches the rule.
+
+1. Implementation: open the matching function and understand the signature.
+2. Instantiation: read the surrounding code (or grep) to find what constructs the entities the implementation operates on (factories, builders, fixtures).
+3. Invocation: trace upwards (read callers, grep for invocations) to find the public-facing entry point (the surface or a higher-level service method).
+4. Postcondition assertions: check what the implementation returns or mutates, and map `ensures` clauses onto those outcomes.
 
 ### For temporal tests
 
@@ -143,11 +146,12 @@ Before attempting temporal tests, check whether the component accepts an injecte
 When a rule emits a trigger that another spec's rule receives (e.g. the Arbiter emits `ClerkReceivesEvent`, the Clerk handles it), testing the chain requires multiple components wired together.
 
 Before generating cross-module tests:
-1. Trace the trigger emission graph from the plan output: which rules emit triggers, and which rules in other specs receive them
-2. Check whether the codebase has an existing integration test fixture that wires the participating components (a pipeline test, an end-to-end test helper, a test harness class)
-3. If a fixture exists, reuse it. Cross-module tests should compose existing wiring, not rebuild it
-4. If no fixture exists but the codebase structure is clear enough to understand the wiring (service constructors, dependency injection, event bus configuration), generate the fixture and the test
-5. If the wiring is too complex or opaque to generate confidently, generate a test skeleton with TODOs marking where component wiring is needed
+1. Trace the trigger emission graph from the plan output: which rules emit triggers, and which rules in other specs receive them.
+2. Trace the wiring by reading the codebase: service constructors, dependency injection wiring, event bus configuration, message-routing tables. Identify the code-level hand-offs that correspond to cross-module trigger chains — the two endpoints become the "emitter" and "receiver" sides of the test.
+3. Check whether the codebase has an existing integration test fixture that wires the participating components (a pipeline test, an end-to-end test helper, a test harness class)
+4. If a fixture exists, reuse it. Cross-module tests should compose existing wiring, not rebuild it.
+5. If no fixture exists but the codebase structure is clear enough to understand the wiring (service constructors, dependency injection, event bus configuration), generate the fixture and the test
+6. If the wiring is too complex or opaque to generate confidently, generate a test skeleton with TODOs marking where component wiring is needed
 
 Cross-module tests are integration tests by nature. They verify that the spec's trigger chains are faithfully implemented across component boundaries. Prioritise them after single-component tests are passing.
 
@@ -171,10 +175,12 @@ Deferred specifications are fully specified in separate files. When the target c
 1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults. Read [assessing specs](../allium/references/assessing-specs.md) to gauge the spec's maturity. A coarse spec (entities and transition graphs but no rules) will produce limited test obligations — mostly structural tests. If the spec is too coarse for meaningful test generation, suggest using the `elicit` or `distill` skill to develop it further before propagating tests. A spec with rules and surfaces enables the full test taxonomy including data flow chain tests and reachability tests.
 2. **Read test obligations** — from `allium plan` output or manual derivation
 3. **Read domain model** — from `allium model` output or manual derivation
-4. **Explore the codebase** — find existing tests, test framework, entity implementations, rule implementations
-5. **Map constructs to code** — correlate spec entities/rules/surfaces with implementation classes/functions/endpoints
+4. **Explore the codebase** — find the test framework, read existing tests, locate domain models, services and entry points. Search for symbols matching spec construct names and read the matching files.
+5. **Map constructs to code** — for each spec construct, identify the corresponding code (function, class, route) by reading the spec and grep'ing the codebase
 6. **Generate tests** — produce test files following the project's conventions
 7. **Verify tests compile/run** — ensure generated tests are syntactically valid
+
+If the user has explicitly asked you to use the impact map, switch to map mode for steps 4–5 — see the [Map mode](#map-mode) appendix at the end of this document.
 
 ### Discovery checklist
 
@@ -214,3 +220,35 @@ When generator specs are available, use them to produce valid test data:
 - The implementation bridge is LLM-mediated. Complex or unusual codebases may need manual guidance on the mapping.
 - Cross-module tests require understanding component wiring across service boundaries. When the codebase structure is clear, full tests can be generated. When wiring is opaque, tests are generated as skeletons with TODOs for manual setup.
 - Runtime trace validation and model checking are separate workstreams.
+
+## Output format
+
+Open every report or test-file batch with a one-line mode announcement so the caller can never be confused about which path you took: "Running propagate in default (grep) mode" or "Running propagate in map mode" (see [Map mode](#map-mode)).
+
+## Map mode
+
+The default flow above uses grep + read to correlate spec constructs with code. If the user has explicitly directed map use ("use the impact map", "in map mode", "via impact"), switch to map mode: the [`impact` skill](../impact/SKILL.md) maintains a JSON spec↔code map at `.allium/impact/<spec>.json` that turns correlation from a search problem into a lookup. Do not enter map mode silently — the user must ask. The presence of `.allium/impact/<spec>.json` is **not** by itself an opt-in signal.
+
+### Trigger
+
+Enter map mode only when the user's request mentions the impact map (or a synonym like "code map" or "via impact"). Otherwise, run the default flow above. If you enter map mode, announce it in the first sentence of your output.
+
+### Step overrides
+
+The following steps in the default flow are replaced when running in map mode:
+
+- **Process step 4 (Explore the codebase)** is replaced by: "Invoke the [`impact` skill](../impact/SKILL.md) in `refresh` mode (or `build` mode if no map exists) and read `.allium/impact/<spec>.json`. The map's `links` give you the spec → code correspondence directly. The `call_edges` give you the code-side call graph, which feeds the state-machine action map and cross-module integration test planning."
+- **Process step 5 (Map constructs to code)** is replaced by: "Use the impact map's `links` directly. Only correlate by hand for entries in `unmapped.spec` — those tests must be flagged as pending."
+- **State-machine action map step (2)** is replaced by: "Find the code implementing that rule by reading the impact map's link from `spec:Rule.<Name>`. Fall back to manual discovery only if the rule is in `unmapped.spec`."
+- **Implementation bridge — for surface tests:** read links where `from` is a `spec:Surface.*` node. API surfaces link to route-handler functions (`via: "surface-decorator"` is the signal the impact skill used a framework pattern); UI surfaces link to components or pages; integration surfaces link to message handlers or SDK methods. If a surface has no link, the map either could not identify the framework (adapter gap — report it) or the surface is not implemented yet (aspirational — generate a pending test skeleton).
+- **Implementation bridge — for internal tests:** for each rule, look up the link from `spec:Rule.<Name>` to a `code:` node — that function or method is the rule's implementation. Walk `call_edges` backward to find instantiation patterns and the public-facing entry point.
+- **Cross-module trigger chains step (2)** is replaced by: "Read the impact map's `call_edges` where `cross_module: true` — these are the code-level hand-offs that correspond to cross-module trigger chains. The two endpoints of a cross-module edge are strong candidates for the emitter and receiver sides of the test."
+
+### Findings only available in map mode
+
+- **Unmapped spec.** Entries in `unmapped.spec` are spec constructs the map has no implementation for; the corresponding tests are pending.
+- **Cross-module call edges.** `call_edges` with `cross_module: true` highlight integration boundaries the default exploration would otherwise have to discover laboriously.
+
+### Recovering the default flow under degradation
+
+If the impact skill returns `degraded: true` (no language adapter matches, or the target LSP is unavailable), do not abandon the run. Note the reason once and fall back to the default (grep) flow for the remainder of this invocation. Tests still get written; they just cost more context to produce.
