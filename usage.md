@@ -8,7 +8,7 @@ title: Usage
 Allium is an AI skill for expressing behavioural intent. In this video, we use it to build a new app from scratch with only spec-driven agentic engineering practices: starting with an `AGENTS.md`, eliciting a specification through dialogue with the AI, propagating that spec into implementation and tests, and using `weed` to keep the spec and code aligned as they evolve. The result is a working system you understand precisely, without having written a single line of code by hand.
 
 <div class="video">
-  <iframe src="https://www.youtube-nocookie.com/embed/i-b3zZHEsOI" title="Allium" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  <iframe src="https://www.youtube-nocookie.com/embed/SZOee7RUNr0" title="Allium" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </div>
 
 ## Getting started
