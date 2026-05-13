@@ -1,0 +1,10 @@
+-- allium: 3
+
+entity User {
+    email: String
+}
+
+rule RegisterUser {
+    when: SignupRequested(email)
+    ensures: User.created(email: email)
+}

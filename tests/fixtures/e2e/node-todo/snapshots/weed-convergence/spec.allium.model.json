@@ -1,0 +1,130 @@
+{
+  "config": [
+    {
+      "default_expr": "7.days",
+      "name": "revive_grace",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        }
+      ],
+      "kind": "external",
+      "name": "Client"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type_expr": "String"
+        }
+      ],
+      "kind": "external",
+      "name": "Scheduler"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_overdue"
+        },
+        {
+          "name": "is_revivable"
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type_expr": "String"
+        },
+        {
+          "name": "owner",
+          "type_expr": "Client"
+        },
+        {
+          "name": "due_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "status",
+          "type_expr": "TodoStatus"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "completed_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "archived_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "expired_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Todo",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "pending",
+              "to": "done"
+            },
+            {
+              "from": "pending",
+              "to": "archived"
+            },
+            {
+              "from": "pending",
+              "to": "expired"
+            },
+            {
+              "from": "expired",
+              "to": "archived"
+            },
+            {
+              "from": "expired",
+              "to": "pending"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "archived",
+            "done",
+            "expired",
+            "pending"
+          ],
+          "terminal": [
+            "done",
+            "archived"
+          ]
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "TodoStatus",
+      "values": [
+        "pending",
+        "done",
+        "archived",
+        "expired"
+      ]
+    }
+  ],
+  "version": 3
+}

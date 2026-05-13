@@ -1,0 +1,23 @@
+-- allium: 3
+
+-- Per the language reference: invariant expressions must be pure.
+-- `now` is volatile (re-evaluates on every read), so it is prohibited
+-- inside an invariant body. Stored timestamp fields like
+-- `expires_at` are fine — the distinction is volatility, not
+-- temporality.
+--
+-- Drift: 3.2.3 does not enforce purity for `now` in invariants.
+
+entity Session {
+    expires_at: Timestamp
+}
+
+invariant NotExpired {
+    for session in Sessions:
+        session.expires_at > now    -- should error: now is volatile
+}
+
+rule StartSession {
+    when: Start(expires_at)
+    ensures: Session.created(expires_at: expires_at)
+}

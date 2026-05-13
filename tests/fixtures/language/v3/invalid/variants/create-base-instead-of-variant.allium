@@ -1,0 +1,46 @@
+-- allium: 3
+
+-- Per the language reference: variant instances must always be created
+-- via the variant name. Creating the base entity is ambiguous (which
+-- variant is it?) and should be flagged as a structural error.
+--
+-- This fixture is a "drift" fixture: 3.2.3 does NOT enforce this rule.
+-- See tests/fixtures/language/drift.json for status.
+
+entity Notification {
+    user: User
+    kind: MentionNotification | ReplyNotification
+}
+
+variant MentionNotification : Notification {
+    mentioned_by: User
+}
+
+variant ReplyNotification : Notification {
+    parent_id: String
+}
+
+entity User {
+    email: String
+}
+
+rule CreateAmbiguousNotification {
+    when: Notify(recipient)
+    -- Should error: must specify variant (MentionNotification or ReplyNotification)
+    ensures: Notification.created(user: recipient)
+}
+
+rule MentionUser {
+    when: Mention(recipient, mentioner)
+    ensures: MentionNotification.created(user: recipient, mentioned_by: mentioner)
+}
+
+rule ReplyToUser {
+    when: Reply(recipient, parent)
+    ensures: ReplyNotification.created(user: recipient, parent_id: parent)
+}
+
+rule RegisterUser {
+    when: Register(email)
+    ensures: User.created(email: email)
+}

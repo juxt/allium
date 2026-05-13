@@ -1,0 +1,110 @@
+{
+  "config": [
+    {
+      "default_expr": "7.days",
+      "name": "revive_grace_window",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [],
+      "kind": "external",
+      "name": "ApiClient"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "is_overdue"
+        },
+        {
+          "name": "revive_window_open"
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type_expr": "String"
+        },
+        {
+          "name": "owner_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "due_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "enum_values": [
+            "pending",
+            "done",
+            "archived",
+            "expired"
+          ],
+          "name": "status",
+          "type_expr": "pending | done | archived | expired"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "completed_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "archived_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "expired_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Todo",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "pending",
+              "to": "done"
+            },
+            {
+              "from": "pending",
+              "to": "archived"
+            },
+            {
+              "from": "pending",
+              "to": "expired"
+            },
+            {
+              "from": "expired",
+              "to": "pending"
+            },
+            {
+              "from": "expired",
+              "to": "archived"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "archived",
+            "done",
+            "expired",
+            "pending"
+          ],
+          "terminal": [
+            "done",
+            "archived"
+          ]
+        }
+      ]
+    }
+  ],
+  "version": 3
+}

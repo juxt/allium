@@ -1,0 +1,21 @@
+{
+  "id": "tend-fix-syntax-error",
+  "skill": "tend",
+  "setup": {
+    "files": {
+      "broken.allium": "-- allium: 3\n\nentity User {\n    email: String\n\nrule RegisterUser {\n    when: SignupRequested(email)\n    ensures: User.created(email: email)\n}\n"
+    }
+  },
+  "prompt": "Use the tend skill to fix the syntax error in broken.allium and make it pass `allium check`.",
+  "budget_usd": 0.5,
+  "model": "sonnet",
+  "assertions": [
+    { "type": "file-exists", "path": "broken.allium" },
+    { "type": "cli-passes", "cmd": ["allium", "check", "broken.allium"] },
+    {
+      "type": "judge",
+      "rubric": "tend.md",
+      "criteria": ["minimal-edit", "preserves-intent", "no-unrelated-changes"]
+    }
+  ]
+}

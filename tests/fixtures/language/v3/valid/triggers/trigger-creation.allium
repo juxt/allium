@@ -1,0 +1,21 @@
+-- allium: 3
+
+entity Account {
+    email: String
+}
+
+entity WelcomeEmail {
+    account: Account
+    sent_at: Timestamp
+}
+
+rule CreateAccount {
+    when: Create(email)
+    ensures: Account.created(email: email)
+}
+
+-- .created trigger fires for any new entity of the given type.
+rule SendWelcomeEmail {
+    when: account: Account.created
+    ensures: WelcomeEmail.created(account: account, sent_at: now)
+}

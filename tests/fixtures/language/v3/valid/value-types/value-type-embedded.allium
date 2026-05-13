@@ -1,0 +1,18 @@
+-- allium: 3
+
+value Address {
+    street: String
+    city: String
+    country: String
+}
+
+entity ShippingDestination {
+    address: Address
+}
+
+rule SetDestination {
+    when: ShipTo(street, city, country)
+    ensures: ShippingDestination.created(
+        address: Address{street: street, city: city, country: country}
+    )
+}

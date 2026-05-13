@@ -1,0 +1,23 @@
+-- allium: 3
+
+entity User {
+    email: String
+    is_verified: Boolean
+}
+
+invariant UnverifiedUsersHaveNoPermissions {
+    for user in Users:
+        not user.is_verified implies user.email != ""
+}
+
+rule Register {
+    when: Register(email)
+    requires: not exists User{email: email}
+    ensures: User.created(email: email, is_verified: false)
+}
+
+rule Verify {
+    when: Verify(user)
+    requires: not user.is_verified
+    ensures: user.is_verified = true
+}

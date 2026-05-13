@@ -1,0 +1,20 @@
+-- allium: 3
+
+-- Per the language reference: "Open questions are surfaced by the
+-- specification checker as warnings, indicating the spec is
+-- incomplete." A spec containing one should therefore exit non-zero
+-- with a warning.
+--
+-- Drift: 3.2.3 does not surface open questions as a diagnostic at all.
+-- The fixture currently passes clean.
+
+entity Role {
+    name: String
+}
+
+rule CreateRole {
+    when: Create(name)
+    ensures: Role.created(name: name)
+}
+
+open question "Should admins be assigned to specific roles or be cross-cutting?"

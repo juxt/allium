@@ -1,0 +1,155 @@
+-- allium: 3
+-- spec.allium
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity User {}
+
+entity Todo {
+    title: String
+    owner: User
+    status: pending | done | archived | expired
+
+    transitions status {
+        pending -> done
+        pending -> archived
+        pending -> expired
+        expired -> pending
+        expired -> archived
+        terminal: done, archived
+    }
+
+    due_at: Timestamp?
+    created_at: Timestamp
+    completed_at: Timestamp?
+    archived_at: Timestamp?
+    expired_at: Timestamp?
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    revive_grace: Duration = 7.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CreateTodo {
+    when: CreateTodo(user, title, due_at?)
+
+    requires: title != ""
+    requires: due_at = null or due_at > now
+
+    ensures: Todo.created(
+        owner: user,
+        title: title,
+        status: pending,
+        due_at: due_at,
+        created_at: now
+    )
+}
+
+rule CompleteTodo {
+    when: CompleteTodo(user, todo)
+
+    requires: todo.status = pending
+
+    ensures: todo.status = done
+    ensures: todo.completed_at = now
+}
+
+rule ArchiveTodo {
+    when: ArchiveTodo(user, todo)
+
+    requires: todo.status not in {done, archived}
+
+    ensures: todo.status = archived
+    ensures: todo.archived_at = now
+}
+
+rule ReviveTodo {
+    when: ReviveTodo(user, todo)
+
+    requires: todo.status = expired
+    requires: todo.expired_at != null
+    requires: now - todo.expired_at <= config.revive_grace
+
+    ensures: todo.status = pending
+    ensures: todo.expired_at = null
+}
+
+-- Temporal rule witnessing the pending -> expired transition for the
+-- transition graph. The expireOverdue HTTP sweep triggers the same
+-- transition across all overdue todos in bulk.
+rule ExpireTodo {
+    when: todo: Todo.due_at <= now
+    requires: todo.status = pending
+
+    ensures: todo.status = expired
+    ensures: todo.expired_at = now
+}
+
+rule ExpireOverdue {
+    when: ExpireOverdue(operator)
+
+    ensures:
+        for todo in Todos where status = pending and due_at != null and due_at <= now:
+            todo.status = expired
+            todo.expired_at = now
+}
+
+rule BulkArchive {
+    when: BulkArchive(user, todos)
+
+    requires: todos.all(t => t.status = pending)
+
+    ensures:
+        for t in todos:
+            t.status = archived
+            t.archived_at = now
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface TodoOperations {
+    facing user: User
+    context todo: Todo
+
+    exposes:
+        todo.title
+        todo.status
+        todo.owner
+        todo.due_at
+        todo.created_at
+        todo.completed_at
+        todo.archived_at
+        todo.expired_at
+
+    provides:
+        CompleteTodo(user, todo) when todo.status = pending
+        ArchiveTodo(user, todo) when todo.status not in {done, archived}
+        ReviveTodo(user, todo) when todo.status = expired
+}
+
+surface TodoCreation {
+    facing user: User
+
+    provides:
+        CreateTodo(user, title, due_at?)
+}
+
+surface TodoAdminApi {
+    facing operator: User
+
+    provides:
+        ExpireOverdue(operator)
+        BulkArchive(operator, todos)
+}

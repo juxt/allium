@@ -1,0 +1,22 @@
+-- allium: 3
+
+-- Entity with a transition graph: .created() must specify the initial status.
+
+entity Order {
+    status: pending | shipped
+    transitions status {
+        pending -> shipped
+        terminal: shipped
+    }
+}
+
+rule Place {
+    when: Place()
+    ensures: Order.created()
+}
+
+rule Ship {
+    when: Ship(o)
+    requires: o.status = pending
+    ensures: o.status = shipped
+}

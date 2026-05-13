@@ -1,0 +1,12 @@
+-- allium: 3
+
+enum CacheDirective { `no-cache` | `no-store` | `must-revalidate` | `max-age` }
+
+entity CachePolicy {
+    directive: CacheDirective
+}
+
+rule SetCachePolicy {
+    when: SetCache(directive: CacheDirective)
+    ensures: CachePolicy.created(directive: directive)
+}

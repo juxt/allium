@@ -1,0 +1,25 @@
+-- allium: 3
+
+-- An entity with a status enum, exercising every value via rules so the
+-- analyser sees each value reached and exited.
+
+entity Order {
+    status: pending | shipped
+}
+
+rule PlaceOrder {
+    when: OrderPlaced()
+    ensures: Order.created(status: pending)
+}
+
+rule ShipOrder {
+    when: OrderShipped(order)
+    requires: order.status = pending
+    ensures: order.status = shipped
+}
+
+rule RewindOrder {
+    when: OrderRewound(order)
+    requires: order.status = shipped
+    ensures: order.status = pending
+}

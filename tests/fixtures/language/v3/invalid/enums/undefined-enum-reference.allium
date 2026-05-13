@@ -1,0 +1,10 @@
+-- allium: 3
+
+entity Order {
+    priority: NotAnEnum
+}
+
+rule SetPriority {
+    when: SetPriority(priority)
+    ensures: Order.created(priority: priority)
+}

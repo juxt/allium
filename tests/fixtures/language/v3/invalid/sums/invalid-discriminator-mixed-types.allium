@@ -1,0 +1,29 @@
+-- allium: 3
+
+-- Discriminator pipe mixes a snake_case enum literal (active) with
+-- a capitalised variant name. Per the language reference, a
+-- discriminator must use only capitalised variant names — mixing in
+-- enum literals is a structural error.
+
+entity Notification {
+    user: User
+    kind: active | MentionNotification
+}
+
+variant MentionNotification : Notification {
+    mentioned_by: User
+}
+
+entity User {
+    email: String
+}
+
+rule MentionUser {
+    when: Mention(recipient, mentioner)
+    ensures: MentionNotification.created(user: recipient, mentioned_by: mentioner)
+}
+
+rule RegisterUser {
+    when: Register(email)
+    ensures: User.created(email: email)
+}

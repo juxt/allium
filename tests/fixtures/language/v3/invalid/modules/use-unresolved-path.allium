@@ -1,0 +1,12 @@
+-- allium: 3
+
+use "./does-not-exist.allium" as missing
+
+entity Foo {
+    bar: String
+}
+
+rule Make {
+    when: T(bar)
+    ensures: Foo.created(bar: bar)
+}

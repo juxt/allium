@@ -1,0 +1,36 @@
+-- allium: 3
+
+entity Invitation {
+    expires_at: Timestamp
+    status: pending | expired | accepted
+}
+
+rule CreateInvitation {
+    when: Create(expires_at: Timestamp)
+    ensures: Invitation.created(expires_at: expires_at, status: pending)
+}
+
+rule Accept {
+    when: Accept(invitation)
+    requires: invitation.status = pending
+    ensures: invitation.status = accepted
+}
+
+-- Temporal triggers always need a requires guard to prevent re-firing.
+rule InvitationExpires {
+    when: invitation: Invitation.expires_at <= now
+    requires: invitation.status = pending
+    ensures: invitation.status = expired
+}
+
+rule ReinstatePending {
+    when: Reinstate(invitation)
+    requires: invitation.status = expired
+    ensures: invitation.status = pending
+}
+
+rule ReinstateAccepted {
+    when: Reinstate2(invitation)
+    requires: invitation.status = accepted
+    ensures: invitation.status = pending
+}

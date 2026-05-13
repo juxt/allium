@@ -1,0 +1,23 @@
+-- allium: 3
+
+entity Node {
+    kind: Branch | Leaf | NotDeclared
+}
+
+variant Branch : Node {
+    children: Integer
+}
+
+variant Leaf : Node {
+    value: Integer
+}
+
+rule UseBranch {
+    when: T()
+    ensures: Branch.created(children: 1)
+}
+
+rule UseLeaf {
+    when: T2()
+    ensures: Leaf.created(value: 1)
+}

@@ -1,0 +1,45 @@
+{
+  "_comment": "Drift catalogue: fixtures whose CLI behaviour disagrees with the language reference. Each entry's path is relative to tests/fixtures/language/. The Tier 1 runner skips the regular invalid-check for these fixtures and emits a 'drift:' line instead, so the suite stays green while the gap stays visible. Remove an entry once allium-tools enforces the construct.",
+
+  "v3/invalid/variants/create-base-instead-of-variant.allium": {
+    "spec_says": "Creating a base entity instead of a variant must error: the variant is ambiguous.",
+    "cli_does": "Passes clean. No diagnostic produced.",
+    "ref": "skills/allium/references/language-reference.md (Sum types section: 'Creating variant instances')",
+    "since_cli_version": "3.2.3"
+  },
+
+  "v3/invalid/variants/access-variant-field-outside-guard.allium": {
+    "spec_says": "Accessing a variant-specific field outside a type guard must error.",
+    "cli_does": "Passes clean. The variant field access is permitted.",
+    "ref": "skills/allium/references/language-reference.md (Sum types section: 'Type guards' and 'Accessing variant-specific fields outside a type guard is an error.')",
+    "since_cli_version": "3.2.3"
+  },
+
+  "v3/invalid/invariants/invariant-with-now.allium": {
+    "spec_says": "Invariant expressions must be pure. `now` is volatile and prohibited.",
+    "cli_does": "Passes clean. The invariant body is not checked for purity.",
+    "ref": "skills/allium/references/language-reference.md (Invariants section: 'Purity constraints')",
+    "since_cli_version": "3.2.3"
+  },
+
+  "v3/invalid/surfaces/surface-with-undefined-actor.allium": {
+    "spec_says": "Surface 'facing' clause must reference a declared actor or an entity type.",
+    "cli_does": "Passes clean. The undeclared actor name is not flagged.",
+    "ref": "skills/allium/references/language-reference.md (Surfaces section: 'Actor declarations')",
+    "since_cli_version": "3.2.3"
+  },
+
+  "v3/invalid/triggers/temporal-without-guard.allium": {
+    "spec_says": "Temporal triggers must include a `requires` guard to prevent re-firing.",
+    "cli_does": "No specific diagnostic. The fixture only fails the suite on unrelated `status.noExit` warnings — not on the missing guard.",
+    "ref": "skills/allium/references/language-reference.md (Trigger types: 'Temporal'); .claude/rules/allium.md (Anti-patterns: 'Missing temporal guards')",
+    "since_cli_version": "3.2.3"
+  },
+
+  "v3/invalid/modules/open-question-emits-warning.allium": {
+    "spec_says": "Open questions are surfaced by the spec checker as warnings.",
+    "cli_does": "Passes clean. No diagnostic produced.",
+    "ref": "skills/allium/references/language-reference.md (Open questions section)",
+    "since_cli_version": "3.2.3"
+  }
+}

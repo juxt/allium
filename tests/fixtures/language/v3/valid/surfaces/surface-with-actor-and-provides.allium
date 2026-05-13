@@ -1,0 +1,39 @@
+-- allium: 3
+
+entity User {
+    role: viewer | admin
+}
+
+actor Admin {
+    identified_by: User where role = admin
+}
+
+rule RegisterUser {
+    when: Register(role)
+    ensures: User.created(role: role)
+}
+
+rule PromoteToAdmin {
+    when: Promote(user)
+    requires: user.role = viewer
+    ensures: user.role = admin
+}
+
+rule DemoteFromAdmin {
+    when: Demote(user)
+    requires: user.role = admin
+    ensures: user.role = viewer
+}
+
+rule InviteUser {
+    when: Invite(by, email)
+    requires: by.role = admin
+    ensures: User.created(role: viewer)
+}
+
+surface AdminConsole {
+    facing admin: Admin
+
+    provides:
+        InviteUser(admin)
+}

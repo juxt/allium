@@ -1,0 +1,17 @@
+-- allium: 3
+
+entity Account {
+    balance: Decimal
+}
+
+rule OpenAccount {
+    when: Open(initial: Decimal)
+    ensures: Account.created(balance: initial)
+}
+
+rule TransferOut {
+    when: Transfer(from, amount, fee)
+    let total = amount + fee
+    requires: from.balance >= total
+    ensures: from.balance = from.balance - total
+}

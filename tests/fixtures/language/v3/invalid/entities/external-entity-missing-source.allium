@@ -1,0 +1,18 @@
+-- allium: 3
+
+-- An external entity declaration without an associated `use "..."`
+-- import that would govern it. The analyser warns because there is no
+-- obvious source spec for the borrowed type.
+
+external entity Skill {
+    name: String
+}
+
+entity Candidate {
+    skills: Set<Skill>
+}
+
+rule RegisterCandidate {
+    when: Register(skills)
+    ensures: Candidate.created(skills: skills)
+}

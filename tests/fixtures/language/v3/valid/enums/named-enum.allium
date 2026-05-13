@@ -1,0 +1,12 @@
+-- allium: 3
+
+enum Recommendation { strong_yes | yes | no | strong_no }
+
+entity Feedback {
+    recommendation: Recommendation
+}
+
+rule SubmitFeedback {
+    when: SubmitFeedback(recommendation: Recommendation)
+    ensures: Feedback.created(recommendation: recommendation)
+}

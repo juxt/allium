@@ -1,0 +1,38 @@
+-- allium: 3
+
+entity Order {
+    status: pending | shipped | cancelled
+}
+
+entity ShipmentLog {
+    order: Order
+    logged_at: Timestamp
+}
+
+rule PlaceOrder {
+    when: Place()
+    ensures: Order.created(status: pending)
+}
+
+rule MarkShipped {
+    when: MarkShipped(order)
+    requires: order.status = pending
+    ensures: order.status = shipped
+}
+
+rule LogShipment {
+    when: order: Order.status transitions_to shipped
+    ensures: ShipmentLog.created(order: order, logged_at: now)
+}
+
+rule CancelOrder {
+    when: Cancel(order)
+    requires: order.status = pending
+    ensures: order.status = cancelled
+}
+
+rule ReopenOrder {
+    when: Reopen(order)
+    requires: order.status = shipped
+    ensures: order.status = pending
+}

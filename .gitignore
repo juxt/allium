@@ -1,1 +1,9 @@
 .DS_Store
+
+# Tier 4 kept-workspace runs (one dir per --keep-workspace invocation,
+# contains per-step checkpoints + manifest). Disposable; the canonical
+# snapshots live under tests/fixtures/e2e/<fixture>/snapshots/.
+tests/.tier4-runs/
+
+.claude/settings.json
+.claude/scheduled_tasks.lock

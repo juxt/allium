@@ -1,0 +1,33 @@
+-- allium: 3
+
+entity Notification {
+    user: User
+    kind: MentionNotification | ReplyNotification
+}
+
+variant MentionNotification : Notification {
+    mentioned_by: User
+}
+
+variant ReplyNotification : Notification {
+    parent_id: String
+}
+
+entity User {
+    email: String
+}
+
+rule MentionUser {
+    when: Mention(recipient: User, mentioner: User)
+    ensures: MentionNotification.created(user: recipient, mentioned_by: mentioner)
+}
+
+rule ReplyToUser {
+    when: Reply(recipient: User, parent_id: String)
+    ensures: ReplyNotification.created(user: recipient, parent_id: parent_id)
+}
+
+rule RegisterUser {
+    when: Register(email)
+    ensures: User.created(email: email)
+}

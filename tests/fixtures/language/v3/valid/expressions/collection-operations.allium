@@ -1,0 +1,48 @@
+-- allium: 3
+
+entity Team {
+    members: Member with team = this
+    member_count: members.count
+    has_admin: members.any(m => m.role = admin)
+    all_active: members.all(m => m.status = active)
+}
+
+entity Member {
+    team: Team
+    role: viewer | admin
+    status: active | inactive
+}
+
+rule CreateTeam {
+    when: CreateTeam()
+    ensures: Team.created()
+}
+
+rule AddMember {
+    when: AddMember(team, role)
+    ensures: Member.created(team: team, role: role, status: active)
+}
+
+rule DeactivateMember {
+    when: Deactivate(member)
+    requires: member.status = active
+    ensures: member.status = inactive
+}
+
+rule ReactivateMember {
+    when: Reactivate(member)
+    requires: member.status = inactive
+    ensures: member.status = active
+}
+
+rule PromoteMember {
+    when: Promote(member)
+    requires: member.role = viewer
+    ensures: member.role = admin
+}
+
+rule DemoteMember {
+    when: Demote(member)
+    requires: member.role = admin
+    ensures: member.role = viewer
+}

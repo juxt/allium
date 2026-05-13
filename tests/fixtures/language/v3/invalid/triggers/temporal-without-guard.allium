@@ -1,0 +1,33 @@
+-- allium: 3
+
+-- Per CLAUDE.md and the language reference: temporal triggers MUST
+-- include a `requires` guard, otherwise the rule re-fires on every
+-- evaluation. The omission is a documented anti-pattern that should
+-- produce a warning or error.
+--
+-- Drift: 3.2.3 does not specifically flag this. The fixture currently
+-- exits 1 only because of an unrelated `status.noExit` warning, not
+-- because of the missing guard.
+
+entity Token {
+    expires_at: Timestamp
+    status: active | expired
+}
+
+rule IssueToken {
+    when: Issue(expires_at)
+    ensures: Token.created(expires_at: expires_at, status: active)
+}
+
+rule ExpireToken {
+    when: token: Token.expires_at <= now
+    -- Should error or warn: missing requires guard. Without it, this
+    -- rule re-fires every evaluation tick after the deadline passes.
+    ensures: token.status = expired
+}
+
+rule ReissueToken {
+    when: Reissue(token)
+    requires: token.status = expired
+    ensures: token.status = active
+}

@@ -1,0 +1,82 @@
+-- allium: 3
+
+-- A multi-feature composition fixture: enums, value types, entities,
+-- a transition graph implied by rules, config, an entity-level
+-- invariant, a derived value, an actor, and a surface.
+
+enum Priority { low | medium | high }
+
+value Money {
+    amount: Decimal
+    currency: String
+}
+
+config {
+    max_open_orders_per_customer: Integer = 10
+    default_priority: Priority = medium
+}
+
+entity Customer {
+    email: String
+    orders: Order with customer = this
+    open_orders: orders where status = open
+
+    invariant WithinOrderLimit {
+        open_orders.count <= config.max_open_orders_per_customer
+    }
+}
+
+entity Order {
+    customer: Customer
+    total: Money
+    priority: Priority
+    status: open | shipped | cancelled
+}
+
+actor Customer_self {
+    identified_by: Customer where email != ""
+}
+
+rule RegisterCustomer {
+    when: Register(email)
+    ensures: Customer.created(email: email)
+}
+
+rule PlaceOrder {
+    when: Place(customer, total: Money, priority: Priority)
+    requires: customer.open_orders.count < config.max_open_orders_per_customer
+    ensures: Order.created(
+        customer: customer,
+        total: total,
+        priority: priority,
+        status: open
+    )
+}
+
+rule ShipOrder {
+    when: Ship(order)
+    requires: order.status = open
+    ensures: order.status = shipped
+}
+
+rule CancelOrder {
+    when: Cancel(order)
+    requires: order.status = open
+    ensures: order.status = cancelled
+}
+
+rule ReopenOrder {
+    when: Reopen(order)
+    requires: order.status = shipped
+    ensures: order.status = open
+}
+
+rule UncancelOrder {
+    when: Uncancel(order)
+    requires: order.status = cancelled
+    ensures: order.status = open
+}
+
+surface CustomerPortal {
+    facing customer: Customer_self
+}

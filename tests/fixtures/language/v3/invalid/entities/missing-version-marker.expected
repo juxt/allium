@@ -1,0 +1,2 @@
+# One regex per line; all must match somewhere in the CLI's combined output.
+missing version marker

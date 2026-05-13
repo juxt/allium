@@ -1,0 +1,18 @@
+-- allium: 3
+
+value TimeRange {
+    start: Timestamp
+    end: Timestamp
+
+    -- Derived
+    duration: end - start
+}
+
+entity Meeting {
+    range: TimeRange
+}
+
+rule ScheduleMeeting {
+    when: ScheduleMeeting(start, end)
+    ensures: Meeting.created(range: TimeRange{start: start, end: end})
+}

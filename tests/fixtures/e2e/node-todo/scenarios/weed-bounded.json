@@ -1,0 +1,42 @@
+{
+  "id": "weed-bounded",
+  "fixture": "node-todo",
+  "steps": [
+    {
+      "skill": "distill",
+      "prompt": "Use the distill skill to extract an initial Allium specification from the JavaScript source files in this directory (models.js, service.js, routes.js, server.js). Write the result to spec.allium. Aim for a reasonable first pass; subsequent weed passes will fill in gaps. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    },
+    {
+      "skill": "weed",
+      "prompt": "Use the weed skill in update-spec mode against spec.allium and the JavaScript source files in this directory. If you find structural divergences, add them. If you find none, say so and make no edits. Validate with `allium check spec.allium` before finishing."
+    }
+  ],
+  "snapshot_files": ["spec.allium"],
+  "snapshot_dir": "snapshots/weed-bounded",
+  "budget_usd_per_step": 5.0,
+  "model": "claude-opus-4-7"
+}

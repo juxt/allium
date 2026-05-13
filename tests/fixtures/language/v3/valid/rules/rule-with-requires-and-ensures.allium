@@ -1,0 +1,16 @@
+-- allium: 3
+
+entity Account {
+    balance: Decimal
+}
+
+rule OpenAccount {
+    when: AccountOpened(initial_balance)
+    ensures: Account.created(balance: initial_balance)
+}
+
+rule Withdraw {
+    when: WithdrawalRequested(account, amount)
+    requires: account.balance >= amount
+    ensures: account.balance = account.balance - amount
+}

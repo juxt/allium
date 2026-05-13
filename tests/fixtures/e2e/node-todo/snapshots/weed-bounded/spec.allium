@@ -1,0 +1,160 @@
+-- allium: 3
+-- spec.allium
+-- Todo backend service. Manages a todo's lifecycle through pending,
+-- done, archived and expired statuses, with expired entries
+-- recoverable to pending within a grace window.
+--
+-- Scope: Todo lifecycle and the HTTP boundary that drives it.
+-- Excludes:
+--   - Persistence (in-memory Map in the implementation)
+--   - Authentication / identity management (no auth middleware exists)
+--   - HTTP status code transport (RuleViolation -> status code mapping)
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+external entity ApiClient {
+    -- The party invoking the HTTP API. Identity management is out of
+    -- scope; the implementation does not authenticate callers.
+}
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity Todo {
+    title: String
+    owner_id: String
+    due_at: Timestamp?
+    status: pending | done | archived | expired
+    created_at: Timestamp
+    completed_at: Timestamp?
+    archived_at: Timestamp?
+    expired_at: Timestamp?
+
+    transitions status {
+        pending -> done
+        pending -> archived
+        pending -> expired
+        expired -> pending
+        expired -> archived
+        terminal: done, archived
+    }
+
+    is_overdue: due_at != null and due_at <= now
+    revive_window_open:
+        status = expired
+        and expired_at != null
+        and (now - expired_at) <= config.revive_grace_window
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    revive_grace_window: Duration = 7.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CreateTodo {
+    when: CreateTodo(title, owner_id, due_at?)
+
+    requires: length(trim(title)) > 0
+    requires: due_at = null or due_at > now
+
+    ensures: Todo.created(
+        title: trim(title),
+        owner_id: owner_id,
+        due_at: due_at,
+        status: pending,
+        created_at: now
+    )
+}
+
+rule CompleteTodo {
+    when: CompleteTodo(todo)
+
+    requires: todo.status = pending
+
+    ensures:
+        todo.status = done
+        todo.completed_at = now
+}
+
+rule ArchiveTodo {
+    when: ArchiveTodo(todo)
+
+    requires: todo.status = pending or todo.status = expired
+
+    ensures:
+        todo.status = archived
+        todo.archived_at = now
+}
+
+rule ReviveTodo {
+    when: ReviveTodo(todo)
+
+    requires: todo.status = expired
+    requires: (now - todo.expired_at) <= config.revive_grace_window
+
+    ensures:
+        todo.status = pending
+        todo.expired_at = null
+}
+
+rule TodoExpires {
+    -- A pending todo whose due date has passed becomes expired. The
+    -- implementation materialises this via an explicit sweep endpoint
+    -- (POST /todos/expire); the domain intent is captured here.
+    when: todo: Todo.is_overdue
+
+    requires: todo.status = pending
+
+    ensures:
+        todo.status = expired
+        todo.expired_at = now
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor Client {
+    identified_by: ApiClient where true
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface TodoCollection {
+    facing client: Client
+
+    provides:
+        CreateTodo(title, owner_id, due_at?)
+}
+
+surface TodoView {
+    facing client: Client
+    context todo: Todo
+
+    exposes:
+        todo.title
+        todo.owner_id
+        todo.due_at
+        todo.status
+        todo.created_at
+        todo.completed_at
+        todo.archived_at
+        todo.expired_at
+
+    provides:
+        CompleteTodo(todo) when todo.status = pending
+        ArchiveTodo(todo) when todo.status = pending or todo.status = expired
+        ReviveTodo(todo) when todo.revive_window_open
+}

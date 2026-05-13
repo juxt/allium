@@ -1,0 +1,31 @@
+-- allium: 3
+
+-- Entity with an explicit `transitions` graph. Every transition the
+-- rules produce is declared; .created() initialises with status, and
+-- the graph names a terminal state.
+
+entity Order {
+    status: pending | shipped | delivered
+    transitions status {
+        pending -> shipped
+        shipped -> delivered
+        terminal: delivered
+    }
+}
+
+rule Place {
+    when: Place()
+    ensures: Order.created(status: pending)
+}
+
+rule Ship {
+    when: Ship(order)
+    requires: order.status = pending
+    ensures: order.status = shipped
+}
+
+rule Deliver {
+    when: Deliver(order)
+    requires: order.status = shipped
+    ensures: order.status = delivered
+}

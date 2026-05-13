@@ -1,0 +1,103 @@
+{
+  "config": [
+    {
+      "default_expr": "7.days",
+      "name": "revive_grace",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [],
+      "kind": "internal",
+      "name": "User"
+    },
+    {
+      "fields": [
+        {
+          "name": "title",
+          "type_expr": "String"
+        },
+        {
+          "name": "owner",
+          "optional": true,
+          "type_expr": "User?"
+        },
+        {
+          "enum_values": [
+            "pending",
+            "done",
+            "archived",
+            "expired"
+          ],
+          "name": "status",
+          "type_expr": "pending | done | archived | expired"
+        },
+        {
+          "name": "due_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "created_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "completed_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "archived_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "expired_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Todo",
+      "transition_graphs": [
+        {
+          "edges": [
+            {
+              "from": "pending",
+              "to": "done"
+            },
+            {
+              "from": "pending",
+              "to": "archived"
+            },
+            {
+              "from": "pending",
+              "to": "expired"
+            },
+            {
+              "from": "expired",
+              "to": "pending"
+            },
+            {
+              "from": "expired",
+              "to": "archived"
+            }
+          ],
+          "field": "status",
+          "states": [
+            "archived",
+            "done",
+            "expired",
+            "pending"
+          ],
+          "terminal": [
+            "done",
+            "archived"
+          ]
+        }
+      ]
+    }
+  ],
+  "version": 3
+}

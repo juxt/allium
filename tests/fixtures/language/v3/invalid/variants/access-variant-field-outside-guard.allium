@@ -1,0 +1,36 @@
+-- allium: 3
+
+-- Per the language reference: accessing a variant-specific field
+-- outside a type guard is an error. The field only exists on the
+-- specific variant, not on the base.
+--
+-- Drift: 3.2.3 does not enforce this. See drift.json.
+
+entity Notification {
+    user: User
+    kind: MentionNotification | ReplyNotification
+}
+
+variant MentionNotification : Notification {
+    mentioned_by: User
+}
+
+variant ReplyNotification : Notification {
+    parent_id: String
+}
+
+entity User {
+    email: String
+}
+
+rule HandleNotification {
+    when: notification: Notification.created
+    -- Should error: notification.mentioned_by is only valid inside a
+    -- type guard such as `if notification.kind = MentionNotification:`.
+    ensures: User.created(email: notification.mentioned_by.email)
+}
+
+rule RegisterUser {
+    when: Register(email)
+    ensures: User.created(email: email)
+}

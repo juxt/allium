@@ -1,0 +1,5 @@
+-- allium: 99
+
+entity Foo {
+    bar: String
+}

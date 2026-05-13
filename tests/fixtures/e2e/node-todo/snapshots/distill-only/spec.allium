@@ -1,0 +1,133 @@
+-- allium: 3
+-- spec.allium
+-- Todo backend specification.
+-- Extracted from models.js, service.js, routes.js, server.js.
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+external entity User {}
+
+external entity Cron {}
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity Todo {
+    title: String
+    owner: User
+    status: pending | done | archived | expired
+    due_at: Timestamp?
+    created_at: Timestamp
+    completed_at: Timestamp when status = done
+    archived_at: Timestamp when status = archived
+    expired_at: Timestamp when status = expired
+
+    transitions status {
+        pending -> done
+        pending -> archived
+        pending -> expired
+        expired -> pending
+        expired -> archived
+        terminal: done, archived
+    }
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    revive_grace: Duration = 7.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CreateTodo {
+    when: CreateTodo(user, title, due_at?)
+    requires: title != ""
+    requires: due_at = null or due_at > now
+    ensures: Todo.created(
+        title: title,
+        owner: user,
+        status: pending,
+        due_at: due_at,
+        created_at: now
+    )
+}
+
+rule CompleteTodo {
+    when: CompleteTodo(user, todo)
+    requires: todo.status = pending
+    ensures: todo.status = done
+    ensures: todo.completed_at = now
+}
+
+rule ArchiveTodo {
+    when: ArchiveTodo(user, todo)
+    requires: todo.status not in {done, archived}
+    let was_expired = todo.status = expired
+    ensures: todo.status = archived
+    ensures: todo.archived_at = now
+    ensures:
+        if was_expired:
+            todo.expired_at = null
+}
+
+rule ReviveTodo {
+    when: ReviveTodo(user, todo)
+    requires: todo.status = expired
+    requires: now - todo.expired_at <= config.revive_grace
+    ensures: todo.status = pending
+    ensures: todo.expired_at = null
+}
+
+-- Fires automatically for each pending todo whose due date has passed.
+-- The POST /todos/expire endpoint is the implementation mechanism that
+-- triggers this sweep; the spec captures what the system does, not how.
+rule ExpireOverdue {
+    when: todo: Todo.due_at <= now
+    requires: todo.status = pending
+    ensures: todo.status = expired
+    ensures: todo.expired_at = now
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface TodoApi {
+    facing user: User
+    context todo: Todo
+
+    exposes:
+        todo.title
+        todo.owner
+        todo.status
+        todo.due_at
+        todo.created_at
+        todo.completed_at when todo.status = done
+        todo.archived_at when todo.status = archived
+        todo.expired_at when todo.status = expired
+
+    provides:
+        CreateTodo(user, title, due_at?)
+        CompleteTodo(user, todo)
+        ArchiveTodo(user, todo)
+        ReviveTodo(user, todo)
+
+    timeout:
+        ExpireOverdue when todo.due_at <= now
+}
+
+surface TodoMaintenanceApi {
+    facing cron: Cron
+    context todo: Todo
+
+    timeout:
+        ExpireOverdue when todo.due_at <= now
+}

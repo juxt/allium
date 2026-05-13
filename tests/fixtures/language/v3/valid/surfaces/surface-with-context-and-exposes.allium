@@ -1,0 +1,43 @@
+-- allium: 3
+
+entity Workspace {
+    name: String
+}
+
+entity WorkspaceMembership {
+    user: User
+    workspace: Workspace
+    can_admin: Boolean
+}
+
+entity User {
+    email: String
+}
+
+actor WorkspaceAdmin {
+    within: Workspace
+    identified_by: User where WorkspaceMembership{user: this, workspace: within}.can_admin = true
+}
+
+rule RegisterUser {
+    when: Register(email)
+    ensures: User.created(email: email)
+}
+
+rule CreateWorkspace {
+    when: CreateWorkspace(name)
+    ensures: Workspace.created(name: name)
+}
+
+rule GrantAdmin {
+    when: GrantAdmin(user: User, workspace: Workspace)
+    ensures: WorkspaceMembership.created(user: user, workspace: workspace, can_admin: true)
+}
+
+surface WorkspaceManagement {
+    facing admin: WorkspaceAdmin
+    context workspace: Workspace
+
+    exposes:
+        workspace.name
+}

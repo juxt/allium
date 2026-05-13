@@ -1,0 +1,10 @@
+-- allium: 3
+
+contract BadContract {
+    -- Entities are prohibited inside contract bodies; declare at module level.
+    entity Sneaky {
+        name: String
+    }
+
+    serialize: (value: Any) -> ByteArray
+}

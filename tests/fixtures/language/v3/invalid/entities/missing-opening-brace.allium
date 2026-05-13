@@ -1,0 +1,4 @@
+-- allium: 3
+
+entity Foo
+    bar: String

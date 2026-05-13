@@ -1,0 +1,40 @@
+-- allium: 3
+
+entity Order {
+    status: pending | shipped | escalated
+    retry_count: Integer
+}
+
+rule PlaceOrder {
+    when: Place()
+    ensures: Order.created(status: pending, retry_count: 0)
+}
+
+-- if/else inside ensures: branch on resulting state.
+rule RetryShipment {
+    when: Retry(order)
+    requires: order.status = pending
+    ensures:
+        if order.retry_count < 2:
+            order.retry_count = order.retry_count + 1
+        else:
+            order.status = escalated
+}
+
+rule MarkShipped {
+    when: Ship(order)
+    requires: order.status = pending
+    ensures: order.status = shipped
+}
+
+rule ResetEscalation {
+    when: Reset(order)
+    requires: order.status = escalated
+    ensures: order.status = pending
+}
+
+rule UnshipOrder {
+    when: Unship(order)
+    requires: order.status = shipped
+    ensures: order.status = pending
+}

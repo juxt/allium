@@ -1,0 +1,47 @@
+-- allium: 3
+
+contract Codec {
+    serialize: (value: Any) -> ByteArray
+    deserialize: (bytes: ByteArray) -> Any
+
+    @invariant Roundtrip
+        -- deserialize(serialize(value)) produces a value
+        -- equivalent to the original for all supported types.
+
+    @guidance
+        -- Implementations should handle versioned payloads
+        -- by inspecting a version prefix in the byte array.
+}
+
+entity Service {
+    name: String
+    status: active | retired
+}
+
+actor ServiceClient {
+    identified_by: Service where status = active
+}
+
+surface CodecBoundary {
+    facing client: ServiceClient
+
+    contracts:
+        demands Codec
+}
+
+rule RegisterService {
+    when: RegisterService(name)
+    ensures: Service.created(name: name, status: active)
+}
+
+rule RetireService {
+    when: RetireService(service)
+    requires: service.status = active
+    ensures: service.status = retired
+}
+
+rule ReviveService {
+    when: ReviveService(service)
+    requires: service.status = retired
+    ensures: service.status = active
+}

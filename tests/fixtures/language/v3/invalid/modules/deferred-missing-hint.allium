@@ -1,0 +1,17 @@
+-- allium: 3
+
+deferred SomeProcess
+
+entity Doc {
+    title: String
+}
+
+rule CreateDoc {
+    when: Create(title)
+    ensures: Doc.created(title: title)
+}
+
+rule Invoke {
+    when: Invoke(doc)
+    ensures: SomeProcess(doc)
+}

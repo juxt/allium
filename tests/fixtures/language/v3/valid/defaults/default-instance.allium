@@ -1,0 +1,18 @@
+-- allium: 3
+
+entity Role {
+    name: String
+}
+
+default Role viewer = { name: "viewer" }
+default Role editor = { name: "editor" }
+default Role admin  = { name: "admin"  }
+
+entity User {
+    role: Role
+}
+
+rule RegisterAsViewer {
+    when: Register()
+    ensures: User.created(role: viewer)
+}

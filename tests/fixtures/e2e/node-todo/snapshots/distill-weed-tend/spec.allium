@@ -1,0 +1,187 @@
+-- allium: 3
+-- todo-backend.allium
+--
+-- Scope: Todo backend
+-- Includes: Todo entity, lifecycle rules, HTTP surfaces
+-- Excludes:
+--   - HTTP transport / routing details (status codes, JSON shapes)
+--   - In-memory state storage (Map keyed by id)
+--   - Error codes used by the HTTP layer
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+external entity User {}
+
+external entity Admin {}
+
+external entity Cron {}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum TodoStatus { pending | done | archived | expired }
+
+------------------------------------------------------------
+-- Entities
+------------------------------------------------------------
+
+entity Todo {
+    title: String
+    owner: User
+    status: TodoStatus
+    due_at: Timestamp?
+    created_at: Timestamp
+    completed_at: Timestamp when status = done
+    archived_at: Timestamp when status = archived
+    expired_at: Timestamp when status = expired
+
+    transitions status {
+        pending -> done
+        pending -> archived
+        pending -> expired
+        expired -> pending
+        expired -> archived
+        terminal: done, archived
+    }
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    revive_grace: Duration = 7.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CreateTodo {
+    when: CreateTodo(title, due_at, caller)
+
+    requires: length(trim(title)) > 0
+    requires: due_at = null or due_at > now
+
+    ensures: Todo.created(
+        title: title,
+        owner: caller,
+        status: pending,
+        due_at: due_at,
+        created_at: now
+    )
+}
+
+rule CompleteTodo {
+    when: CompleteTodo(todo)
+
+    requires: todo.status = pending
+
+    ensures: todo.status = done
+    ensures: todo.completed_at = now
+}
+
+-- Archive is allowed from any non-terminal status. ArchiveTodo handles the
+-- pending case; ArchiveExpiredTodo handles the expired case and clears
+-- expired_at on the way through.
+rule ArchiveTodo {
+    when: ArchiveTodo(todo)
+
+    requires: todo.status = pending
+
+    ensures: todo.status = archived
+    ensures: todo.archived_at = now
+}
+
+rule ArchiveExpiredTodo {
+    when: ArchiveTodo(todo)
+
+    requires: todo.status = expired
+
+    ensures: todo.status = archived
+    ensures: todo.archived_at = now
+    ensures: todo.expired_at = null
+}
+
+rule ExpireOverdue {
+    when: ExpireOverdue()
+
+    ensures:
+        for todo in Todos where status = pending and due_at != null and due_at <= now:
+            todo.status = expired
+            todo.expired_at = now
+}
+
+-- Revive undoes an expiry within the grace window.
+rule ReviveTodo {
+    when: ReviveTodo(todo)
+
+    requires: todo.status = expired
+    requires: now - todo.expired_at <= config.revive_grace
+
+    ensures: todo.status = pending
+    ensures: todo.expired_at = null
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant TitleNonEmpty {
+    for todo in Todos:
+        length(trim(todo.title)) > 0
+}
+
+invariant DueAtAfterCreated {
+    for todo in Todos:
+        todo.due_at != null implies todo.due_at > todo.created_at
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface TodoCreationAPI {
+    facing caller: User
+
+    provides:
+        CreateTodo(title, due_at, caller)
+}
+
+surface TodoAPI {
+    facing _: User
+
+    context todo: Todo
+
+    exposes:
+        todo.title
+        todo.owner
+        todo.status
+        todo.due_at
+        todo.created_at
+        todo.completed_at when todo.status = done
+        todo.archived_at when todo.status = archived
+        todo.expired_at when todo.status = expired
+
+    provides:
+        CompleteTodo(todo) when todo.status = pending
+        ArchiveTodo(todo) when todo.status not in {done, archived}
+        ReviveTodo(todo) when todo.status = expired
+}
+
+surface AdminAPI {
+    facing _: Admin
+
+    provides:
+        ExpireOverdue()
+}
+
+surface ExpiryScheduler {
+    facing _: Cron
+
+    provides:
+        ExpireOverdue()
+}

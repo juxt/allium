@@ -1,0 +1,14 @@
+-- allium: 3
+
+entity Order {
+    customer: Customer
+}
+
+entity Customer {
+    orders: Order with customer = this
+}
+
+rule PlaceOrder {
+    when: OrderPlaced(customer)
+    ensures: Order.created(customer: customer)
+}

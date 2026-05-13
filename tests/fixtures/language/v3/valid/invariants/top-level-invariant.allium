@@ -1,0 +1,22 @@
+-- allium: 3
+
+entity Account {
+    balance: Decimal
+}
+
+invariant NonNegativeBalance {
+    for account in Accounts:
+        account.balance >= 0
+}
+
+rule OpenAccount {
+    when: Open(initial: Decimal)
+    requires: initial >= 0
+    ensures: Account.created(balance: initial)
+}
+
+rule Deposit {
+    when: Deposit(account, amount: Decimal)
+    requires: amount > 0
+    ensures: account.balance = account.balance + amount
+}

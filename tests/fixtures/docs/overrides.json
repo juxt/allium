@@ -1,0 +1,16 @@
+{
+  "_comment": "Per-block overrides for Tier 2 (doc-example validation). One entry per block whose markdown source we don't want to modify in place. Each entry is keyed by the line number of the opening fence (1-indexed). Remove an entry once the underlying block has been brought clean. See tests/README.md for the schema.",
+
+  "skills/allium/references/patterns.md": {
+    "27":   { "kind": "skip", "reason": "password-auth pattern: surface unusedBinding warnings" },
+    "331":  { "kind": "skip", "reason": "library pattern references undeclared Email entity (intentional, library spec)" },
+    "635":  { "kind": "skip", "reason": "resource-share pattern: status reachability warnings" },
+    "920":  { "kind": "skip", "reason": "soft-delete pattern references undeclared User entity (intentional, library spec)" },
+    "1058": { "kind": "skip", "reason": "notifications pattern: status reachability warnings" },
+    "1459": { "kind": "skip", "reason": "usage-limits pattern uses .created(...) ellipsis as doc convention" },
+    "1811": { "kind": "skip", "reason": "comments pattern: status reachability warnings" },
+    "2117": { "kind": "skip", "reason": "user-suspension pattern: status reachability warnings" },
+    "2309": { "kind": "skip", "reason": "subscription pattern: status reachability warnings" },
+    "2549": { "kind": "skip", "reason": "event-sourcing pattern: surface unusedBinding warnings" }
+  }
+}

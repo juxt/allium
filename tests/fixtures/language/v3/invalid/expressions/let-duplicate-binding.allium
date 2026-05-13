@@ -1,0 +1,17 @@
+-- allium: 3
+
+entity Account {
+    balance: Decimal
+}
+
+rule Open {
+    when: Open(initial)
+    ensures: Account.created(balance: initial)
+}
+
+rule Calc {
+    when: Calc(account, amount, fee)
+    let total = amount + fee
+    let total = amount * 2
+    ensures: account.balance = account.balance - total
+}

@@ -1,0 +1,45 @@
+-- allium: 3
+
+entity Interview {
+    status: pending | scheduled | completed
+}
+
+entity Notification {
+    interview: Interview
+}
+
+rule ScheduleInterview {
+    when: Schedule()
+    ensures: Interview.created(status: scheduled)
+}
+
+rule MarkPending {
+    when: MarkPending(interview)
+    requires: interview.status = scheduled
+    ensures: interview.status = pending
+}
+
+-- becomes fires both when an entity is created with the value AND
+-- when a field transitions to that value.
+rule NotifyOnScheduled {
+    when: interview: Interview.status becomes scheduled
+    ensures: Notification.created(interview: interview)
+}
+
+rule CompleteInterview {
+    when: Complete(interview)
+    requires: interview.status = scheduled
+    ensures: interview.status = completed
+}
+
+rule ReschedulePending {
+    when: Reschedule(interview)
+    requires: interview.status = pending
+    ensures: interview.status = scheduled
+}
+
+rule UncompleteInterview {
+    when: Uncomplete(interview)
+    requires: interview.status = completed
+    ensures: interview.status = scheduled
+}

@@ -1,0 +1,18 @@
+{
+  "id": "distill-then-tend",
+  "fixture": "node-todo",
+  "steps": [
+    {
+      "skill": "distill",
+      "prompt": "Use the distill skill to extract an Allium specification from the JavaScript source files in this directory (models.js, service.js, routes.js, server.js). Write the result to spec.allium. Include: an entity for Todo with all its fields and the status enum (pending | done | archived | expired); rules for createTodo, completeTodo, archiveTodo, reviveTodo, and expireOverdue with their requires/ensures clauses; an HTTP surface declaring the routes from routes.js with their actor and provides operations; and a config block holding the REVIVE_GRACE_MS value. Validate the result with `allium check spec.allium` and fix any reported errors before finishing."
+    },
+    {
+      "skill": "tend",
+      "prompt": "Use the tend skill to add a BulkArchive rule to spec.allium. The rule should accept a list of todo ids, require that every referenced todo is currently in pending status, and archive all of them at once (set status to archived and archived_at to now for each). Also add a corresponding `provides BulkArchive` operation to the HTTP surface. Validate with `allium check spec.allium` before finishing; do not modify any other rule."
+    }
+  ],
+  "snapshot_files": ["spec.allium"],
+  "snapshot_dir": "snapshots/distill-then-tend",
+  "budget_usd_per_step": 1.5,
+  "model": "sonnet"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "full-pipeline",
+  "fixture": "node-todo",
+  "steps": [
+    {
+      "skill": "distill",
+      "prompt": "Use the distill skill to extract an Allium specification from the JavaScript source files in this directory (models.js, service.js, routes.js, server.js). Write the result to spec.allium. Include: an entity for Todo with all its fields and the status enum (pending | done | archived | expired); rules for createTodo, completeTodo, archiveTodo, reviveTodo, and expireOverdue with their requires/ensures clauses; an HTTP surface declaring the routes from routes.js with their actor and provides operations; and a config block holding the REVIVE_GRACE_MS value. Validate the result with `allium check spec.allium` and fix any reported errors before finishing."
+    },
+    {
+      "skill": "tend",
+      "prompt": "Use the tend skill to add a BulkArchive rule to spec.allium. The rule should accept a list of todo ids, require that every referenced todo is currently in pending status, and archive all of them at once. Also add a corresponding `provides BulkArchive` operation to the HTTP surface. Validate with `allium check spec.allium` before finishing; do not modify any other rule."
+    },
+    {
+      "skill": "propagate",
+      "prompt": "Use the propagate skill to generate state-machine and rule tests covering the rules in spec.allium. Use Node's built-in `node:test` runner. Write the test file to test/spec.test.js. Cover at minimum: createTodo happy path and TITLE_REQUIRED / DUE_IN_PAST violations; completeTodo happy path and NOT_PENDING from done/archived/expired; reviveTodo happy path within the grace window and REVIVE_WINDOW_PASSED outside it; the full pending → done lifecycle. Use a fake clock so the grace-window test does not depend on wall time. Do not run npm install."
+    }
+  ],
+  "snapshot_files": ["spec.allium", "test/spec.test.js"],
+  "snapshot_dir": "snapshots/full-pipeline",
+  "budget_usd_per_step": 2.0,
+  "model": "sonnet"
+}

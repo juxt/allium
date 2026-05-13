@@ -1,0 +1,22 @@
+-- allium: 3
+
+entity Account {
+    balance: Decimal
+    credit_limit: Decimal
+
+    invariant SufficientFunds {
+        balance >= -credit_limit
+    }
+}
+
+rule OpenAccount {
+    when: Open(credit_limit: Decimal)
+    requires: credit_limit >= 0
+    ensures: Account.created(balance: 0, credit_limit: credit_limit)
+}
+
+rule Withdraw {
+    when: Withdraw(account, amount: Decimal)
+    requires: account.balance - amount >= -account.credit_limit
+    ensures: account.balance = account.balance - amount
+}

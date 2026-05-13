@@ -1,0 +1,35 @@
+-- allium: 3
+
+entity Order {
+    status: pending | shipped | delivered
+    transitions status {
+        pending -> shipped
+        shipped -> delivered
+        terminal: delivered
+    }
+}
+
+rule Place {
+    when: Place()
+    ensures: Order.created(status: pending)
+}
+
+-- Skips the shipped state — transition pending → delivered
+-- is not declared in the graph.
+rule SkipShipping {
+    when: Skip(o)
+    requires: o.status = pending
+    ensures: o.status = delivered
+}
+
+rule Ship {
+    when: Ship(o)
+    requires: o.status = pending
+    ensures: o.status = shipped
+}
+
+rule Deliver {
+    when: Deliver(o)
+    requires: o.status = shipped
+    ensures: o.status = delivered
+}

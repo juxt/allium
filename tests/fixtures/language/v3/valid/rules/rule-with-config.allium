@@ -1,0 +1,14 @@
+-- allium: 3
+
+entity Token {
+    expires_at: Timestamp
+}
+
+config {
+    token_lifetime: Duration = 24.hours
+}
+
+rule IssueToken {
+    when: TokenRequested()
+    ensures: Token.created(expires_at: now + config.token_lifetime)
+}

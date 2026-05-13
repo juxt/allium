@@ -1,0 +1,6 @@
+-- allium: 3
+
+rule UseGhost {
+    when: T(x)
+    ensures: NonExistentEntity.created(name: x)
+}

@@ -1,0 +1,20 @@
+-- allium: 3
+
+-- Per the language reference: a surface's `facing` clause must
+-- reference either a declared `actor` or an entity type. Referencing
+-- an undeclared name should be a structural error.
+--
+-- Drift: 3.2.3 does not enforce this.
+
+entity User {
+    email: String
+}
+
+rule RegisterUser {
+    when: Register(email)
+    ensures: User.created(email: email)
+}
+
+surface PublicConsole {
+    facing visitor: NotAnActor    -- should error: actor not declared
+}

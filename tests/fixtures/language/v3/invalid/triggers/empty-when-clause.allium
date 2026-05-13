@@ -1,0 +1,10 @@
+-- allium: 3
+
+entity User {
+    email: String
+}
+
+rule MalformedTrigger {
+    when:
+    ensures: User.created(email: "x")
+}
