@@ -636,7 +636,7 @@ Common findings:
 
 Before running further checks, read [assessing specs](../allium/references/assessing-specs.md) to gauge the distilled spec's maturity. This tells you whether the spec is ready for process-level analysis or still needs structural work.
 
-If the Allium CLI is available, run `allium check` on the distilled spec to catch structural issues, then `allium analyse` to identify process-level gaps. Findings from `analyse` can drive validation questions: "The distilled spec has a rule that requires `background_check.status = clear` but no surface captures background check results. Is this handled by a part of the codebase we haven't looked at?" Consult [actioning findings](../allium/references/actioning-findings.md) for how to translate findings into domain questions.
+If the Allium CLI is available, run `allium check` on the distilled spec to catch structural issues, then `allium analyse` to identify process-level gaps. **Do not rely on `allium check`'s exit code as the validation signal — it exits 0 even when warnings and info diagnostics are reported.** Read the diagnostics list and address every error, warning, and info entry. If a diagnostic is genuinely acceptable for the distilled state (for example, an external entity flagged for missing source hint where the governing module is out of scope for the distillation), note in your response which diagnostics you saw and why each is acceptable rather than silently shipping the spec. Findings from `analyse` can drive validation questions: "The distilled spec has a rule that requires `background_check.status = clear` but no surface captures background check results. Is this handled by a part of the codebase we haven't looked at?" Consult [actioning findings](../allium/references/actioning-findings.md) for how to translate findings into domain questions.
 
 ## Recognising library spec candidates
 
@@ -869,6 +869,7 @@ Before finalising the spec, verify each behavioural detail mirrors the source. M
 - [ ] External entities introduced only when the code distinguishes them as principals (auth boundary, multiple touchpoints, structured value type). An opaque string identifier stays a `String`.
 - [ ] No `@guidance` annotations
 - [ ] No invariants beyond those the code explicitly asserts (these belong to weed)
+- [ ] `allium check` produces zero diagnostics — OR every warning/info diagnostic is explicitly listed in your response with a one-line rationale for why it is acceptable. The CLI's exit code is *not* the validation signal; the diagnostics list is
 
 If any box can't be ticked, fix the spec to match the source before producing the output.
 

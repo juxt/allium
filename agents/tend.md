@@ -94,7 +94,7 @@ When making changes, consider their effect beyond the immediate construct.
 
 ## Verification
 
-After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/language-reference.md`.
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. **Do not rely on the CLI's exit code as the "validated" signal — `allium check` exits 0 even when warnings and info diagnostics are reported.** Read the diagnostics list and address every error, warning, and info entry: either fix the spec, or — if a diagnostic is genuinely acceptable for this spec (for example, an aspirational external entity that has no governing module yet) — note in your output which diagnostics you considered and why each is acceptable. If the CLI is not available, verify against `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/language-reference.md`.
 
 After edits that change rules, surfaces or transition graphs, run `allium analyse` if available and if the spec meets the criteria in `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/assessing-specs.md` (at least one entity has both witnessing rules and surfaces defined). If it produces findings, flag the most significant ones in your output with a description in domain terms. Consult `${CLAUDE_PLUGIN_ROOT}/skills/allium/references/actioning-findings.md` for how to translate findings.
 
