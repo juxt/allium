@@ -65,13 +65,28 @@ When code has repeated interface contracts across service boundaries (e.g. the s
 
 - Preserve the existing `-- allium: N` version marker. Do not change the version number.
 - Follow the section ordering defined in the language reference.
-- Describe behaviour, not implementation. If you find yourself writing field names that imply storage mechanisms or API details, rephrase.
+- Describe behaviour, not implementation. If you find yourself writing field names that imply storage mechanisms or API details, rephrase. The same applies to prose annotations: do not document the implementation's current limitations or quirks in `@guidance` — those are observations *about* the code, not advice *to* a future implementer.
 - Use `config` blocks for variable values (thresholds, timeouts, limits). Do not hardcode numbers in rules.
 - Temporal triggers always need `requires` guards to prevent re-firing.
 - Use `with` for relationships, `where` for projections. Do not swap them.
 - Inline enums compared across fields must be extracted to named enums.
 - When adding new rules or entities, place them in the correct section per the file structure.
 - Config values derived from other services' config (e.g. `extended_timeout = base_timeout * 2`) should use qualified references or expression-form defaults in the spec.
+
+### When to stop
+
+Update-spec is not a brainstorming loop. Make changes only for *structural divergences* — facts about behaviour that the spec does not yet capture (a missing rule, an unrecorded transition, an undeclared error code, an enforceable invariant the code asserts). If a pass finds no structural divergence, do not make any edits and report: "No structural divergences found — the spec captures the implementation's behaviour." A caller running you repeatedly relies on this signal to know when to stop.
+
+### `@guidance` discipline
+
+`@guidance` annotations are non-normative implementation advice for a reader implementing *against* the spec — not commentary on the current implementation's state. In update-spec mode, do not add `@guidance` to document:
+
+- limitations of the current code (e.g. "no authentication layer is present");
+- the gap between declarative intent and implementation behaviour;
+- batch-result transports or side channels that no rule depends on;
+- explanations of why a `requires` guard exists.
+
+If you find yourself reaching for `@guidance` because you have nothing structural to add, that is the stop signal — declare the spec faithful and exit.
 
 ## Guidelines for code updates
 
