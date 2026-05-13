@@ -312,6 +312,57 @@ Look for variation in the codebase:
 
 The presence of multiple implementations suggests the variation itself is a domain concern.
 
+## Code literalism — translate, don't interpret
+
+The earlier sections cover *what to elevate* (which concepts deserve a place in the spec). This section covers *how to express what you've elevated*. The rule is straightforward: when a code construct translates directly to a spec construct, transcribe the predicate from the source verbatim — including off-by-one details, normalisation choices and post-condition side effects.
+
+Distill is a first-pass extraction, not an interpretive design exercise. Multiple distill runs against the same code converge only when each run mirrors the source faithfully; if every run is free to "tidy up" the predicates as it sees fit, runs disagree on choices that the code itself has already settled.
+
+Concrete rules:
+
+- Preserve inequality directions exactly. If the code rejects values where `value <= cutoff`, write `requires: value > cutoff`. Do not "improve" `>` to `>=` because the boundary case feels like it should be allowed — the code has already decided.
+- Preserve string-normalisation calls. If the code calls `trim()`, `lower()`, `normalize()` or similar before validating, write the validation against the normalised form and apply the same normalisation in `ensures`. Do not drop the call because the spec form is shorter without it.
+- Preserve post-condition side effects. If a code branch clears or zeroes a field as part of a state transition, include the clearing in the rule's `ensures`. Do not infer the field "shouldn't matter once the state is reset."
+- Preserve predicate forms. If the code's precondition is a disjunction over status values (e.g. `s === 'A' || s === 'B'`), write the spec form the same way (`requires: s = A or s = B`). Do not refactor to a negative-set form like `not in {…}` even when logically equivalent — the source form is the one to mirror.
+- Prefer declarative forms over optional-plus-null where the code's invariant supports it. If the code stores a timestamp only when a corresponding status is set, prefer the declarative `Timestamp when status = X` over `Timestamp?` with explicit nulls — the former captures what the code's invariant actually is.
+
+Distill reflects the code as-is. Weed catches gaps. Tend polishes form. Refactoring or generalising during distill is out of scope and produces variance across runs that is later expensive to reconcile.
+
+## Naming conventions
+
+When extracting field names from source identifiers, normalise to Allium's snake_case but preserve the source word choice — do not rename to "align with domain naming."
+
+- `fooBarId` → `foo_bar_id` (preserved: an id in the code stays an id in the spec; do not rename to `foo_bar` to imply an entity reference)
+- `createdAt` → `created_at`, `updatedAt` → `updated_at`, etc.
+
+If the code calls a field an id, the spec calls it an id. Renaming to drop the suffix is an interpretive change that shifts what the field means.
+
+Entity-vs-scalar elevation: model an `external entity Foo` only when the code clearly distinguishes `Foo` as a first-class principal — for example, there is an authentication boundary, multiple touchpoints reference the same identity, or the code passes around a `Foo` object with structure of its own. If the code carries an opaque string identifier with no further structure, leave the field as `String`. Don't elevate it speculatively; weed will identify the gap if it matters.
+
+The same principle applies to enum literals, status names, rule names and config parameter names. Mirror the source unless the source name is genuinely misleading.
+
+## What distill produces vs what weed adds
+
+Distill produces only what the code *definitively expresses*. Anything that requires reasoning across rules, deduction from the type system, or speculation about intent belongs to weed.
+
+Distill is responsible for:
+
+- Entities and their fields (extractable from data structures and constructors)
+- Status enums and the value set (extractable from string literals or enum constants in the source)
+- One rule per business operation visible in the code, with `requires` and `ensures` clauses transcribed from the code's preconditions and effects
+- Config values (numeric/duration constants used in time/threshold comparisons)
+- The HTTP/RPC surface, when the code clearly defines one (route definitions, exposed handlers)
+
+Distill is *not* responsible for:
+
+- Invariants that have to be derived from the rules (e.g. mutually-exclusive state values that follow from the rule set as a whole but where no single line of code asserts the exclusion directly). Weed extracts them later.
+- Separate maintenance/admin surfaces. Default to one surface for the user-facing endpoint group. Carve out *exactly one* additional surface when any endpoint is *operator-facing* — a batch sweep, an expiry job, a backfill route, or any endpoint a regular client would not invoke as part of normal use. The auth or context need not differ in code today; what matters is whether the endpoint serves a different actor or purpose. Do not further subdivide the user-facing endpoints (e.g. into separate "collection" / "detail" / "creation" surfaces by HTTP method or resource granularity) — that's a refactoring decision belonging to tend, not distill. So: zero operator endpoints → one surface; one or more operator endpoints → exactly two surfaces.
+- Transitions blocks. Default to omitting; carve out when the entity has a status field with three or more enum values AND every status change in the code can be attributed to a specific rule. For two-status flags, or workflows where some transitions arise from data updates outside the rule set, leave it out and let weed enumerate.
+- `@guidance` annotations of any kind — these belong to weed/tend and must not appear in distill output.
+- Speculative actor declarations beyond what the code's auth or entry-point structure already requires.
+
+If you find yourself adding a construct that the code doesn't directly say, stop. That construct belongs to weed. The boundary matters for two reasons: it keeps distill's output predictable across runs (so the same code produces the same spec), and it preserves a useful division of labour between the skills.
+
 ## Distillation process
 
 ### Step 1: Map the territory
@@ -803,6 +854,35 @@ If any remain, ask: "Would a stakeholder include this in a requirements doc?"
 - [ ] No "also known as" or "equivalent to" comments
 - [ ] Cross-referenced related specs for conflicting terms
 - [ ] Duplicate models in code flagged as technical debt to remove
+
+## Checklist: Code literalism
+
+Before finalising the spec, verify each behavioural detail mirrors the source. Most distill divergences across runs come from missing one of these in an otherwise-clean output:
+
+- [ ] Inequality directions preserved (e.g. `>` from code stays `>`, not "improved" to `>=`)
+- [ ] String normalisation calls preserved (e.g. a `trim(...)` or `lower(...)` call in the code is reflected in the corresponding `requires` and `ensures`)
+- [ ] Normalised-string emptiness checks use `length(trim(field)) > 0`, not `trim(field) != ""` or chain syntax (`field.trim().length > 0`). Logically equivalent forms differ on the spec page; pick the function-call form for consistency
+- [ ] Post-condition side effects preserved (e.g. if the code clears or zeroes a field as part of a state transition, the rule's `ensures` says so)
+- [ ] Predicate forms preserved (mirror the code's logical shape; do not refactor `a = X or a = Y` into a `not in {…}` form just because the spec admits it)
+- [ ] Identifier field names preserved with snake_case normalisation (`fooBarId` → `foo_bar_id`, NOT renamed to drop the `_id` suffix)
+- [ ] Config parameter names derive from the source constant name with snake_case normalisation. Drop only purely-syntactic prefixes/suffixes (e.g. `_MS` for a duration that becomes a `Duration` value); do not invent new suffixes like `_window`, `_period`, `_threshold` that the source doesn't use
+- [ ] External entities introduced only when the code distinguishes them as principals (auth boundary, multiple touchpoints, structured value type). An opaque string identifier stays a `String`.
+- [ ] No `@guidance` annotations
+- [ ] No invariants beyond those the code explicitly asserts (these belong to weed)
+
+If any box can't be ticked, fix the spec to match the source before producing the output.
+
+## Output minimalism
+
+Keep the produced spec short and uniform. Distill is the first pass; prose elaboration is weed/tend territory.
+
+- File-level preamble: at most a short scope block (`-- Includes:` / `-- Excludes:` lines). No multi-paragraph rationale.
+- Section dividers: a single `----` block or a single line of `--` dashes; pick one and use it consistently throughout the file.
+- Per-section preamble: at most one line summarising what the section covers, only when a reader couldn't infer it from the section header.
+- Per-rule or per-entity prose comments: only when the construct has a non-obvious detail not captured by its clauses (for example, a temporal trigger whose `requires` guard exists to prevent re-firing). Otherwise, the clauses are the documentation.
+- No `@guidance` annotations.
+
+If you find yourself adding multi-line prose to describe what a rule does, delete the prose — the rule's `when` / `requires` / `ensures` clauses already describe it.
 
 ## After distillation
 
