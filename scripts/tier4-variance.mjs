@@ -22,10 +22,13 @@
 //   $ node scripts/tier4-variance.mjs <run-root> --judge
 //   $ node scripts/tier4-variance.mjs <run-root> --judge --pair 1,3
 //   $ node scripts/tier4-variance.mjs <run-root> --refresh-judges
+//   $ node scripts/tier4-variance.mjs <run-root> --judge --concurrency 10
 //
 // With --judge:
 //   - Every pair (i, j) with i < j is judged once and cached in
 //     <run-root>/.variance-judges.json. Re-runs reuse cache.
+//   - Pair evaluation runs concurrently (default 5 in flight); cached
+//     pairs cost nothing, fresh pairs each take one judge round-trip.
 //   - Clustering: runs whose pairwise verdicts are all `cosmetic`
 //     (or zero-delta) are grouped into the same cluster. Singletons
 //     and outliers are surfaced.
@@ -38,6 +41,7 @@
 //   --refresh-judges     ignore cached verdicts and re-evaluate
 //   --pair i,j           drill into one specific pair (prints verdict + diff line count)
 //   --track <file>       which file to compare (default: spec.allium)
+//   --concurrency <N>    pairs evaluated in parallel (default: 5)
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { execFile } from "child_process";
@@ -56,11 +60,13 @@ const useJudge = takeFlag(argv, "--judge");
 const refreshJudges = takeFlag(argv, "--refresh-judges");
 const pairArg = takeFlagValue(argv, "--pair");
 const trackedFile = takeFlagValue(argv, "--track") ?? "spec.allium";
+const concurrencyArg = takeFlagValue(argv, "--concurrency");
+const concurrency = parseConcurrency(concurrencyArg);
 const runRoot = argv.find((a) => !a.startsWith("--"));
 
 if (!runRoot || !existsSync(runRoot)) {
   console.error(
-    "Usage: node scripts/tier4-variance.mjs <run-root> [--track <file>] [--judge] [--refresh-judges] [--pair i,j]"
+    "Usage: node scripts/tier4-variance.mjs <run-root> [--track <file>] [--judge] [--refresh-judges] [--pair i,j] [--concurrency N]"
   );
   console.error("");
   console.error("Where <run-root> is a variance-scenario kept-workspace dir.");
@@ -69,6 +75,7 @@ if (!runRoot || !existsSync(runRoot)) {
   console.error("  --judge            LLM-judge every pair (haiku, ~$0.05/pair, cached)");
   console.error("  --refresh-judges   re-evaluate all pairs even if cached");
   console.error("  --pair i,j         print the verdict for one pair (1-based indices)");
+  console.error("  --concurrency N    pairs evaluated in parallel (default: 5)");
   process.exit(2);
 }
 
@@ -156,16 +163,38 @@ console.log("");
 
 // Pairwise diff line counts + (optional) judge severity. Severity is
 // null when --judge is off; we still get a numeric delta either way.
-const pairs = [];
+//
+// Pairs run concurrently up to `concurrency` in flight. JS is
+// single-threaded between awaits, so the synchronous mutations of
+// `judgeCache`, `cacheHits`, `cacheMisses` and the cache file write
+// are safe under concurrent workers.
+const pairTasks = [];
 for (let i = 0; i < runs.length; i++) {
   for (let j = i + 1; j < runs.length; j++) {
-    const a = runs[i];
-    const b = runs[j];
+    pairTasks.push({ a: runs[i], b: runs[j] });
+  }
+}
+
+const freshNeeded = useJudge
+  ? pairTasks.filter(({ a, b }) => !judgeCache[trackedFile]?.[`${a.index}v${b.index}`]).length
+  : 0;
+if (useJudge && freshNeeded > 0) {
+  const conc = Math.min(concurrency, freshNeeded);
+  console.log(
+    `  Judging ${pairTasks.length} pair${pairTasks.length === 1 ? "" : "s"} (${freshNeeded} fresh, concurrency ${conc})...`
+  );
+  console.log("");
+}
+
+const pairs = await pMap(
+  pairTasks,
+  async ({ a, b }) => {
     const aText = readFileSync(a.finalPath, "utf-8");
     const bText = readFileSync(b.finalPath, "utf-8");
     const delta = await countChangedLines(a.finalPath, b.finalPath);
     let severity = null;
     let cached = false;
+    let failure = null;
     if (useJudge && delta > 0) {
       const cacheKey = `${a.index}v${b.index}`;
       const hit = judgeCache[trackedFile]?.[cacheKey];
@@ -183,9 +212,7 @@ for (let i = 0; i < runs.length; i++) {
           diff,
         });
         if (!verdict.ok) {
-          console.log(
-            `    run-${pad2(a.index)} vs run-${pad2(b.index)}: judge failed: ${verdict.error}`
-          );
+          failure = verdict.error;
         } else {
           cacheMisses++;
           judgeCache[trackedFile] ??= {};
@@ -200,7 +227,18 @@ for (let i = 0; i < runs.length; i++) {
         }
       }
     }
-    pairs.push({ i: a.index, j: b.index, delta, severity, cached });
+    return { i: a.index, j: b.index, delta, severity, cached, failure };
+  },
+  concurrency,
+);
+
+// Print judge failures in pair order so the output is deterministic
+// regardless of completion order under concurrency.
+for (const p of pairs) {
+  if (p.failure) {
+    console.log(
+      `    run-${pad2(p.i)} vs run-${pad2(p.j)}: judge failed: ${p.failure}`
+    );
   }
 }
 
@@ -452,4 +490,33 @@ function takeFlagValue(argv, name) {
   if (v.startsWith("--")) return null;
   argv.splice(i, 2);
   return v;
+}
+
+function parseConcurrency(arg) {
+  if (arg == null) return 5;
+  const n = parseInt(arg, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    console.error(`Invalid --concurrency value: ${arg}. Expected a positive integer.`);
+    process.exit(2);
+  }
+  return n;
+}
+
+// Bounded-concurrency map. Preserves input order in the result array.
+async function pMap(items, mapper, concurrency) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) return;
+      results[idx] = await mapper(items[idx], idx);
+    }
+  };
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    worker,
+  );
+  await Promise.all(workers);
+  return results;
 }
