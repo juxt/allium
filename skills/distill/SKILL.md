@@ -1,816 +1,149 @@
 ---
 name: distill
-description: "Extract an Allium specification from an existing codebase. Use when the user has existing code and wants to distil behaviour into a spec, reverse engineer a specification from implementation, generate a spec from code, turn implementation into a behavioural specification, or document what a codebase does in Allium terms."
+description: "Extract a deterministic Allium specification from an existing codebase. Use when the user has existing code and wants to distil behaviour into a spec, reverse engineer a specification from implementation, generate a spec from code, turn implementation into a behavioural specification, or document what a codebase does in Allium terms. Produces a byte-deterministic spec by running K independent inventory-extraction passes in parallel and consensus-merging their outputs."
 ---
 
-# Distillation guide
+# Distillation (consensus pipeline)
 
-This guide covers extracting Allium specifications from existing codebases. The core challenge is the same as forward elicitation: finding the right level of abstraction. In elicitation you filter out implementation ideas as they arise. In distillation you filter out implementation details that already exist. Both require the same judgement about what matters at the domain level.
+This skill produces a **byte-deterministic Allium spec** from a target codebase. It does so by orchestrating K independent inventory-extraction passes in parallel, canonicalising each, merging into a single consensus inventory, and translating that to the final `.allium` spec.
 
-Code tells you *how* something works. A specification captures *what* it does and *why* it matters. The skill is asking "why does the stakeholder care about this?" and "could this be different while still being the same system?"
+When invoked, you are the **orchestrator**. You do not write the spec yourself — that's the translator's job. You drive the procedure below.
 
-## Scoping the distillation effort
-
-Before diving into code, establish what you are trying to specify. Not every line of code deserves a place in the spec.
-
-### Questions to ask first
-
-1. **"What subset of this codebase are we specifying?"**
-   Mono repos often contain multiple distinct systems. You may only need a spec for one service or domain. Clarify boundaries explicitly before starting.
-
-2. **"Is there code we should deliberately exclude?"**
-   - **Legacy code**: features kept for backwards compatibility but not part of the core system
-   - **Incidental code**: supporting infrastructure that is not domain-level (logging, metrics, deployment)
-   - **Deprecated paths**: code scheduled for removal
-   - **Experimental features**: behind feature flags, not yet design decisions
-
-3. **"Who owns this spec?"**
-   Different teams may own different parts of a mono repo. Each team's spec should focus on their domain.
-
-### The "Would we rebuild this?" test
-
-For any code path you encounter, ask: "If we rebuilt this system from scratch, would this be in the requirements?"
-
-- Yes: include in spec
-- No, it is legacy: exclude
-- No, it is infrastructure: exclude
-- No, it is a workaround: exclude (but note the underlying need it addresses)
-
-### Documenting scope decisions
-
-At the top of a distilled spec, document what is included and excluded:
+## Pipeline
 
 ```
--- allium: 3
--- interview-scheduling.allium
-
--- Scope: Interview scheduling flow only
--- Includes: Candidacy, Interview, InterviewSlot, Invitation, Feedback
--- Excludes:
---   - User authentication (use auth library spec)
---   - Analytics/reporting (separate spec)
---   - Legacy V1 API (deprecated, not specified)
---   - Greenhouse sync (use greenhouse library spec)
+K subagents (Agent tool)
+   ↓  each produces inventory-i.json
+scripts/canonicalize-inventory.mjs       (per inventory)
+   ↓
+scripts/merge-inventories.mjs            (one-shot consensus)
+   ↓
+scripts/inventory-to-spec.mjs            (pure-function translator)
+   ↓
+allium check                             (validation)
 ```
 
-The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the current language version number.
+The scripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`. The inventory schema subagents must follow lives at `${CLAUDE_PLUGIN_ROOT}/skills/distill/references/inventory-schema.md`.
 
-## Finding the right level of abstraction
+## Procedure (mandatory, in order)
 
-Distillation and elicitation share the same fundamental challenge: choosing what to include. The tests below work in both directions, whether you are hearing a stakeholder describe a feature or reading code that implements it.
+### Step 1 — Decide K and output paths
 
-### The "Why" test
+- **K**: default 3. Use 5 if the user explicitly wants higher determinism confidence at higher cost; use 2 only if cost is the primary constraint.
+- **Output directory**: default `./allium-distilled/` (relative to the current working directory). If the directory already exists, do not delete its contents — write into it.
+- Create `./allium-distilled/inventories/` so each subagent has a place to write.
+- The final spec will be at `./allium-distilled/spec.allium`.
 
-For every detail in the code, ask: "Why does the stakeholder care about this?"
+### Step 2 — Spawn K subagents in parallel
 
-| Code detail | Why? | Include? |
-|-------------|------|----------|
-| Invitation expires in 7 days | Affects candidate experience | Yes |
-| Token is 32 bytes URL-safe | Security implementation | No |
-| Sessions stored in Redis | Performance choice | No |
-| Uses PostgreSQL JSONB | Database implementation | No |
-| Slot status changes to 'proposed' | Affects what candidate sees | Yes |
-| Email sent when invitation accepted | Communication requirement | Yes |
+Use the **Agent tool** with `subagent_type: "general-purpose"`. Send all K Agent tool calls **in a single message** so they execute concurrently — sequential subagents waste wall-clock time. Each subagent receives the prompt template from Step 3, with `<SOURCE_DIR>` and `<OUTPUT_PATH>` substituted. The i-th subagent's output path is `./allium-distilled/inventories/inventory-<i>.json` (1-indexed).
 
-If you cannot articulate why a stakeholder would care, it is probably implementation.
+`<SOURCE_DIR>` is the directory the user pointed you at (e.g. `./app`). If they didn't name one, use the current working directory and exclude obvious non-source paths (`node_modules/`, `.git/`, `dist/`, `__pycache__/`, etc.).
 
-### The "Could it be different?" test
+### Step 3 — Subagent prompt template
 
-Ask: "Could this be implemented differently while still being the same system?"
-
-- If yes: probably implementation detail, abstract it away
-- If no: probably domain-level, include it
-
-| Detail | Could be different? | Include? |
-|--------|---------------------|----------|
-| `secrets.token_urlsafe(32)` | Yes, any secure token generation | No |
-| 7-day invitation expiry | No, this is the design decision | Yes |
-| PostgreSQL database | Yes, any database | No |
-| "Pending, Confirmed, Completed" states | No, this is the workflow | Yes |
-
-### The "Template vs Instance" test
-
-Is this a **category** of thing, or a **specific instance**?
-
-| Instance (often implementation) | Template (often domain-level) |
-|--------------------------------|-------------------------------|
-| Google OAuth | Authentication provider |
-| Slack webhook | Notification channel |
-| SendGrid API | Email delivery |
-| `timedelta(hours=3)` | Confirmation deadline |
-
-Sometimes the instance IS the domain concern. See "The concrete detail problem" below.
-
-## The distillation mindset
-
-### Code is over-specified
-
-Every line of code makes decisions that might not matter at the domain level:
-
-```python
-# Code tells you:
-def send_invitation(candidate_id: int, slot_ids: List[int]) -> Invitation:
-    candidate = db.session.query(Candidate).get(candidate_id)
-    slots = db.session.query(InterviewSlot).filter(
-        InterviewSlot.id.in_(slot_ids),
-        InterviewSlot.status == 'confirmed'
-    ).all()
-
-    invitation = Invitation(
-        candidate_id=candidate_id,
-        token=secrets.token_urlsafe(32),
-        expires_at=datetime.utcnow() + timedelta(days=7),
-        status='pending'
-    )
-    db.session.add(invitation)
-
-    for slot in slots:
-        slot.status = 'proposed'
-        invitation.slots.append(slot)
-
-    db.session.commit()
-
-    send_email(
-        to=candidate.email,
-        template='interview_invitation',
-        context={'invitation': invitation, 'slots': slots}
-    )
-
-    return invitation
-```
+Use this prompt verbatim for each subagent, with the placeholders replaced:
 
 ```
--- Specification should say:
-rule SendInvitation {
-    when: SendInvitation(candidacy, slots)
+You are producing one structured inventory of a codebase as part of a
+consensus pipeline. Other subagents are doing the same job in parallel;
+your output will be merged with theirs.
 
-    requires: slots.all(s => s.status = confirmed)
+Step 1: Read every source file under <SOURCE_DIR>. Skip generated /
+vendored / dependency directories.
 
-    ensures:
-        for s in slots:
-            s.status = proposed
-    ensures: Invitation.created(
-        candidacy: candidacy,
-        slots: slots,
-        expires_at: now + 7.days,
-        status: pending
-    )
-    ensures: Email.created(
-        to: candidacy.candidate.email,
-        template: interview_invitation
-    )
-}
+Step 2: Read the inventory schema and conventions at:
+    ${CLAUDE_PLUGIN_ROOT}/skills/distill/references/inventory-schema.md
+
+That document defines the exact JSON shape, naming conventions,
+nullability encoding, when-clause grammar for scheduled jobs, invariant
+derivation rules, and the self-check list to run before emitting.
+
+Step 3: Produce a JSON inventory matching the schema and write it to:
+    <OUTPUT_PATH>
+
+Step 4: Stop. Do NOT:
+  - write a .allium spec (the orchestrator's translator handles that)
+  - write any other file
+  - invoke any other skill (in particular, do not invoke the distill skill — that would recurse)
+  - read or follow the orchestrator's SKILL.md
+  - print anything other than a one-line confirmation that the file was written
+
+The inventory is your only deliverable.
 ```
 
-What we dropped:
-- `candidate_id: int` became just `candidacy`
-- `db.session.query(...)` became relationship traversal
-- `secrets.token_urlsafe(32)` removed entirely (token is implementation)
-- `datetime.utcnow() + timedelta(...)` became `now + 7.days`
-- `db.session.add/commit` implied by `created`
-- `invitation.slots.append(slot)` implied by relationship
+### Step 4 — Canonicalize each inventory
 
-### Ask "Would a product owner care?"
-
-For every detail in the code, ask:
-
-| Code detail | Product owner cares? | Include? |
-|-------------|---------------------|----------|
-| Invitation expires in 7 days | Yes, affects candidate experience | Yes |
-| Token is 32 bytes URL-safe | No, security implementation | No |
-| Uses SQLAlchemy ORM | No, persistence mechanism | No |
-| Email template name | Maybe, if templates are design decisions | Maybe |
-| Slot status changes to 'proposed' | Yes, affects what candidate sees | Yes |
-| Database transaction commits | No, implementation detail | No |
-
-### Distinguish means from ends
-
-**Means:** how the code achieves something.
-**Ends:** what outcome the system needs.
-
-| Means (code) | Ends (spec) |
-|--------------|-------------|
-| `requests.post('https://slack.com/api/...')` | `Notification.created(channel: slack)` |
-| `candidate.oauth_token = google.exchange(code)` | `Candidate authenticated` |
-| `redis.setex(f'session:{id}', 86400, data)` | `Session.created(expires: 24.hours)` |
-| `for slot in slots: slot.status = 'cancelled'` | `for s in slots: s.status = cancelled` |
-
-## The concrete detail problem
-
-The hardest judgement call: when is a concrete detail part of the domain vs just implementation?
-
-### Google OAuth example
-
-You find this code:
-```python
-OAUTH_PROVIDERS = {
-    'google': GoogleOAuthProvider(client_id=..., client_secret=...),
-}
-
-def authenticate(provider: str, code: str) -> User:
-    return OAUTH_PROVIDERS[provider].authenticate(code)
-```
-
-**Question:** Is "Google OAuth" domain-level or implementation?
-
-**It is implementation if:**
-- Google is just the auth mechanism chosen
-- It could be replaced with any OAuth provider
-- Users do not see or care which provider
-- The code is written generically (provider is a parameter)
-
-**It is domain-level if:**
-- Users explicitly choose Google (vs Microsoft, etc.)
-- "Sign in with Google" is a feature
-- Google-specific scopes or permissions are used
-- Multiple providers are supported as a feature
-
-**How to tell:** Look at the UI and user flows. If users see "Sign in with Google" as a choice, it is domain-level. If they just see "Sign in" and Google happens to be behind it, it is implementation.
-
-### Database choice example
-
-You find PostgreSQL-specific code:
-```python
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY
-
-class Candidate(Base):
-    skills = Column(ARRAY(String))
-    metadata = Column(JSONB)
-```
-
-**Almost always implementation.** The spec should say:
-```
-entity Candidate {
-    skills: Set<String>
-    metadata: String?              -- or model specific fields
-}
-```
-
-The specific database is rarely domain-level. Exception: if the system explicitly promises PostgreSQL compatibility or specific PostgreSQL features to users.
-
-### Third-party integration example
-
-You find Greenhouse ATS integration:
-```python
-class GreenhouseSync:
-    def import_candidate(self, greenhouse_id: str) -> Candidate:
-        data = self.client.get_candidate(greenhouse_id)
-        return Candidate(
-            name=data['name'],
-            email=data['email'],
-            greenhouse_id=greenhouse_id,
-            source='greenhouse'
-        )
-```
-
-**Could be either:**
-
-**Implementation if:**
-- Greenhouse is just where candidates happen to come from
-- Could be swapped for Lever, Workable, etc.
-- The integration is an implementation detail of "candidates are imported"
-
-Spec:
-```
-external entity Candidate {
-    name: String
-    email: String
-    source: CandidateSource
-}
-```
-
-**Product-level if:**
-- "Greenhouse integration" is a selling point
-- Users configure their Greenhouse connection
-- Greenhouse-specific features are exposed (like syncing feedback back)
-
-Spec:
-```
-external entity Candidate {
-    name: String
-    email: String
-    greenhouse_id: String?  -- explicitly modeled
-}
-
-rule SyncFromGreenhouse {
-    when: GreenhouseWebhookReceived(candidate_data)
-    ensures: Candidate.created(
-        ...
-        greenhouse_id: candidate_data.id
-    )
-}
-```
-
-### The "Multiple implementations" heuristic
-
-Look for variation in the codebase:
-
-- If there is only one OAuth provider, probably implementation
-- If there are multiple OAuth providers, probably domain-level
-- If there is only one notification channel, probably implementation
-- If there are Slack AND email AND SMS, probably domain-level
-
-The presence of multiple implementations suggests the variation itself is a domain concern.
-
-## Distillation process
-
-### Step 1: Map the territory
-
-Before extracting any specification, understand the codebase structure:
-
-1. **Identify entry points.** API routes, CLI commands, message handlers, scheduled jobs.
-2. **Find the domain models.** Usually in `models/`, `entities/`, `domain/`.
-3. **Locate business logic.** Services, use cases, handlers.
-4. **Note external integrations.** What third parties does it talk to?
-
-Create a rough map:
-```
-Entry points:
-  - API: /api/candidates/*, /api/interviews/*, /api/invitations/*
-  - Webhooks: /webhooks/greenhouse, /webhooks/calendar
-  - Jobs: send_reminders, expire_invitations, sync_calendars
-
-Models:
-  - Candidate, Interview, InterviewSlot, Invitation, Feedback
-
-Services:
-  - SchedulingService, NotificationService, CalendarService
-
-Integrations:
-  - Google Calendar, Slack, Greenhouse, SendGrid
-```
-
-### Step 2: Extract entity states
-
-Look at enum fields and status columns:
-
-```python
-class Invitation(Base):
-    status = Column(Enum('pending', 'accepted', 'declined', 'expired'))
-```
-
-Becomes:
-```
-entity Invitation {
-    status: pending | accepted | declined | expired
-}
-```
-
-Look for enum definitions, status or state columns, constants like `STATUS_PENDING = 'pending'`, and state machine libraries (e.g. `transitions`, `django-fsm`).
-
-### Step 2.5: Identify candidate processes
-
-After extracting entities and their states, scan for state machines that suggest end-to-end processes. Trace where each status value gets set across the codebase (where does `status = 'interviewing'` happen?). Present candidate processes to the user for validation: "I see an entity with states `applied → screening → interviewing → deciding → hired/rejected`. Is this a process the system is meant to support?"
-
-Also trace cross-entity data flow. If a rule on entity A requires a field from entity B, follow the chain: where does entity B's field get set, and what triggers that? Present the chain: "The hiring decision requires `background_check_status = clear`. This gets set by a webhook handler at `/api/webhooks/background-check`. Does this chain look right?"
-
-Generate transition graphs from the extracted rules. The graph is a derived view of the code. If it has gaps (states with no outbound transitions that aren't terminal), flag them as potential issues.
-
-### Step 3: Extract transitions
-
-Find where status changes happen:
-
-```python
-def accept_invitation(invitation_id: int, slot_id: int):
-    invitation = get_invitation(invitation_id)
-
-    if invitation.status != 'pending':
-        raise InvalidStateError()
-    if invitation.expires_at < datetime.utcnow():
-        raise ExpiredError()
-
-    slot = get_slot(slot_id)
-    if slot not in invitation.slots:
-        raise InvalidSlotError()
-
-    invitation.status = 'accepted'
-    slot.status = 'booked'
-
-    # Release other slots
-    for other_slot in invitation.slots:
-        if other_slot.id != slot_id:
-            other_slot.status = 'available'
-
-    # Create the interview
-    interview = Interview(
-        candidate_id=invitation.candidate_id,
-        slot_id=slot_id,
-        status='scheduled'
-    )
-
-    notify_interviewers(interview)
-    send_confirmation_email(invitation.candidate, interview)
-```
-
-Extract:
-```
-rule CandidateAcceptsInvitation {
-    when: CandidateAccepts(invitation, slot)
-
-    requires: invitation.status = pending
-    requires: invitation.expires_at > now
-    requires: slot in invitation.slots
-
-    ensures: invitation.status = accepted
-    ensures: slot.status = booked
-    ensures:
-        for s in invitation.slots:
-            if s != slot: s.status = available
-    ensures: Interview.created(
-        candidacy: invitation.candidacy,
-        slot: slot,
-        status: scheduled
-    )
-    ensures: Notification.created(to: slot.interviewers, ...)
-    ensures: Email.created(to: invitation.candidate.email, ...)
-}
-```
-
-**Key extraction patterns:**
-
-| Code pattern | Spec pattern |
-|--------------|--------------|
-| `if x.status != 'pending': raise` | `requires: x.status = pending` |
-| `if x.expires_at < now: raise` | `requires: x.expires_at > now` |
-| `if item not in collection: raise` | `requires: item in collection` |
-| `x.status = 'accepted'` | `ensures: x.status = accepted` |
-| `Model.create(...)` | `ensures: Model.created(...)` |
-| `send_email(...)` | `ensures: Email.created(...)` |
-| `notify(...)` | `ensures: Notification.created(...)` |
-
-Assertions, checks and validations found in code (e.g. `assert balance >= 0`, class-level validators) may map to expression-bearing invariants rather than rule preconditions. Consider whether they describe a system-wide property or a rule-specific guard.
-
-### Step 4: Find temporal triggers
-
-Look for scheduled jobs and time-based logic:
-
-```python
-# In celery tasks or cron jobs
-@app.task
-def expire_invitations():
-    expired = Invitation.query.filter(
-        Invitation.status == 'pending',
-        Invitation.expires_at < datetime.utcnow()
-    ).all()
-
-    for invitation in expired:
-        invitation.status = 'expired'
-        for slot in invitation.slots:
-            slot.status = 'available'
-        notify_candidate_expired(invitation)
-
-@app.task
-def send_reminders():
-    upcoming = Interview.query.filter(
-        Interview.status == 'scheduled',
-        Interview.slot.time.between(
-            datetime.utcnow() + timedelta(hours=1),
-            datetime.utcnow() + timedelta(hours=2)
-        )
-    ).all()
-
-    for interview in upcoming:
-        send_reminder_notification(interview)
-```
-
-Extract:
-```
-rule InvitationExpires {
-    when: invitation: Invitation.expires_at <= now
-    requires: invitation.status = pending
-
-    ensures: invitation.status = expired
-    ensures:
-        for s in invitation.slots:
-            s.status = available
-    ensures: CandidateInformed(candidate: invitation.candidate, about: invitation_expired)
-}
-
-rule InterviewReminder {
-    when: interview: Interview.slot.time - 1.hour <= now
-    requires: interview.status = scheduled
-
-    ensures: Notification.created(to: interview.interviewers, template: reminder)
-}
-```
-
-### Step 5: Identify external boundaries
-
-Look for third-party API calls, webhook handlers, import/export functions, and data that is read but never written (or vice versa).
-
-These often indicate external entities:
-
-```python
-# Candidate data comes from Greenhouse, we don't create it
-def import_from_greenhouse(webhook_data):
-    candidate = Candidate.query.filter_by(
-        greenhouse_id=webhook_data['id']
-    ).first()
-
-    if not candidate:
-        candidate = Candidate(greenhouse_id=webhook_data['id'])
-
-    candidate.name = webhook_data['name']
-    candidate.email = webhook_data['email']
-```
-
-Suggests:
-```
-external entity Candidate {
-    name: String
-    email: String
-}
-```
-
-When repeated interface patterns appear across service boundaries (e.g. the same serialisation contract expected by multiple consumers), these suggest `contract` declarations for reuse rather than duplicated inline obligation blocks.
-
-### Step 5.5: Identify actors from auth patterns
-
-After extracting surfaces from API endpoints, identify actors by examining authentication and authorisation patterns. Different auth contexts suggest different actors:
-
-- API key authentication → system actor (external service)
-- Role-based access (`user.role == 'admin'`) → distinct actor per role
-- Scoped access (`user.org_id == resource.org_id`) → actor with `within` scoping
-- Unauthenticated endpoints → public-facing actor or system webhook
-
-Ask the user to confirm: "This endpoint requires admin role authentication. Is 'Admin' a distinct actor, or is this the same person as the regular user with elevated permissions?"
-
-### Step 6: Abstract away implementation
-
-Now make a pass through your extracted spec and remove implementation details.
-
-**Before (too concrete):**
-```
-entity Invitation {
-    candidate_id: Integer
-    token: String(32)
-    created_at: DateTime
-    expires_at: DateTime
-    status: pending | accepted | declined | expired
-}
-```
-
-**After (domain-level):**
-```
-entity Invitation {
-    candidacy: Candidacy
-    created_at: Timestamp
-    expires_at: Timestamp
-    status: pending | accepted | declined | expired
-
-    is_expired: expires_at <= now
-}
-```
-
-Changes:
-- `candidate_id: Integer` became `candidacy: Candidacy` (relationship, not FK)
-- `token: String(32)` removed (implementation)
-- `DateTime` became `Timestamp` (domain type)
-- Added derived `is_expired` for clarity
-
-Config values that derive from other config values (e.g. `extended_timeout = base_timeout * 2`) should use qualified references or expression-form defaults in the config block rather than independent literal values.
-
-### Step 7: Validate with stakeholders
-
-The extracted spec is a hypothesis. Validate it:
-
-1. **Show the spec to the original developers.** "Is this what the system does?"
-2. **Show to stakeholders.** "Is this what the system should do?"
-3. **Look for gaps.** Code often has bugs or missing features; the spec might reveal them.
-
-Common findings:
-- "Oh, that retry logic was a hack, we should remove it"
-- "Actually we wanted X but never built it"
-- "These two code paths should be the same but aren't"
-
-Before running further checks, read [assessing specs](../../references/assessing-specs.md) to gauge the distilled spec's maturity. This tells you whether the spec is ready for process-level analysis or still needs structural work.
-
-If the Allium CLI is available, run `allium check` on the distilled spec to catch structural issues, then `allium analyse` to identify process-level gaps. Findings from `analyse` can drive validation questions: "The distilled spec has a rule that requires `background_check.status = clear` but no surface captures background check results. Is this handled by a part of the codebase we haven't looked at?" Consult [actioning findings](../../references/actioning-findings.md) for how to translate findings into domain questions.
-
-## Recognising library spec candidates
-
-During distillation, stay alert for code that implements generic integration patterns rather than application-specific logic. These belong in library specs. See [recognising library spec opportunities](../elicit/references/library-spec-signals.md) for the full decision framework (questions to ask, how to handle, common extractions).
-
-### Signals in the code
-
-Look for these patterns that suggest a library spec:
-
-**Third-party integration modules:**
-```python
-class StripeWebhookHandler:
-    def handle_invoice_paid(self, event):
-        ...
-
-class GoogleOAuthProvider:
-    def exchange_code(self, code):
-        ...
-```
-
-**Configuration-driven integrations:**
-```python
-OAUTH_CONFIG = {
-    'google': {'client_id': ..., 'scopes': ...},
-    'microsoft': {'client_id': ..., 'scopes': ...},
-}
-```
-
-**Generic patterns with specific providers:** OAuth flows, payment processing, email delivery, calendar sync, ATS integrations, file storage.
-
-### Red flags: integration logic in your spec
-
-If you find yourself writing spec like this, stop and reconsider:
+For each inventory the subagents produced, run via the Bash tool:
 
 ```
--- TOO DETAILED - this is Stripe's domain, not yours
-rule ProcessStripeWebhook {
-    when: WebhookReceived(payload, signature)
-    requires: verify_stripe_signature(payload, signature)
-    let event = parse_stripe_event(payload)
-    if event.type = "invoice.paid":
-        ...
-}
+node ${CLAUDE_PLUGIN_ROOT}/scripts/canonicalize-inventory.mjs \
+    ./allium-distilled/inventories/inventory-<i>.json \
+    ./allium-distilled/inventories/inventory-<i>.canonical.json
 ```
 
-Instead:
-```
--- Application responds to payment events (integration handled elsewhere)
-rule PaymentReceived {
-    when: stripe/InvoicePaid(invoice)
-    ...
-}
-```
+If a subagent failed to write its inventory, skip it and continue with the survivors. Note any failures in the final report.
 
-See [patterns.md Pattern 8](../../references/patterns.md) for detailed examples of integrating library specs.
+### Step 5 — Merge into a consensus inventory
 
-## Common distillation challenges
-
-### Challenge: Duplicate terminology
-
-When you find two terms for the same concept (across specs, within a spec, or between spec and code) treat it as a blocking problem.
+Run via Bash, passing every canonical inventory produced in Step 4:
 
 ```
--- BAD: Acknowledges duplication without resolving it
--- Order vs Purchase
--- checkout.allium uses "Purchase" - these are equivalent concepts.
-```
-
-This is not a resolution. When different parts of a codebase are built against different specs, both terms end up in the implementation: duplicate models, redundant join tables, foreign keys pointing both ways.
-
-**What to do:**
-- Choose one term. Cross-reference related specs before deciding.
-- Update all references. Do not leave the old term in comments or "see also" notes.
-- Note the rename in a changelog, not in the spec itself.
-
-**Warning signs in code:**
-- Two models representing the same concept (`Order` and `Purchase`)
-- Join tables for both (`order_items`, `purchase_items`)
-- Comments like "equivalent to X" or "same as Y"
-
-The spec you extract must pick one term. Flag the other as technical debt to remove.
-
-### Challenge: Implicit state machines
-
-Code often has implicit states that are not modelled:
-
-```python
-# No explicit status field, but there's a state machine hiding here
-class FeedbackRequest:
-    interview_id = Column(Integer)
-    interviewer_id = Column(Integer)
-    requested_at = Column(DateTime)
-    reminded_at = Column(DateTime, nullable=True)
-    feedback_id = Column(Integer, nullable=True)  # FK to Feedback if submitted
-```
-
-The implicit states are:
-- `pending`: requested_at set, feedback_id null, reminded_at null
-- `reminded`: reminded_at set, feedback_id null
-- `submitted`: feedback_id set
-
-Extract to explicit:
-```
-entity FeedbackRequest {
-    interview: Interview
-    interviewer: Interviewer
-    requested_at: Timestamp
-    reminded_at: Timestamp?
-    status: pending | reminded | submitted
-}
-```
-
-### Challenge: Scattered logic
-
-The same conceptual rule might be spread across multiple places:
-
-```python
-# In API handler
-def accept_invitation(request):
-    if invitation.status != 'pending':
-        return error(400, "Already responded")
-    ...
-
-# In model
-class Invitation:
-    def can_accept(self):
-        return self.expires_at > datetime.utcnow()
-
-# In service
-def process_acceptance(invitation, slot):
-    if slot not in invitation.slots:
-        raise InvalidSlot()
+node ${CLAUDE_PLUGIN_ROOT}/scripts/merge-inventories.mjs \
+    ./allium-distilled/inventory.merged.json \
+    ./allium-distilled/inventories/inventory-1.canonical.json \
+    ./allium-distilled/inventories/inventory-2.canonical.json \
     ...
 ```
 
-Consolidate into one rule:
-```
-rule CandidateAccepts {
-    when: CandidateAccepts(invitation, slot)
+The merger does majority voting per top-level item (entities, transitions, etc.) and modal-value voting per field. Same K canonical inventories always produce byte-identical output.
 
-    requires: invitation.status = pending
-    requires: invitation.expires_at > now
-    requires: slot in invitation.slots
-    ...
-}
+### Step 6 — Translate to the spec
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/inventory-to-spec.mjs \
+    ./allium-distilled/inventory.merged.json \
+    ./allium-distilled/spec.allium
 ```
 
-### Challenge: Dead code and historical accidents
+The translator is a pure function — same merged inventory always produces byte-identical spec.
 
-Codebases accumulate features that were built but never used, workarounds for bugs that are now fixed, and code paths that are never executed.
+### Step 7 — Verify with `allium check`
 
-Do not include these in the spec. If you are unsure:
-1. Check if the code is actually reachable
-2. Ask developers if it is intentional
-3. Check git history for context
+Run `allium check ./allium-distilled/spec.allium`. Parse the JSON output and report:
+- Number of errors, warnings, and info-level diagnostics
+- If errors exist, name the construct(s) involved and which subagent's inventory contributed
 
-### Challenge: Missing error handling
+A clean run is 0 errors. Warnings about external-entity governing-specification imports and info-level surface/listener gaps are expected and not failures.
 
-Code might silently fail or have incomplete error handling:
+### Step 8 — Report
 
-```python
-def send_notification(user, message):
-    try:
-        slack.send(user.slack_id, message)
-    except SlackError:
-        pass  # Silently ignore failures
-```
+State to the user:
+- Path to the produced spec
+- K (number of subagents used)
+- Spec size (lines, bytes)
+- `allium check` result
+- Any subagent failures
+- One-line summary of the consensus content (e.g. "5 entities, 11 transitions, 4 invariants, 2 contracts, 2 surfaces")
 
-The spec should capture the intended behaviour, not the bug:
-```
-ensures: Notification.created(to: user, channel: slack)
-```
+Do not embed the spec contents in your reply — point the user at the file.
 
-Whether the current implementation properly handles failures is separate from what the system should do.
+## Defaults
 
-### Challenge: Over-engineered abstractions
+- K = 3
+- Output directory = `./allium-distilled/`
+- Subagents run in parallel (always)
+- The skill produces exactly one spec per invocation (no per-sample artefacts beyond the inventories)
 
-Enterprise codebases often have abstraction layers that obscure intent:
+## What this skill does NOT do
 
-```java
-public interface NotificationStrategy {
-    void notify(NotificationContext context);
-}
+- It does not invoke `allium analyse` or `allium plan` beyond the basic `allium check`. If the user wants process-completeness checks, they run those tools manually against the produced spec.
+- It does not modify the source code being distilled.
+- It does not write its own narrative `@guidance` prose — guidance carried through from the inventory's `guidance` fields propagates to the spec via the translator.
+- It does not invoke other skills (no recursion through the subagent path).
 
-public class SlackNotificationStrategy implements NotificationStrategy {
-    @Override
-    public void notify(NotificationContext context) {
-        // Actual Slack call buried 5 levels deep
-    }
-}
-```
+## What to extract — guidance for subagents
 
-Cut through to the actual behaviour. The spec does not need strategy patterns, dependency injection or abstract factories. Just: `ensures: Notification.created(channel: slack, ...)`
+The `references/inventory-schema.md` doc has the concrete schema and conventions. Subagents read that. The orchestrator (you) does not need to know what to extract — only how to drive the pipeline.
 
-## Checklist: Have you abstracted enough?
-
-Before finalising a distilled spec:
-
-- [ ] No database column types (Integer, VARCHAR, etc.)
-- [ ] No ORM or query syntax
-- [ ] No HTTP status codes or API paths
-- [ ] No framework-specific concepts (middleware, decorators, etc.)
-- [ ] No programming language types (int, str, List, etc.)
-- [ ] No variable names from the code (use domain terms)
-- [ ] No infrastructure (Redis, Kafka, S3, etc.)
-- [ ] Foreign keys replaced with relationships
-- [ ] Tokens/secrets removed (implementation of identity)
-- [ ] Timestamps use domain Duration, not timedelta/seconds
-
-If any remain, ask: "Would a stakeholder include this in a requirements doc?"
-
-## Checklist: Terminology consistency
-
-- [ ] Each concept has exactly one name throughout the spec
-- [ ] No "also known as" or "equivalent to" comments
-- [ ] Cross-referenced related specs for conflicting terms
-- [ ] Duplicate models in code flagged as technical debt to remove
-
-## After distillation
-
-The extracted spec is a starting point. If distillation reveals gaps that need structured discovery (unclear requirements, complex entity relationships, unstated business rules), use the `elicit` skill to fill them. For targeted changes as requirements evolve, use the `tend` skill. For checking ongoing alignment between the spec and implementation, use the `weed` skill.
-
-## References
-
-- [Language reference](../../references/language-reference.md), full Allium syntax
-- [Assessing specs](../../references/assessing-specs.md), how to assess spec maturity and choose the right level of analysis
-- [Actioning findings](../../references/actioning-findings.md), translating checker findings into domain questions
-- [Worked examples](./references/worked-examples.md), complete code-to-spec examples in Python, TypeScript and Java
+If subagents produce visibly poor inventories (missing entities that should obviously be in the code, etc.), the right intervention is to extend `references/inventory-schema.md`, not to add inline guidance to the orchestrator prompt. Keep this SKILL.md focused on orchestration.
