@@ -1,0 +1,15 @@
+def {{test_name}}({{#each fixtures_required}}{{#if index}}, {{/if}}{{it}}{{/each}}):
+    """obligation: {{obligation.obligation_id}}
+
+    bridge: {{bridge.primary_symbol}}{{#if preconditions}}
+
+    preconditions:
+{{#each preconditions}}      - {{it}}
+{{/each}}{{/if}}
+    """
+    # TODO: invoke {{bridge.primary_symbol}} and assert the obligation holds.
+    # This stub is structurally complete: fixtures, bridge, and preconditions
+    # are wired in. Fill in the assertion body against the implementation.
+    assert {{bridge.primary_symbol_local}} is not None, (
+        "obligation {{obligation.obligation_id}} witness {{bridge.primary_symbol}} not importable"
+    )

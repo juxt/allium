@@ -1,0 +1,24 @@
+class {{state_machine_class_name}}(RuleBasedStateMachine):
+    """obligation: {{obligation.obligation_id}}
+
+    Walks the declared transition graph; each edge is a Hypothesis rule
+    that calls the witnessing function and asserts the entity reaches
+    the target state.
+
+    bridge: {{bridge.primary_symbol}}
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.entity = None
+
+    {{#each transition_graph_for_entity}}@rule()
+    def transition_{{it.from}}_to_{{it.to}}(self):
+        # via_rule: {{it.via_rule}}
+        # TODO: drive {{bridge.primary_symbol_local}} (or the specific witness
+        # for {{it.via_rule}}) from state '{{it.from}}' to '{{it.to}}'.
+        pass
+
+    {{/each}}
+
+{{test_name}} = {{state_machine_class_name}}.TestCase
