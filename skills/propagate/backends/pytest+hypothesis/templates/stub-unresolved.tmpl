@@ -1,0 +1,15 @@
+def {{test_name}}({{#each fixtures_required}}{{#if index}}, {{/if}}{{it}}{{/each}}):
+    """TODO: bridge unresolved
+
+    obligation: {{obligation.obligation_id}}
+    test_kind: {{obligation.test_kind}}
+{{#if bridge.candidates}}
+    candidates:
+{{#each bridge.candidates}}      - {{it}}
+{{/each}}{{/if}}{{#if bridge.primary_symbol}}
+    primary (low confidence): {{bridge.primary_symbol}}
+{{/if}}{{#if preconditions}}
+    preconditions:
+{{#each preconditions}}      - {{it}}
+{{/each}}{{/if}}    """
+    pytest.skip("{{manifest.skip_marker}}")
