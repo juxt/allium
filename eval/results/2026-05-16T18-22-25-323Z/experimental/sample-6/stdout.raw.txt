@@ -1,0 +1,11 @@
+Spec validates with only info-level diagnostics — no errors, no warnings, no findings. Final spec covers:
+
+- 6 entities (Policy, Claim, Assessor, Assessment, Payout, IncidentReport)
+- 4 status enums with a transition graph on Claim
+- 14 rules (transitions, scheduled jobs, webhook handler)
+- Derived properties (is_within_sla, is_stalled, has_open_claims, retry_anchor, total_paid_pence, etc.)
+- Config block capturing the temporal constants from the code
+- 2 contracts (FasterPayments, AssessorDispatch) for third-party integrations
+- 7 surfaces (adjuster, assessor, webhook intake, payout ops, etc.)
+
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-22-25-323Z/experimental/sample-6/spec.allium` — `allium check` and `allium analyse` both return zero findings.

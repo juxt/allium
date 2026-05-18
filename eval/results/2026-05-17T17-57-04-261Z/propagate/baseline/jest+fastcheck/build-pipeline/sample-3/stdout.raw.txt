@@ -1,0 +1,20 @@
+Done. Generated **8 test files / 155 passing tests** under `./tests/`, covering every spec obligation surfaced by `allium plan`:
+
+| File | Spec obligations covered |
+|---|---|
+| `entities.test.ts` | entity_fields (×6), entity_optional (×6), entity_relationship (×2), enum_comparable (×3), value_equality (×2), projection, config_default (×4) |
+| `derived.test.ts` | derived.Build.buildIsStuck, derived.Artifact.artifactIsExpired, plus buildDurationMs |
+| `rules.test.ts` | rule_success / rule_failure / rule_entity_creation for Enqueue, Start, MarkSuccess, MarkFailed, Cancel, RegisterArtifact, MarkArtifactUploaded, MarkArtifactExpired, ReceiveGithubPushEvent |
+| `transitions.test.ts` | Full Build & Artifact transition-graph walks: every declared edge, every illegal edge rejected, terminal-state outbound rejection, reachability from `.created` |
+| `jobs.test.ts` | temporal.TimeoutQueuedBuilds + the three scheduled jobs (TimeoutQueuedBuilds, FailStuckBuilds, ExpireOldArtifacts), including non-re-fire on terminal states |
+| `surfaces.test.ts` | surface_provides.Routes + surface_provides.Webhooks; ReceiveGithubPushEvent data-flow chain into EnqueueBuild |
+| `storage.test.ts` | contract_signature for StorageService.{upload,delete}ArtifactBlob and all five @invariant preconditions |
+| `invariants.property.test.ts` | Property-based: invariant.FailedBuildsHaveReason over random legal transition walks, plus shape invariants per state |
+| `helpers.ts` | Shared fixtures: makePipeline / makeQueuedBuild / makeRunningBuild / makeSuccessBuild / makePendingArtifact / makeUploadedArtifact |
+
+Tooling additions: added `jest`, `ts-jest`, `fast-check`, `@types/jest`, `@jest/globals` to `package.json`, plus `jest.config.cjs` and `tsconfig.test.json` (CJS transpile to sidestep a strict-ESM TDZ cycle in the fixture's `index.ts ↔ routes.ts` module). The fixture itself is unchanged.
+
+Notes on bridge decisions:
+- Temporal tests position entity timestamps relative to `Date.now()` rather than mocking the clock — the implementation reads wall-clock time directly with no injectable seam, and the propagate skill flags this as a real gap. No TODO/skip was needed because the predicate is monotonic enough to position safely past the threshold.
+- `entity_relationship` for `Build.pipeline`/`Artifact.build`: the spec models these as navigations; the impl stores FK strings (`pipelineId`, `buildId`). Tests resolve via the `Store` maps — that resolution is the intended bridge.
+- No skips with TODOs were required; the bridge was clear for every obligation.

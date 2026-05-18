@@ -1,0 +1,3 @@
+Spec passes both `allium check` and `allium analyse` with zero findings — only info-level diagnostics for unused fields (entity completeness) and unreachable triggers (the adjuster HTTP routes intentionally aren't mapped to surfaces; only the webhook is per the inventory).
+
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-45-00-249Z/experimental/sample-6/spec.allium` — 6 entities (1 external), 4 enums, 17 rules covering all lifecycle transitions plus the 5 scheduled jobs, 2 contracts for the third-party integrations, and the `IncidentReportsWebhook` surface.

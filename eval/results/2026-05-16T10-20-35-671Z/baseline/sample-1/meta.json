@@ -1,0 +1,18 @@
+{
+  "variant": "baseline",
+  "sample": 1,
+  "claudePath": "/Users/yavorpanayotov/.local/bin/claude",
+  "args": [
+    "--plugin-dir",
+    "/Users/yavorpanayotov/IdeaProjects/allium-4.0/plugins/baseline",
+    "--print",
+    "Use the distill skill to extract a complete Allium specification from the\nPython code in this directory.\n\nRead every file under ./app and produce one self-contained .allium spec\nthat describes the observable behaviour of the system. Cover entities,\nstatus enums, state-machine transitions, temporal rules, derived\nproperties, third-party integrations and webhook entry points.\n\nOutput ONLY the spec content — no markdown fences, no preamble, no\nexplanation. The first line must be `-- allium: 3`."
+  ],
+  "cwd": "/Users/yavorpanayotov/IdeaProjects/allium-4.0/fixtures/insurance-claims",
+  "model": null,
+  "exitCode": 0,
+  "signal": null,
+  "durationMs": 145768,
+  "promptHash": "9b1692cd",
+  "startedAt": "2026-05-16T10:20:35.672Z"
+}

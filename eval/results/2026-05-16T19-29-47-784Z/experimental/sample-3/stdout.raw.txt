@@ -1,0 +1,1 @@
+Spec validates cleanly: 0 errors and 0 findings from both `allium check` and `allium analyse`. Written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-29-47-784Z/experimental/sample-3/spec.allium`.

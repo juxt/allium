@@ -1,0 +1,4 @@
+# file: /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T17-39-02-497Z/propagate/baseline/pytest+hypothesis/insurance-claims/sample-3/workdir/app/webhooks.py
+# hypothesis_version: 6.141.1
+
+['description', 'incident_date', 'linked_claim_number', 'policy_number', 'report_id', 'source']

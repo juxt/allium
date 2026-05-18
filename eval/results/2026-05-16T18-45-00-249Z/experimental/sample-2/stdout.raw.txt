@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-45-00-249Z/experimental/sample-2/spec.allium` (464 lines). `allium check` passes: 0 errors, 2 warnings (unused value types referenced only inside contract signatures), 40 infos (unreached external triggers/unused fields — expected for a distilled spec). Inventory written alongside.

@@ -1,0 +1,376 @@
+-- allium: 3
+-- InsuranceClaims: distilled from app/.
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+external entity IncidentReport {
+    description: String
+    incident_date: Timestamp
+    linked_claim: Claim?
+    policy: Policy?
+    received_at: Timestamp
+    report_id: String
+    source: String
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value AssessorDispatch {
+    claim_number: String
+    dispatch_id: String
+    specialties: List<String>
+}
+
+value PaymentRequest {
+    account_number: String
+    amount_pence: Integer
+    reference: String
+    sort_code: String
+}
+
+value PaymentResult {
+    request: PaymentRequest
+    status: PaymentResultStatus
+    submitted_at: Timestamp
+    upstream_id: String
+}
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract AssessorService {
+    request_assessor_dispatch: (claim_number: String, specialties: List<String>) -> AssessorDispatch
+
+    @invariant SpecialtiesNonEmpty
+        -- len(specialties) >= 1
+}
+
+contract PaymentService {
+    send_faster_payment: (account_number: String, sort_code: String, amount_pence: Integer, reference: String) -> PaymentResult
+
+    @invariant AmountPenceIsPositive
+        -- amount_pence > 0
+    @invariant AccountNumberIsEightDigits
+        -- len(account_number) == 8 and account_number.isdigit()
+    @invariant SortCodeFormat
+        -- sort_code matches NN-NN-NN format
+    @invariant AmountPenceWithinCap
+        -- amount_pence <= 100_000_000
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum AssessmentStatus { pending | in_progress | completed }
+
+enum ClaimStatus { submitted | triaged | assessing | approved | denied | paid | closed }
+
+enum PaymentResultStatus { accepted | rejected | pending_review }
+
+enum PayoutStatus { scheduled | paid | failed }
+
+enum PolicyStatus { active | lapsed | cancelled }
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity Assessment {
+    assessment_id: String
+    assessor: Assessor
+    claim: Claim
+    completed_at: Timestamp?
+    findings: String
+    started_at: Timestamp?
+    status: AssessmentStatus
+}
+
+entity Assessor {
+    name: String
+    specialties: Set<String>
+}
+
+entity Claim {
+    amount_claimed_pence: Integer
+    claim_number: String
+    denial_reason: String?
+    incident_date: Timestamp
+    last_activity_at: Timestamp
+    policy: Policy
+    status: ClaimStatus
+    submitted_at: Timestamp
+
+    assessments: Assessment with claim = this
+    payouts: Payout with claim = this
+
+    paid_payouts: payouts where status = paid
+
+    age: now - submitted_at
+    has_completed_assessment: assessments.any(a => a.status = completed)
+    is_stalled: status = assessing and (now - last_activity_at) > 21.days
+    is_within_sla: (now - submitted_at) <= 14.days
+    total_paid_pence: sum_amount_pence(paid_payouts)
+}
+
+entity Payout {
+    amount_pence: Integer
+    claim: Claim
+    failed_attempts: Integer
+    last_failure_at: Timestamp?
+    paid_at: Timestamp?
+    payout_id: String
+    scheduled_at: Timestamp
+    status: PayoutStatus
+}
+
+entity Policy {
+    coverage_limit_pence: Integer
+    holder: String
+    holder_tags: Set<String>
+    policy_number: String
+    status: PolicyStatus
+
+    claims: Claim with policy = this
+    open_claims: claims where status not in {paid, denied, closed}
+
+    has_open_claims: open_claims.count > 0
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule SubmitClaim {
+    when: SubmitClaim(policy, claim_number, incident_date, amount_claimed_pence)
+
+    requires: policy.status = active
+    requires: amount_claimed_pence <= policy.coverage_limit_pence
+
+    ensures: Claim.created(
+        amount_claimed_pence: amount_claimed_pence,
+        claim_number: claim_number,
+        denial_reason: null,
+        incident_date: incident_date,
+        last_activity_at: now,
+        policy: policy,
+        status: submitted,
+        submitted_at: now
+    )
+}
+
+rule TriageClaim {
+    when: TriageClaim(claim)
+
+    requires: claim.status = submitted
+
+    ensures: claim.status = triaged
+    ensures: claim.last_activity_at = now
+}
+
+rule StartAssessment {
+    when: StartAssessment(claim, assessor)
+
+    requires: claim.status = triaged
+
+    ensures: claim.status = assessing
+    ensures: claim.last_activity_at = now
+    ensures: Assessment.created(
+        assessor: assessor,
+        claim: claim,
+        completed_at: null,
+        findings: "",
+        started_at: now,
+        status: in_progress
+    )
+}
+
+rule CompleteAssessment {
+    when: CompleteAssessment(assessment, findings)
+
+    requires: assessment.status = in_progress
+
+    ensures: assessment.status = completed
+    ensures: assessment.findings = findings
+    ensures: assessment.completed_at = now
+    ensures: assessment.claim.last_activity_at = now
+}
+
+rule ApproveClaim {
+    when: ApproveClaim(claim)
+
+    requires: claim.status = assessing
+    requires: claim.has_completed_assessment
+
+    ensures: claim.status = approved
+    ensures: claim.last_activity_at = now
+}
+
+rule DenyClaim {
+    when: DenyClaim(claim, reason)
+
+    requires: claim.status in {triaged, assessing}
+
+    ensures: claim.status = denied
+    ensures: claim.denial_reason = reason
+    ensures: claim.last_activity_at = now
+}
+
+rule SchedulePayout {
+    when: SchedulePayout(claim)
+
+    requires: claim.status = approved
+
+    ensures: Payout.created(
+        amount_pence: claim.amount_claimed_pence,
+        claim: claim,
+        failed_attempts: 0,
+        last_failure_at: null,
+        paid_at: null,
+        scheduled_at: now,
+        status: scheduled
+    )
+    ensures: claim.last_activity_at = now
+}
+
+rule MarkPayoutPaid {
+    when: MarkPayoutPaid(payout)
+
+    ensures: payout.status = paid
+    ensures: payout.paid_at = now
+    ensures: payout.claim.status = paid
+    ensures: payout.claim.last_activity_at = now
+}
+
+rule MarkPayoutFailed {
+    when: MarkPayoutFailed(payout)
+
+    ensures: payout.status = failed
+    ensures: payout.failed_attempts = payout.failed_attempts + 1
+    ensures: payout.last_failure_at = now
+}
+
+rule RegisterAssessor {
+    when: RegisterAssessor(name, specialties)
+
+    ensures: Assessor.created(
+        name: name,
+        specialties: specialties
+    )
+}
+
+rule RegisterPolicy {
+    when: RegisterPolicy(coverage_limit_pence, holder, holder_tags, policy_number)
+
+    ensures: Policy.created(
+        coverage_limit_pence: coverage_limit_pence,
+        holder: holder,
+        holder_tags: holder_tags,
+        policy_number: policy_number,
+        status: active
+    )
+}
+
+rule AssessmentSlaJob {
+    when: claim: Claim.submitted_at + 14.days <= now
+    requires: claim.status in {triaged, assessing}
+
+    ensures: SlaBreached(claim: claim)
+}
+
+rule AutoAcknowledgeJob {
+    when: claim: Claim.submitted_at + 5.days <= now
+    requires: claim.status = submitted
+
+    ensures: claim.status = triaged
+    ensures: claim.last_activity_at = now
+}
+
+rule AutoApprovalScheduler {
+    when: claim: Claim.has_completed_assessment
+    requires: claim.status = assessing
+    requires: claim.amount_claimed_pence < 5_000_000
+    requires: "trusted" in claim.policy.holder_tags
+
+    ensures: claim.status = approved
+    ensures: claim.last_activity_at = now
+}
+
+rule AutoCloseDeniedJob {
+    when: claim: Claim.last_activity_at + 90.days <= now
+    requires: claim.status = denied
+
+    ensures: claim.status = closed
+    ensures: claim.last_activity_at = now
+}
+
+rule PayoutRetryJob {
+    when: payout: Payout.last_failure_at + 28.days <= now
+    requires: payout.status = failed
+
+    ensures: AttemptPaymentRetry(payout: payout)
+}
+
+rule ReceiveIncidentReport {
+    when: ReceiveIncidentReport(description, incident_date, policy, source)
+
+    let matching_claim = first_matching_claim(policy, incident_date)
+
+    ensures: IncidentReport.created(
+        description: description,
+        incident_date: incident_date,
+        linked_claim: matching_claim,
+        policy: policy,
+        received_at: now,
+        report_id: generate_report_id(),
+        source: source
+    )
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant ApprovedClaimsHaveCompletedAssessment {
+    for claim in Claims:
+        claim.status in {approved, paid} implies claim.has_completed_assessment
+}
+
+invariant ClaimAmountWithinCoverage {
+    for claim in Claims:
+        claim.amount_claimed_pence <= claim.policy.coverage_limit_pence
+}
+
+invariant DeniedClaimsHaveReason {
+    for claim in Claims:
+        claim.status = denied implies claim.denial_reason != null
+}
+
+invariant PayoutAmountMatchesClaim {
+    for payout in Payouts:
+        payout.amount_pence = payout.claim.amount_claimed_pence
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface Routes {
+    provides:
+        SubmitClaim(policy, claim_number, incident_date, amount_claimed_pence)
+        TriageClaim(claim)
+        StartAssessment(claim, assessor)
+        ApproveClaim(claim)
+        DenyClaim(claim, reason)
+        MarkPayoutPaid(payout)
+}
+
+surface Webhooks {
+    provides:
+        ReceiveIncidentReport(description, incident_date, policy, source)
+}

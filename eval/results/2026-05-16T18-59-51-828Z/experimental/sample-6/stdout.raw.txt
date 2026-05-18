@@ -1,0 +1,3 @@
+Spec validates cleanly: `allium check` produced zero errors/warnings (only info-level notices about descriptive fields and trigger reachability), and `allium analyse` returned zero findings. The 11 entities/enums, 14 rules (4 temporal/scheduled, 1 derived-condition auto-approval, plus the receive-incident webhook), 5 invariants, 1 contract (Payment), and 2 surfaces (Routes, Webhooks) trace back to entries in `inventory.json`.
+
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-59-51-828Z/experimental/sample-6/spec.allium`; inventory alongside it.

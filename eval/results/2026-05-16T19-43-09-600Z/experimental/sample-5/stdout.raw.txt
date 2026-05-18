@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-43-09-600Z/experimental/sample-5/spec.allium` (423 lines). `allium check` reports 0 errors and only 2 info-level unused-value warnings (for `AssessorDispatch` and `PaymentResult`, which are referenced as contract return types).

@@ -1,0 +1,8 @@
+0 errors. The remaining warnings are honest reflections of the codebase:
+- `Payout.failed` truly is never assigned by any visible rule (captured in the open question).
+- The `Claim.approved → paid` transition is set cross-entity via `payout.claim.status = paid`; the checker doesn't trace through that.
+- External entities (User auth, FasterPayments) are genuinely governed elsewhere.
+
+The spec is structurally valid. Final file written.
+
+Spec written to /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T17-36-01-344Z/baseline/sample-6/spec.allium — passes `allium check` with 0 errors (4 warnings reflecting genuine code gaps).

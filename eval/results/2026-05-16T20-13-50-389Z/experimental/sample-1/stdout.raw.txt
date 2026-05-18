@@ -1,0 +1,1 @@
+Spec written and validated: 401-line `spec.allium` at the target path; `allium check` reports 0 errors, 0 findings (2 warnings + 24 info-level diagnostics for unused descriptive fields and informational notes). Inventory saved alongside at `inventory.json`.

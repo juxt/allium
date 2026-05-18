@@ -1,0 +1,18 @@
+Generated **119 tests across 8 files** under `tests/`, all passing (118 passed, 1 documented xfail). The suite covers every category in `allium plan`:
+
+**File breakdown:**
+- `test_entities.py` (34 tests) — entity_fields, entity_optional, entity_relationship, projection, derived, value_equality
+- `test_enums.py` (10 tests) — enum_comparable for all 5 enums
+- `test_config.py` (7 tests) — all config_default obligations
+- `test_contracts.py` (8 tests) — contract_signature + Hypothesis property tests for the `PaymentService` contract invariants (AmountPenceIsPositive, AmountPenceWithinCap) and the `AssessorService` precondition
+- `test_rules.py` (22 tests) — rule_success / rule_failure / rule_entity_creation for all non-temporal rules
+- `test_temporal.py` (17 tests) — temporal rules with injected `now=` clock (auto-ack, SLA, retry, auto-close, auto-approval)
+- `test_invariants.py` (8 tests) — assertion-based positive/negative checks + a Hypothesis `RuleBasedStateMachine` that walks the claim lifecycle and re-checks all 4 invariants after every transition, plus a happy-path property test
+- `test_surfaces.py` (13 tests) — Routes & Webhooks: each provided rule's HTTP route exists, end-to-end handler walk-through, link_window scoping for incident reports
+
+**Bridge notes left in TODO comments:**
+- Spec uses relational fields (`policy: Policy`, `claim: Claim`); code uses FK strings (`policy_number`, `claim_number`)
+- Spec field `linked_claim` is `linked_claim_number` in code
+
+**Documented divergence:**
+- `test_routes_surface_provides_register_policy_route` is `xfail(strict=True)` — the spec's `Routes` surface lists `RegisterPolicy` but there's no `POST /policies` route in the implementation (only the service function).

@@ -1,0 +1,11 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T04-28-17-972Z/experimental/sample-1/inventory.json` (valid JSON).
+
+Coverage summary:
+- **6 entities** — `Assessment`, `Assessor`, `Claim`, `IncidentReport` (external), `Payout`, `Policy` — with FK→relationship rewrites (`policy_number` → `policy: Policy`, etc.), status enums, derived properties from `@property` and helper methods (`is_stalled`, `is_within_sla`, `has_completed_assessment`, `total_paid`, `retry_due_at`, `has_open_claims`), and `claims`/`open_claims`/`assessments`/`completed_assessments`/`paid_payouts`/`payouts` relationships.
+- **12 transitions** including the webhook receiver, with structured `params`/`requires`/`ensures` (assign/create/invoke).
+- **4 scheduled jobs** with `when:` expressions using derived properties (`retry_due_at`, `has_completed_assessment`). `assessment_sla_job` was omitted as a pure-observability job with no domain mutation.
+- **2 integrations** (`payment`, `assessor`) with verbatim preconditions.
+- **3 value types**, **1 auxiliary enum** (`PaymentResultStatus`).
+- **4 cross-cutting invariants** derived per the four-rule procedure.
+- **7 config constants** mapped to `Duration` / `Integer` with Allium-formatted values.
+- **8 routes** + **1 webhook**.

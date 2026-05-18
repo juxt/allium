@@ -1,0 +1,4 @@
+# file: /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T17-39-02-497Z/propagate/baseline/pytest+hypothesis/insurance-claims/sample-1/workdir/app/routes.py
+# hypothesis_version: 6.141.1
+
+['/claims', 'amount_claimed_pence', 'assessment_id', 'assessor_name', 'claim_number', 'closed', 'denial_reason', 'incident_date', 'is_stalled', 'is_within_sla', 'payout_id', 'policy_number', 'reason', 'status', 'total_paid_pence']

@@ -1,0 +1,1433 @@
+{
+  "spec_path": "./allium-distilled/spec.allium",
+  "code_root": ".",
+  "framework": "pytest+hypothesis",
+  "transition_graph": {},
+  "obligations": [
+    {
+      "obligation_id": "entity-fields.IncidentReport",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::IncidentReport",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_incident_report.py",
+      "test_name": "test_incident_report_has_declared_fields"
+    },
+    {
+      "obligation_id": "entity-optional.IncidentReport.linked_claim",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::IncidentReport",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_incident_report_linked_claim.py",
+      "test_name": "test_incident_report_linked_claim_optional"
+    },
+    {
+      "obligation_id": "entity-optional.IncidentReport.policy_number",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::IncidentReport",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_incident_report_policy_number.py",
+      "test_name": "test_incident_report_policy_number_optional"
+    },
+    {
+      "obligation_id": "value-equality.AssessorDispatch",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/assessor.py::AssessorDispatch",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_value_equality_assessor_dispatch.py",
+      "test_name": "test_assessor_dispatch_structural_equality"
+    },
+    {
+      "obligation_id": "entity-fields.AssessorDispatch",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/assessor.py::AssessorDispatch",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_assessor_dispatch.py",
+      "test_name": "test_assessor_dispatch_has_declared_fields"
+    },
+    {
+      "obligation_id": "value-equality.PaymentRequest",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/payment.py::PaymentRequest",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_value_equality_payment_request.py",
+      "test_name": "test_payment_request_structural_equality"
+    },
+    {
+      "obligation_id": "entity-fields.PaymentRequest",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/payment.py::PaymentRequest",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_payment_request.py",
+      "test_name": "test_payment_request_has_declared_fields"
+    },
+    {
+      "obligation_id": "value-equality.PaymentResult",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/payment.py::PaymentResult",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_value_equality_payment_result.py",
+      "test_name": "test_payment_result_structural_equality"
+    },
+    {
+      "obligation_id": "entity-fields.PaymentResult",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/payment.py::PaymentResult",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_payment_result.py",
+      "test_name": "test_payment_result_has_declared_fields"
+    },
+    {
+      "obligation_id": "contract-signature.AssessorService.request_assessor_dispatch",
+      "test_kind": "contract",
+      "bridge": {
+        "primary_symbol": "app/integrations/assessor.py::request_assessor_dispatch",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "specialties.length > 0"
+      ],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_contract_assessor_service.py",
+      "test_name": "test_request_assessor_dispatch_contract"
+    },
+    {
+      "obligation_id": "contract-signature.PaymentService.send_faster_payment",
+      "test_kind": "contract",
+      "bridge": {
+        "primary_symbol": "app/integrations/payment.py::send_faster_payment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "PaymentRequest.amount_pence > 0",
+        "PaymentRequest.amount_pence <= 100000000"
+      ],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_contract_payment_service.py",
+      "test_name": "test_send_faster_payment_contract"
+    },
+    {
+      "obligation_id": "enum-comparable.AssessmentStatus",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::AssessmentStatus",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_enum_assessment_status.py",
+      "test_name": "test_assessment_status_comparable"
+    },
+    {
+      "obligation_id": "enum-comparable.ClaimStatus",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::ClaimStatus",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_enum_claim_status.py",
+      "test_name": "test_claim_status_comparable"
+    },
+    {
+      "obligation_id": "enum-comparable.PaymentResultStatus",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/integrations/payment.py::PaymentResultStatus",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_enum_payment_result_status.py",
+      "test_name": "test_payment_result_status_comparable"
+    },
+    {
+      "obligation_id": "enum-comparable.PayoutStatus",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::PayoutStatus",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_enum_payout_status.py",
+      "test_name": "test_payout_status_comparable"
+    },
+    {
+      "obligation_id": "enum-comparable.PolicyStatus",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::PolicyStatus",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_enum_policy_status.py",
+      "test_name": "test_policy_status_comparable"
+    },
+    {
+      "obligation_id": "entity-fields.Assessment",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Assessment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_assessment.py",
+      "test_name": "test_assessment_has_declared_fields"
+    },
+    {
+      "obligation_id": "entity-optional.Assessment.completed_at",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Assessment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_assessment_completed_at.py",
+      "test_name": "test_assessment_completed_at_optional"
+    },
+    {
+      "obligation_id": "entity-optional.Assessment.started_at",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Assessment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_assessment_started_at.py",
+      "test_name": "test_assessment_started_at_optional"
+    },
+    {
+      "obligation_id": "entity-fields.Assessor",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Assessor",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_assessor.py",
+      "test_name": "test_assessor_has_declared_fields"
+    },
+    {
+      "obligation_id": "entity-fields.Claim",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_claim.py",
+      "test_name": "test_claim_has_declared_fields"
+    },
+    {
+      "obligation_id": "entity-optional.Claim.denial_reason",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_claim_denial_reason.py",
+      "test_name": "test_claim_denial_reason_optional"
+    },
+    {
+      "obligation_id": "entity-relationship.Claim.assessments",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim",
+        "candidates": ["app/__init__.py::Store"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim", "an_assessment"],
+      "injection_points": [],
+      "target_file": "tests/test_entity_relationship_claim_assessments.py",
+      "test_name": "test_claim_assessments_navigates_correctly"
+    },
+    {
+      "obligation_id": "entity-relationship.Claim.payouts",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim",
+        "candidates": ["app/__init__.py::Store"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim", "a_payout"],
+      "injection_points": [],
+      "target_file": "tests/test_entity_relationship_claim_payouts.py",
+      "test_name": "test_claim_payouts_navigates_correctly"
+    },
+    {
+      "obligation_id": "projection.Claim.completed_assessments",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::_has_completed_assessment",
+        "candidates": ["app/jobs.py::_has_completed_assessment"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim_with_assessments"],
+      "injection_points": [],
+      "target_file": "tests/test_projection_claim_completed_assessments.py",
+      "test_name": "test_claim_completed_assessments_filters_correctly"
+    },
+    {
+      "obligation_id": "projection.Claim.paid_payouts",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim.total_paid",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim_with_payouts"],
+      "injection_points": [],
+      "target_file": "tests/test_projection_claim_paid_payouts.py",
+      "test_name": "test_claim_paid_payouts_filters_correctly"
+    },
+    {
+      "obligation_id": "derived.Claim.age",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim.age",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_derived_claim_age.py",
+      "test_name": "test_claim_age_computes_correctly"
+    },
+    {
+      "obligation_id": "derived.Claim.has_completed_assessment",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::_has_completed_assessment",
+        "candidates": ["app/jobs.py::_has_completed_assessment"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim_with_completed_assessment"],
+      "injection_points": [],
+      "target_file": "tests/test_derived_claim_has_completed_assessment.py",
+      "test_name": "test_claim_has_completed_assessment_computes_correctly"
+    },
+    {
+      "obligation_id": "derived.Claim.is_stalled",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim.is_stalled",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim_in_assessing_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_derived_claim_is_stalled.py",
+      "test_name": "test_claim_is_stalled_computes_correctly"
+    },
+    {
+      "obligation_id": "derived.Claim.is_within_sla",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Claim.is_within_sla",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_claim"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_derived_claim_is_within_sla.py",
+      "test_name": "test_claim_is_within_sla_computes_correctly"
+    },
+    {
+      "obligation_id": "entity-fields.Payout",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Payout",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_payout.py",
+      "test_name": "test_payout_has_declared_fields"
+    },
+    {
+      "obligation_id": "entity-optional.Payout.last_failure_at",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Payout",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_payout_last_failure_at.py",
+      "test_name": "test_payout_last_failure_at_optional"
+    },
+    {
+      "obligation_id": "entity-optional.Payout.paid_at",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Payout",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_optional_payout_paid_at.py",
+      "test_name": "test_payout_paid_at_optional"
+    },
+    {
+      "obligation_id": "derived.Payout.retry_due_at",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::payout_retry_job",
+        "candidates": ["app/models.py::Payout"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_payout"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_derived_payout_retry_due_at.py",
+      "test_name": "test_payout_retry_due_at_computes_correctly"
+    },
+    {
+      "obligation_id": "entity-fields.Policy",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Policy",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_entity_fields_policy.py",
+      "test_name": "test_policy_has_declared_fields"
+    },
+    {
+      "obligation_id": "entity-relationship.Policy.claims",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/routes.py::list_policy_claims_route",
+        "candidates": ["app/models.py::Policy.has_open_claims"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_policy", "a_claim"],
+      "injection_points": [],
+      "target_file": "tests/test_entity_relationship_policy_claims.py",
+      "test_name": "test_policy_claims_navigates_correctly"
+    },
+    {
+      "obligation_id": "projection.Policy.open_claims",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Policy.has_open_claims",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_policy_with_claims"],
+      "injection_points": [],
+      "target_file": "tests/test_projection_policy_open_claims.py",
+      "test_name": "test_policy_open_claims_filters_correctly"
+    },
+    {
+      "obligation_id": "derived.Policy.has_open_claims",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::Policy.has_open_claims",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_policy_with_claims"],
+      "injection_points": [],
+      "target_file": "tests/test_derived_policy_has_open_claims.py",
+      "test_name": "test_policy_has_open_claims_computes_correctly"
+    },
+    {
+      "obligation_id": "config-default.assessment_sla",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::ASSESSMENT_SLA",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_assessment_sla.py",
+      "test_name": "test_assessment_sla_default"
+    },
+    {
+      "obligation_id": "config-default.auto_ack_after",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::AUTO_ACK_AFTER",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_auto_ack_after.py",
+      "test_name": "test_auto_ack_after_default"
+    },
+    {
+      "obligation_id": "config-default.auto_approve_max_pence",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::AUTO_APPROVE_MAX_PENCE",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_auto_approve_max_pence.py",
+      "test_name": "test_auto_approve_max_pence_default"
+    },
+    {
+      "obligation_id": "config-default.auto_close_denied_after",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::AUTO_CLOSE_DENIED_AFTER",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_auto_close_denied_after.py",
+      "test_name": "test_auto_close_denied_after_default"
+    },
+    {
+      "obligation_id": "config-default.link_window",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/webhooks.py::LINK_WINDOW",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_link_window.py",
+      "test_name": "test_link_window_default"
+    },
+    {
+      "obligation_id": "config-default.payout_retry_after",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::PAYOUT_RETRY_AFTER",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_payout_retry_after.py",
+      "test_name": "test_payout_retry_after_default"
+    },
+    {
+      "obligation_id": "config-default.stalled_after",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/models.py::STALLED_AFTER",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_config_default_stalled_after.py",
+      "test_name": "test_stalled_after_default"
+    },
+    {
+      "obligation_id": "rule-success.ApproveClaim",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::approve_claim",
+        "candidates": ["app/routes.py::approve_claim_route", "app/jobs.py::auto_approval_scheduler"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.has_completed_assessment",
+        "Claim.status = assessing"
+      ],
+      "fixtures_required": ["a_claim_in_assessing_state", "a_completed_assessment"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_approve_claim.py",
+      "test_name": "test_approve_claim_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.ApproveClaim.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::approve_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.has_completed_assessment"
+      ],
+      "fixtures_required": ["a_claim_in_assessing_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_approve_claim_failure_1.py",
+      "test_name": "test_approve_claim_rejected_when_no_completed_assessment"
+    },
+    {
+      "obligation_id": "rule-failure.ApproveClaim.2",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::approve_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = assessing"
+      ],
+      "fixtures_required": ["a_claim_not_in_assessing_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_approve_claim_failure_2.py",
+      "test_name": "test_approve_claim_rejected_when_not_assessing"
+    },
+    {
+      "obligation_id": "rule-success.AssessmentSlaJob",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::assessment_sla_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status in {triaged, assessing}"
+      ],
+      "fixtures_required": ["a_claim_past_sla"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_assessment_sla_job.py",
+      "test_name": "test_assessment_sla_job_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "temporal.AssessmentSlaJob",
+      "test_kind": "temporal",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::assessment_sla_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.submitted_at + config.assessment_sla <= now"
+      ],
+      "fixtures_required": ["a_claim_in_triaged_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_temporal_assessment_sla_job.py",
+      "test_name": "test_assessment_sla_job_fires_at_deadline"
+    },
+    {
+      "obligation_id": "rule-failure.AssessmentSlaJob.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::assessment_sla_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status in {triaged, assessing}"
+      ],
+      "fixtures_required": ["a_claim_in_submitted_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_assessment_sla_job_failure_1.py",
+      "test_name": "test_assessment_sla_job_rejected_when_status_not_open"
+    },
+    {
+      "obligation_id": "rule-success.AutoAcknowledgeJob",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_acknowledge_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = submitted"
+      ],
+      "fixtures_required": ["a_claim_in_submitted_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_auto_acknowledge_job.py",
+      "test_name": "test_auto_acknowledge_job_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "temporal.AutoAcknowledgeJob",
+      "test_kind": "temporal",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_acknowledge_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.submitted_at + config.auto_ack_after <= now"
+      ],
+      "fixtures_required": ["a_claim_in_submitted_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_temporal_auto_acknowledge_job.py",
+      "test_name": "test_auto_acknowledge_job_fires_at_deadline"
+    },
+    {
+      "obligation_id": "rule-failure.AutoAcknowledgeJob.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_acknowledge_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = submitted"
+      ],
+      "fixtures_required": ["a_claim_in_triaged_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_auto_acknowledge_job_failure_1.py",
+      "test_name": "test_auto_acknowledge_job_rejected_when_not_submitted"
+    },
+    {
+      "obligation_id": "rule-success.AutoApprovalScheduler",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_approval_scheduler",
+        "candidates": ["app/jobs.py::_eligible_for_auto_approval"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "\"trusted\" in Claim.policy.holder_tags",
+        "Claim.amount_claimed_pence < config.auto_approve_max_pence",
+        "Claim.status = assessing",
+        "Claim.has_completed_assessment"
+      ],
+      "fixtures_required": ["a_claim_eligible_for_auto_approval", "a_trusted_policy", "a_completed_assessment"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_auto_approval_scheduler.py",
+      "test_name": "test_auto_approval_scheduler_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.AutoApprovalScheduler.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::_eligible_for_auto_approval",
+        "candidates": ["app/jobs.py::auto_approval_scheduler"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "\"trusted\" in Claim.policy.holder_tags"
+      ],
+      "fixtures_required": ["a_claim_with_untrusted_policy"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_auto_approval_scheduler_failure_1.py",
+      "test_name": "test_auto_approval_scheduler_rejected_when_untrusted"
+    },
+    {
+      "obligation_id": "rule-failure.AutoApprovalScheduler.2",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::_eligible_for_auto_approval",
+        "candidates": ["app/jobs.py::auto_approval_scheduler"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.amount_claimed_pence < config.auto_approve_max_pence"
+      ],
+      "fixtures_required": ["a_claim_above_auto_approve_threshold"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_auto_approval_scheduler_failure_2.py",
+      "test_name": "test_auto_approval_scheduler_rejected_when_amount_too_high"
+    },
+    {
+      "obligation_id": "rule-failure.AutoApprovalScheduler.3",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::_eligible_for_auto_approval",
+        "candidates": ["app/jobs.py::auto_approval_scheduler"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status = assessing"
+      ],
+      "fixtures_required": ["a_claim_not_in_assessing_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_auto_approval_scheduler_failure_3.py",
+      "test_name": "test_auto_approval_scheduler_rejected_when_not_assessing"
+    },
+    {
+      "obligation_id": "rule-success.AutoCloseDeniedJob",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_close_denied_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = denied"
+      ],
+      "fixtures_required": ["a_claim_in_denied_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_auto_close_denied_job.py",
+      "test_name": "test_auto_close_denied_job_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "temporal.AutoCloseDeniedJob",
+      "test_kind": "temporal",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_close_denied_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.last_activity_at + config.auto_close_denied_after <= now"
+      ],
+      "fixtures_required": ["a_claim_in_denied_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_temporal_auto_close_denied_job.py",
+      "test_name": "test_auto_close_denied_job_fires_at_deadline"
+    },
+    {
+      "obligation_id": "rule-failure.AutoCloseDeniedJob.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::auto_close_denied_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = denied"
+      ],
+      "fixtures_required": ["a_claim_not_in_denied_state"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_auto_close_denied_job_failure_1.py",
+      "test_name": "test_auto_close_denied_job_rejected_when_not_denied"
+    },
+    {
+      "obligation_id": "rule-success.CompleteAssessment",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::complete_assessment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Assessment.status = in_progress"
+      ],
+      "fixtures_required": ["an_assessment_in_progress"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_complete_assessment.py",
+      "test_name": "test_complete_assessment_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.CompleteAssessment.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::complete_assessment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Assessment.status = in_progress"
+      ],
+      "fixtures_required": ["an_assessment_not_in_progress"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_complete_assessment_failure_1.py",
+      "test_name": "test_complete_assessment_rejected_when_not_in_progress"
+    },
+    {
+      "obligation_id": "rule-success.DenyClaim",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::deny_claim",
+        "candidates": ["app/routes.py::deny_route"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status in {triaged, assessing}"
+      ],
+      "fixtures_required": ["a_claim_in_triaged_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_deny_claim.py",
+      "test_name": "test_deny_claim_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.DenyClaim.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::deny_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status in {triaged, assessing}"
+      ],
+      "fixtures_required": ["a_claim_in_submitted_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_deny_claim_failure_1.py",
+      "test_name": "test_deny_claim_rejected_when_status_invalid"
+    },
+    {
+      "obligation_id": "rule-success.MarkPayoutFailed",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::mark_payout_failed",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_payout"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_mark_payout_failed.py",
+      "test_name": "test_mark_payout_failed_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-success.MarkPayoutPaid",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::mark_payout_paid",
+        "candidates": ["app/routes.py::mark_paid_route"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": ["a_payout"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_mark_payout_paid.py",
+      "test_name": "test_mark_payout_paid_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-success.PayoutRetryJob",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::payout_retry_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Payout.status = failed"
+      ],
+      "fixtures_required": ["a_failed_payout_past_retry"],
+      "injection_points": ["clock", "network"],
+      "target_file": "tests/test_rule_payout_retry_job.py",
+      "test_name": "test_payout_retry_job_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "temporal.PayoutRetryJob",
+      "test_kind": "temporal",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::payout_retry_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Payout.retry_due_at <= now"
+      ],
+      "fixtures_required": ["a_failed_payout"],
+      "injection_points": ["clock", "network"],
+      "target_file": "tests/test_temporal_payout_retry_job.py",
+      "test_name": "test_payout_retry_job_fires_at_deadline"
+    },
+    {
+      "obligation_id": "rule-failure.PayoutRetryJob.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/jobs.py::payout_retry_job",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Payout.status = failed"
+      ],
+      "fixtures_required": ["a_scheduled_payout"],
+      "injection_points": ["clock"],
+      "target_file": "tests/test_rule_payout_retry_job_failure_1.py",
+      "test_name": "test_payout_retry_job_rejected_when_not_failed"
+    },
+    {
+      "obligation_id": "rule-success.ReceiveIncidentReport",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/webhooks.py::receive_incident_report",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_rule_receive_incident_report.py",
+      "test_name": "test_receive_incident_report_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-entity-creation.ReceiveIncidentReport.1",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/webhooks.py::receive_incident_report",
+        "candidates": ["app/models.py::IncidentReport"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_rule_entity_creation_receive_incident_report.py",
+      "test_name": "test_receive_incident_report_creates_entity_with_fields"
+    },
+    {
+      "obligation_id": "rule-success.RegisterAssessor",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::register_assessor",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_rule_register_assessor.py",
+      "test_name": "test_register_assessor_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-entity-creation.RegisterAssessor.1",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::register_assessor",
+        "candidates": ["app/models.py::Assessor"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_rule_entity_creation_register_assessor.py",
+      "test_name": "test_register_assessor_creates_entity_with_fields"
+    },
+    {
+      "obligation_id": "rule-success.RegisterPolicy",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::register_policy",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_rule_register_policy.py",
+      "test_name": "test_register_policy_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-entity-creation.RegisterPolicy.1",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::register_policy",
+        "candidates": ["app/models.py::Policy"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_rule_entity_creation_register_policy.py",
+      "test_name": "test_register_policy_creates_entity_with_fields"
+    },
+    {
+      "obligation_id": "rule-success.SchedulePayout",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::schedule_payout",
+        "candidates": ["app/routes.py::approve_claim_route"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status = approved"
+      ],
+      "fixtures_required": ["a_claim_in_approved_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_schedule_payout.py",
+      "test_name": "test_schedule_payout_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.SchedulePayout.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::schedule_payout",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = approved"
+      ],
+      "fixtures_required": ["a_claim_not_in_approved_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_schedule_payout_failure_1.py",
+      "test_name": "test_schedule_payout_rejected_when_not_approved"
+    },
+    {
+      "obligation_id": "rule-entity-creation.SchedulePayout.1",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::schedule_payout",
+        "candidates": ["app/models.py::Payout"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status = approved"
+      ],
+      "fixtures_required": ["a_claim_in_approved_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_entity_creation_schedule_payout.py",
+      "test_name": "test_schedule_payout_creates_entity_with_fields"
+    },
+    {
+      "obligation_id": "rule-success.StartAssessment",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::start_assessment",
+        "candidates": ["app/routes.py::start_assessment_route"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status = triaged"
+      ],
+      "fixtures_required": ["a_claim_in_triaged_state", "an_assessor"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_start_assessment.py",
+      "test_name": "test_start_assessment_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.StartAssessment.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::start_assessment",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = triaged"
+      ],
+      "fixtures_required": ["a_claim_not_in_triaged_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_start_assessment_failure_1.py",
+      "test_name": "test_start_assessment_rejected_when_not_triaged"
+    },
+    {
+      "obligation_id": "rule-entity-creation.StartAssessment.1",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::start_assessment",
+        "candidates": ["app/models.py::Assessment"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status = triaged"
+      ],
+      "fixtures_required": ["a_claim_in_triaged_state", "an_assessor"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_entity_creation_start_assessment.py",
+      "test_name": "test_start_assessment_creates_entity_with_fields"
+    },
+    {
+      "obligation_id": "rule-success.SubmitClaim",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::submit_claim",
+        "candidates": ["app/routes.py::create_claim_route"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.amount_claimed_pence <= Policy.coverage_limit_pence",
+        "Policy.status = active"
+      ],
+      "fixtures_required": ["an_active_policy"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_submit_claim.py",
+      "test_name": "test_submit_claim_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.SubmitClaim.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::submit_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.amount_claimed_pence <= Policy.coverage_limit_pence"
+      ],
+      "fixtures_required": ["an_active_policy"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_submit_claim_failure_1.py",
+      "test_name": "test_submit_claim_rejected_when_amount_exceeds_coverage"
+    },
+    {
+      "obligation_id": "rule-failure.SubmitClaim.2",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::submit_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Policy.status = active"
+      ],
+      "fixtures_required": ["an_inactive_policy"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_submit_claim_failure_2.py",
+      "test_name": "test_submit_claim_rejected_when_policy_not_active"
+    },
+    {
+      "obligation_id": "rule-entity-creation.SubmitClaim.1",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::submit_claim",
+        "candidates": ["app/models.py::Claim"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.amount_claimed_pence <= Policy.coverage_limit_pence",
+        "Policy.status = active"
+      ],
+      "fixtures_required": ["an_active_policy"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_entity_creation_submit_claim.py",
+      "test_name": "test_submit_claim_creates_entity_with_fields"
+    },
+    {
+      "obligation_id": "rule-success.TriageClaim",
+      "test_kind": "scenario",
+      "bridge": {
+        "primary_symbol": "app/services.py::triage_claim",
+        "candidates": ["app/routes.py::triage_route", "app/jobs.py::auto_acknowledge_job"],
+        "confidence": "medium"
+      },
+      "preconditions": [
+        "Claim.status = submitted"
+      ],
+      "fixtures_required": ["a_claim_in_submitted_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_triage_claim.py",
+      "test_name": "test_triage_claim_succeeds_when_preconditions_met"
+    },
+    {
+      "obligation_id": "rule-failure.TriageClaim.1",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/services.py::triage_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [
+        "Claim.status = submitted"
+      ],
+      "fixtures_required": ["a_claim_not_in_submitted_state"],
+      "injection_points": [],
+      "target_file": "tests/test_rule_triage_claim_failure_1.py",
+      "test_name": "test_triage_claim_rejected_when_not_submitted"
+    },
+    {
+      "obligation_id": "invariant.ApprovedClaimsHaveCompletedAssessment",
+      "test_kind": "pbt",
+      "bridge": {
+        "primary_symbol": "app/services.py::approve_claim",
+        "candidates": ["app/jobs.py::auto_approval_scheduler"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_invariant_approved_claims_have_completed_assessment.py",
+      "test_name": "test_approved_claims_have_completed_assessment_invariant"
+    },
+    {
+      "obligation_id": "invariant.ClaimAmountWithinCoverage",
+      "test_kind": "pbt",
+      "bridge": {
+        "primary_symbol": "app/services.py::submit_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_invariant_claim_amount_within_coverage.py",
+      "test_name": "test_claim_amount_within_coverage_invariant"
+    },
+    {
+      "obligation_id": "invariant.DeniedClaimsHaveReason",
+      "test_kind": "pbt",
+      "bridge": {
+        "primary_symbol": "app/services.py::deny_claim",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_invariant_denied_claims_have_reason.py",
+      "test_name": "test_denied_claims_have_reason_invariant"
+    },
+    {
+      "obligation_id": "invariant.PayoutAmountMatchesClaim",
+      "test_kind": "pbt",
+      "bridge": {
+        "primary_symbol": "app/services.py::schedule_payout",
+        "candidates": [],
+        "confidence": "high"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_invariant_payout_amount_matches_claim.py",
+      "test_name": "test_payout_amount_matches_claim_invariant"
+    },
+    {
+      "obligation_id": "surface-actor.Routes",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/routes.py",
+        "candidates": ["app/__init__.py::Router"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_surface_actor_routes.py",
+      "test_name": "test_routes_surface_actor"
+    },
+    {
+      "obligation_id": "surface-provides.Routes",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/routes.py",
+        "candidates": ["app/__init__.py::Router"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_surface_provides_routes.py",
+      "test_name": "test_routes_surface_provides_operations"
+    },
+    {
+      "obligation_id": "surface-actor.Webhooks",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/webhooks.py",
+        "candidates": ["app/__init__.py::Router"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_surface_actor_webhooks.py",
+      "test_name": "test_webhooks_surface_actor"
+    },
+    {
+      "obligation_id": "surface-provides.Webhooks",
+      "test_kind": "assertion",
+      "bridge": {
+        "primary_symbol": "app/webhooks.py::receive_incident_report",
+        "candidates": ["app/webhooks.py"],
+        "confidence": "medium"
+      },
+      "preconditions": [],
+      "fixtures_required": [],
+      "injection_points": [],
+      "target_file": "tests/test_surface_provides_webhooks.py",
+      "test_name": "test_webhooks_surface_provides_operations"
+    }
+  ]
+}

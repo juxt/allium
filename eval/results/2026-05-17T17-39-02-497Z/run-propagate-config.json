@@ -1,0 +1,27 @@
+{
+  "opts": {
+    "samples": 3,
+    "variants": [
+      "baseline",
+      "experimental"
+    ],
+    "backends": [
+      "pytest+hypothesis"
+    ],
+    "fixtures": [
+      "insurance-claims"
+    ],
+    "model": null,
+    "timeout": 1200000,
+    "out": "/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results",
+    "parallel": true
+  },
+  "claudePath": "/Users/yavorpanayotov/.local/bin/claude",
+  "repoRoot": "/Users/yavorpanayotov/IdeaProjects/allium-4.0",
+  "fixtureBackendDefaults": {
+    "insurance-claims": "pytest+hypothesis",
+    "trading-risk": "pytest+hypothesis",
+    "build-pipeline": "jest+fastcheck"
+  },
+  "startedAt": "2026-05-17T17:39:02.498Z"
+}

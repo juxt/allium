@@ -1,0 +1,1 @@
+Spec written to the requested path: `allium check` validates with 0 errors (2 info warnings on unused value types, 31 info diagnostics on unused fields/unreachable triggers — all expected for a distilled spec). Inventory.json sits alongside it.

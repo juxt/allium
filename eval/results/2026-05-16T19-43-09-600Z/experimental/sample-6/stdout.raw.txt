@@ -1,0 +1,3 @@
+The work is complete. The spec validates with zero errors via `allium check` (only info-level diagnostics like unused fields on the external IncidentReport and value types whose fields are descriptive), and `allium analyse` returns zero findings.
+
+Wrote: `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-43-09-600Z/experimental/sample-6/spec.allium` — 6 entities (1 external), 5 status enums + 1 auxiliary enum, 3 value types, 2 contracts (PaymentService, AssessorService), 17 rules (11 transition triggers + 5 scheduled jobs + 1 webhook), 4 invariants, 2 surfaces (Routes, Webhooks), with `inventory.json` alongside.

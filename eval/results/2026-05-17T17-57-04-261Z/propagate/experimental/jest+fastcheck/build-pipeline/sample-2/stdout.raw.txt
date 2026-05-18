@@ -1,0 +1,16 @@
+Propagation complete. Pipeline drove the full consensus loop:
+
+**Results**
+- Backend: `jest+fastcheck`, K=3 subagents (all 3 survived)
+- 63 obligations → 31 test files under `./tests/`
+- Stage C: **56 tests passed, 0 failures, 0 errors, 0 bridge-unresolved stubs**
+- **Coverage: 56/63 obligations (88.9%)** — the 7-obligation gap is from obligations that the translator emitted as scaffolding (state-machine describe blocks, contract suites) without an executable `test()` inside; they need engineer fill-in.
+
+**Notes on intervention**
+- Each Stage A subagent emitted 61 obligations because the spec declares `rule ReceiveGithubPushEvent` twice — they deduped what the plan treats as a multiset. I deterministically duplicated the two affected entries in each raw inventory so canonicalize-obligations.mjs would accept them, then merge ran cleanly.
+- `run-suite.mjs`'s `adaptJestJson` is comment-marked as v2-pending and references field names (`testFilePath`, `testResults[].testResults`) that don't exist in real Jest JSON (which uses `name` and `assertionResults`). I left the plugin script untouched and used a local adapter at `./allium-propagated/build-report.mjs` mirroring `buildReport` exactly to produce the report.
+- Project had no Jest infra. Installed `jest`, `ts-jest`, `@types/jest`, `fast-check` locally (with isolated npm cache to dodge a root-owned `~/.npm` cache) and added a minimal `jest.config.cjs`.
+
+**Artefacts**
+- `./allium-propagated/plan.json`, `model.json`, `inventories/inventory-{1,2,3}{,.canonical}.json`, `merged.json`, `propagation-report.md`
+- Tests: `./tests/*.test.ts` (31 files)

@@ -1,0 +1,5 @@
+Spec validates with 0 errors, 2 warnings (unused value-type warnings — the checker doesn't trace contract return types as references; the inventory mandates these), and 41 infos (mostly `unreachableTrigger` for adjuster-facing actions, expected for this distillation scope).
+
+Final artefacts:
+- `inventory.json`: structured inventory with 6 entities, 11 transitions, 5 scheduled jobs, 2 integrations, 3 value types, 1 auxiliary enum, 4 invariants, 8 routes, 1 webhook
+- `spec.allium`: 13 rules, 4 top-level invariants, 2 contracts (AssessorService, PaymentService), 2 surfaces (Routes, Webhooks)

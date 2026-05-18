@@ -1,0 +1,24 @@
+{
+  "variant": "experimental",
+  "backend": "jest+fastcheck",
+  "fixture": "build-pipeline",
+  "sample": 3,
+  "claudePath": "/Users/yavorpanayotov/.local/bin/claude",
+  "args": [
+    "--plugin-dir",
+    "/Users/yavorpanayotov/IdeaProjects/allium-4.0/plugins/experimental",
+    "--print",
+    "--permission-mode",
+    "bypassPermissions",
+    "Use the propagate skill to generate tests for the spec at\n  ./allium-distilled/spec.allium\nagainst the implementation in this directory.\n\nTarget test framework: jest+fastcheck.\n\nDrive the full consensus pipeline as documented in the propagate\nSKILL.md: precompute allium plan and allium model, spawn K=3 subagents\nin parallel to produce obligation-bridge inventories, run the\ncanonicalize/merge/translate scripts to produce deterministic tests,\nand finish with Stage C run-suite.mjs to produce\npropagation-report.md.\n\nSave intermediate artefacts under ./allium-propagated/.\nWrite tests under ./tests/."
+  ],
+  "cwd": "/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T17-57-04-261Z/propagate/experimental/jest+fastcheck/build-pipeline/sample-3/workdir",
+  "model": null,
+  "exitCode": 0,
+  "signal": null,
+  "durationMs": 534917,
+  "testsPresent": true,
+  "propagatedPresent": true,
+  "promptHash": "caceceb8",
+  "startedAt": "2026-05-17T17:57:04.283Z"
+}

@@ -1,0 +1,9 @@
+Wrote inventory.json with 6 entities, 11 transitions, 4 scheduled jobs, 2 integrations, 3 value types, 1 auxiliary enum, 5 invariants, 7 config items, 8 routes, 1 webhook. All arrays sorted alphabetically; types use Allium forms (`String`, `Integer`, `Timestamp`, `Set<String>`, `String?`, `Claim?`, etc.).
+
+Notable choices:
+- Modeled `Claim.policy` as a relationship (not `policy_number`), per the inline FK comment in the source.
+- Added `Claim.has_completed_assessment` as a derived property — the `_has_completed_assessment` free function is the "equivalent computed accessor" required to write the `auto_approval_scheduler` when-trigger as `claim: Claim.has_completed_assessment`.
+- Added `Payout.retry_due_at` derived property so `payout_retry_job`'s when-trigger is property-based (`payout: Payout.retry_due_at <= now`).
+- Omitted `assessment_sla_job` since it's pure observation (no state change) — the `Claim.is_within_sla` derived property already captures the threshold.
+- `payout_retry_job` ensures captures only the success branch (`invoke MarkPayoutPaid`); guidance documents the failure-branch (`MarkPayoutFailed`).
+- Preconditions use the worked-example forms from the skill doc (e.g. `amount_pence <= 100_000_000`, `len(account_number) == 8`).

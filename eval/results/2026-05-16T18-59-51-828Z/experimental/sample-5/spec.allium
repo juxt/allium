@@ -1,0 +1,526 @@
+-- allium: 3
+-- Insurance claims processing service distilled from the Python
+-- codebase under fixtures/insurance-claims/app: submit, triage,
+-- assess, approve/deny and pay out on insurance claims, with
+-- scheduled jobs for auto-acknowledge, SLA tracking, payout retry,
+-- auto-close and auto-approval, plus an inbound webhook for
+-- IncidentReport feeds from police and medical assessors.
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+external entity IncidentReport {
+    report_id: String
+    source: String
+    policy_number: String?
+    incident_date: Timestamp
+    description: String
+    received_at: Timestamp
+    linked_claim: Claim?
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value PaymentResult {
+    status: PaymentResultStatus
+    upstream_id: String
+    submitted_at: Timestamp
+}
+
+value AssessorDispatch {
+    dispatch_id: String
+    claim_number: String
+    specialties: Set<String>
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum PolicyStatus { active | lapsed | cancelled }
+
+enum ClaimStatus {
+    submitted | triaged | assessing | approved | denied | paid | closed
+}
+
+enum AssessmentStatus { pending | in_progress | completed }
+
+enum PayoutStatus { scheduled | paid | failed }
+
+enum PaymentResultStatus { accepted | rejected | pending_review }
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract Payment {
+    send_faster_payment: (account_number: String, sort_code: String, amount_pence: Integer, reference: String) -> PaymentResult
+
+    @invariant PositiveAmount
+        -- The amount transferred must be strictly positive.
+
+    @invariant FasterPaymentsCap
+        -- Upstream Faster Payments rejects amounts above
+        -- one million pounds (1,000,000 GBP, 100,000,000 pence).
+
+    @invariant SortCodeFormat
+        -- The sort code must be in NN-NN-NN format (three pairs
+        -- of digits separated by hyphens).
+
+    @invariant AccountNumberFormat
+        -- The account number must be exactly 8 numeric digits.
+
+    @guidance
+        -- The production implementation posts to the bank's API
+        -- over mTLS and raises an error on a non-2xx response.
+        -- The spec captures only the request and response shape;
+        -- transport and authentication are implementation detail.
+}
+
+contract Assessor {
+    request_assessor_dispatch: (claim_number: String, specialties: Set<String>) -> AssessorDispatch
+
+    @invariant SpecialtyRequired
+        -- At least one specialty must be supplied; an empty
+        -- specialty list is rejected by the assessor network.
+}
+
+------------------------------------------------------------
+-- Entities
+------------------------------------------------------------
+
+entity Policy {
+    policy_number: String
+    holder: String
+    coverage_limit_pence: Integer
+    status: PolicyStatus
+    holder_tags: Set<String>
+
+    claims: Claim with policy = this
+
+    open_claims: claims where status not in {paid, denied, closed}
+
+    has_open_claims: open_claims.count > 0
+}
+
+entity Claim {
+    claim_number: String
+    policy: Policy
+    incident_date: Timestamp
+    amount_claimed_pence: Integer
+    submitted_at: Timestamp
+    last_activity_at: Timestamp
+    status: ClaimStatus
+    denial_reason: String when status = denied | closed
+
+    assessments: Assessment with claim = this
+    payouts: Payout with claim = this
+
+    completed_assessments: assessments where status = completed
+    paid_payouts: payouts where status = paid
+
+    age: now - submitted_at
+    is_within_sla: age <= config.assessment_sla
+    is_stalled:
+        status = assessing
+        and (now - last_activity_at) > config.stalled_after
+    total_paid: sum(paid_payouts, p => p.amount_pence)
+
+    is_auto_approvable:
+        status = assessing
+        and amount_claimed_pence < config.auto_approve_max_pence
+        and completed_assessments.count > 0
+        and "trusted" in policy.holder_tags
+
+    transitions status {
+        submitted -> triaged
+        triaged -> assessing
+        triaged -> denied
+        assessing -> approved
+        assessing -> denied
+        approved -> paid
+        denied -> closed
+        terminal: paid, closed
+    }
+}
+
+entity Assessor {
+    name: String
+    specialties: Set<String>
+}
+
+entity Assessment {
+    assessment_id: String
+    claim: Claim
+    assessor: Assessor
+    findings: String
+    status: AssessmentStatus
+    started_at: Timestamp?
+    completed_at: Timestamp?
+}
+
+entity Payout {
+    payout_id: String
+    claim: Claim
+    amount_pence: Integer
+    status: PayoutStatus
+    scheduled_at: Timestamp
+    paid_at: Timestamp?
+    failed_attempts: Integer
+    last_failure_at: Timestamp?
+
+    retry_anchor: last_failure_at ?? scheduled_at
+
+    transitions status {
+        scheduled -> paid
+        scheduled -> failed
+        failed -> paid
+        terminal: paid
+    }
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    -- An assessing claim with no activity for this long is
+    -- considered stalled (implicit state on Claim, see is_stalled).
+    stalled_after: Duration = 21.days
+
+    -- A claim must reach a completed assessment within this window
+    -- of its submission to remain within SLA.
+    assessment_sla: Duration = 14.days
+
+    -- After this many calendar days of inactivity in the submitted
+    -- state, a claim is auto-acknowledged into triage. The
+    -- implementation approximates the same threshold using 5
+    -- business days.
+    auto_ack_after: Duration = 7.days
+
+    -- A failed payout becomes eligible for retry after this long.
+    payout_retry_after: Duration = 28.days
+
+    -- A denied claim with no activity for this long is auto-closed.
+    auto_close_denied_after: Duration = 90.days
+
+    -- Maximum claim amount eligible for nightly auto-approval
+    -- (in pence). 50,000 GBP = 5,000,000 pence.
+    auto_approve_max_pence: Integer = 5_000_000
+
+    -- IncidentReports are linked to a claim when their incident_date
+    -- is within this window of the claim's incident_date.
+    link_window: Duration = 2.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- Claim lifecycle: submission and triage
+
+rule SubmitClaim {
+    when: SubmitClaim(claim_number, policy, incident_date, amount_claimed_pence)
+
+    requires: policy.status = active
+    requires: amount_claimed_pence <= policy.coverage_limit_pence
+
+    ensures: Claim.created(
+        claim_number: claim_number,
+        policy: policy,
+        incident_date: incident_date,
+        amount_claimed_pence: amount_claimed_pence,
+        submitted_at: now,
+        last_activity_at: now,
+        status: submitted
+    )
+}
+
+rule TriageClaim {
+    when: TriageClaim(claim)
+
+    requires: claim.status = submitted
+
+    ensures: claim.status = triaged
+    ensures: claim.last_activity_at = now
+}
+
+-- Assessment lifecycle
+
+rule StartAssessment {
+    when: StartAssessment(claim, assessor)
+
+    requires: claim.status = triaged
+
+    ensures: claim.status = assessing
+    ensures: claim.last_activity_at = now
+    ensures: Assessment.created(
+        claim: claim,
+        assessor: assessor,
+        status: in_progress,
+        started_at: now,
+        findings: ""
+    )
+}
+
+rule CompleteAssessment {
+    when: CompleteAssessment(assessment, findings)
+
+    requires: assessment.status = in_progress
+
+    ensures: assessment.status = completed
+    ensures: assessment.findings = findings
+    ensures: assessment.completed_at = now
+    ensures: assessment.claim.last_activity_at = now
+}
+
+-- Adjudication: approve, deny, schedule payout
+
+rule ApproveClaim {
+    when: ApproveClaim(claim)
+
+    requires: claim.status = assessing
+    requires: claim.completed_assessments.count > 0
+
+    ensures: claim.status = approved
+    ensures: claim.last_activity_at = now
+    ensures: SchedulePayout(claim: claim)
+
+    @guidance
+        -- Called from both the adjuster API (approve_claim_route)
+        -- and the nightly auto_approval_scheduler. The trigger and
+        -- guard semantics are identical for both call sites.
+}
+
+rule DenyClaim {
+    when: DenyClaim(claim, reason)
+
+    requires: claim.status in {triaged, assessing}
+
+    ensures: claim.status = denied
+    ensures: claim.denial_reason = reason
+    ensures: claim.last_activity_at = now
+}
+
+rule SchedulePayout {
+    when: SchedulePayout(claim)
+
+    requires: claim.status = approved
+
+    ensures: claim.last_activity_at = now
+    ensures: Payout.created(
+        claim: claim,
+        amount_pence: claim.amount_claimed_pence,
+        status: scheduled,
+        scheduled_at: now,
+        failed_attempts: 0
+    )
+}
+
+-- Payout settlement
+
+rule MarkPayoutPaid {
+    when: MarkPayoutPaid(payout)
+
+    requires: payout.status in {scheduled, failed}
+    requires: payout.claim.status = approved
+
+    ensures: payout.status = paid
+    ensures: payout.paid_at = now
+    ensures: payout.claim.status = paid
+    ensures: payout.claim.last_activity_at = now
+}
+
+rule MarkPayoutFailed {
+    when: MarkPayoutFailed(payout)
+
+    requires: payout.status in {scheduled, failed}
+
+    ensures: payout.status = failed
+    ensures: payout.failed_attempts = payout.failed_attempts + 1
+    ensures: payout.last_failure_at = now
+}
+
+-- Reference data registration
+
+rule RegisterAssessor {
+    when: RegisterAssessor(name, specialties)
+
+    ensures: Assessor.created(name: name, specialties: specialties)
+}
+
+rule RegisterPolicy {
+    when: RegisterPolicy(policy_number, holder, coverage_limit_pence, holder_tags)
+
+    ensures: Policy.created(
+        policy_number: policy_number,
+        holder: holder,
+        coverage_limit_pence: coverage_limit_pence,
+        holder_tags: holder_tags,
+        status: active
+    )
+}
+
+-- Scheduled / temporal rules
+
+rule AutoAcknowledgeJob {
+    when: claim: Claim.submitted_at + config.auto_ack_after <= now
+
+    requires: claim.status = submitted
+
+    ensures: TriageClaim(claim: claim)
+
+    @guidance
+        -- The implementation counts 5 business days; the temporal
+        -- trigger uses 7 calendar days as the conservative
+        -- approximation. Both paths converge on a triage transition.
+}
+
+rule AssessmentSlaJob {
+    when: claim: Claim.submitted_at + config.assessment_sla <= now
+
+    requires: claim.status in {triaged, assessing}
+
+    ensures: ClaimSlaBreached(claim: claim)
+
+    @guidance
+        -- The job surfaces breached claims for adjuster attention;
+        -- it does not itself change claim status. Downstream
+        -- consumers may listen for ClaimSlaBreached.
+}
+
+rule PayoutRetryJob {
+    when: payout: Payout.retry_anchor + config.payout_retry_after <= now
+
+    requires: payout.status = failed
+
+    let result = send_faster_payment(
+        account_number: "00000000",
+        sort_code: "00-00-00",
+        amount_pence: payout.amount_pence,
+        reference: payout.payout_id
+    )
+
+    ensures:
+        if result.status = accepted:
+            MarkPayoutPaid(payout: payout)
+        else:
+            MarkPayoutFailed(payout: payout)
+}
+
+rule AutoCloseDeniedJob {
+    when: claim: Claim.last_activity_at + config.auto_close_denied_after <= now
+
+    requires: claim.status = denied
+
+    ensures: claim.status = closed
+    ensures: claim.last_activity_at = now
+}
+
+rule AutoApprovalScheduler {
+    when: claim: Claim.is_auto_approvable
+
+    requires: claim.is_auto_approvable
+
+    ensures: ApproveClaim(claim: claim)
+
+    @guidance
+        -- Auto-approves low-value claims for trusted holders once
+        -- their assessment is complete, so an adjuster does not
+        -- need to click through each one by hand. Chains to
+        -- ApproveClaim, which performs the actual transition and
+        -- schedules the payout.
+}
+
+-- Inbound webhook: IncidentReport feed
+
+rule ReceiveIncidentReport {
+    when: ReceiveIncidentReport(source, policy_number, incident_date, description)
+
+    let linked = find_claim_for_incident(policy_number, incident_date, config.link_window)
+
+    ensures: IncidentReport.created(
+        source: source,
+        policy_number: policy_number,
+        incident_date: incident_date,
+        description: description,
+        received_at: now,
+        linked_claim: linked
+    )
+
+    @guidance
+        -- find_claim_for_incident matches by policy_number plus
+        -- incident_date proximity within link_window (+/- 2 days).
+        -- Returns the first matching Claim or null. Reports with a
+        -- null policy_number are stored unlinked.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant PayoutAmountWithinCoverage {
+    for p in Payouts:
+        p.amount_pence <= p.claim.policy.coverage_limit_pence
+}
+
+invariant DeniedClaimHasReason {
+    for c in Claims:
+        c.status in {denied, closed} implies c.denial_reason != null
+}
+
+invariant CompletedAssessmentHasTimestamp {
+    for a in Assessments:
+        a.status = completed implies a.completed_at != null
+}
+
+invariant PaidPayoutHasTimestamp {
+    for p in Payouts:
+        p.status = paid implies p.paid_at != null
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- Adjuster-facing HTTP API. The POST endpoints are modelled as
+-- provided actions; the GET endpoints expose Claim and Policy
+-- read access.
+surface Routes {
+    provides:
+        SubmitClaim(claim_number, policy, incident_date, amount_claimed_pence)
+        TriageClaim(claim)
+        StartAssessment(claim, assessor)
+        ApproveClaim(claim)
+        DenyClaim(claim, reason)
+        MarkPayoutPaid(payout)
+
+    exposes:
+        Claim
+        Policy
+
+    @guidance
+        -- Routes (in code: app/routes.py):
+        --   POST /claims                            -> SubmitClaim
+        --   POST /claims/<claim_number>/triage      -> TriageClaim
+        --   POST /claims/<claim_number>/assess      -> StartAssessment
+        --   POST /claims/<claim_number>/approve     -> ApproveClaim
+        --   POST /claims/<claim_number>/deny        -> DenyClaim
+        --   POST /payouts/<payout_id>/mark-paid     -> MarkPayoutPaid
+        --   GET  /claims/<claim_number>             -> read a Claim
+        --   GET  /policies/<policy_number>/claims   -> read a Policy's claims
+}
+
+-- Inbound webhook surface. External feeds (police, medical
+-- assessors) push IncidentReports here.
+surface Webhooks {
+    provides:
+        ReceiveIncidentReport(source, policy_number, incident_date, description)
+
+    @guidance
+        -- Webhook (in code: app/webhooks.py):
+        --   POST /webhooks/incident-reports -> ReceiveIncidentReport
+}

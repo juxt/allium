@@ -1,0 +1,45 @@
+{
+  "name": "build-pipeline-fixture",
+  "version": "0.0.1",
+  "description": "Fixture codebase for the distill A/B harness. Build/CI pipeline mini-system in TypeScript: pipelines, builds, artifacts, GitHub webhook, artifact storage. Not intended to run; only readable so distill sees coherent code.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.0",
+    "fast-check": "^3.19.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.5",
+    "typescript": "^5.4.0"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "extensionsToTreatAsEsm": [".ts"],
+    "testEnvironment": "node",
+    "testMatch": ["<rootDir>/tests/**/*.test.ts"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true,
+          "tsconfig": {
+            "module": "ESNext",
+            "moduleResolution": "Bundler",
+            "target": "ES2022",
+            "esModuleInterop": true,
+            "strict": true,
+            "isolatedModules": true,
+            "lib": ["ES2022"]
+          }
+        }
+      ]
+    }
+  }
+}

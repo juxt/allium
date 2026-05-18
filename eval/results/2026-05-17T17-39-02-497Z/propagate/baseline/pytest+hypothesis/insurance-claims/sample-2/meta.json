@@ -1,0 +1,24 @@
+{
+  "variant": "baseline",
+  "backend": "pytest+hypothesis",
+  "fixture": "insurance-claims",
+  "sample": 2,
+  "claudePath": "/Users/yavorpanayotov/.local/bin/claude",
+  "args": [
+    "--plugin-dir",
+    "/Users/yavorpanayotov/IdeaProjects/allium-4.0/plugins/baseline",
+    "--print",
+    "--permission-mode",
+    "bypassPermissions",
+    "Use the propagate skill to generate tests for the spec at\n  ./allium-distilled/spec.allium\nagainst the implementation in this directory.\n\nTarget test framework: pytest+hypothesis (Python with pytest + Hypothesis).\nWrite tests under ./tests/. Do not modify the implementation.\n\nUse any deterministic CLI tools available (allium plan, allium model).\nProduce real test bodies where the bridge is clear; leave TODO skips\nwhere the bridge is genuinely ambiguous."
+  ],
+  "cwd": "/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T17-39-02-497Z/propagate/baseline/pytest+hypothesis/insurance-claims/sample-2/workdir",
+  "model": null,
+  "exitCode": 0,
+  "signal": null,
+  "durationMs": 519598,
+  "testsPresent": true,
+  "propagatedPresent": false,
+  "promptHash": "8eefc785",
+  "startedAt": "2026-05-17T17:39:02.510Z"
+}

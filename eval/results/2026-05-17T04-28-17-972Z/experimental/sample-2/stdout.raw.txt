@@ -1,0 +1,8 @@
+Wrote the inventory to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T04-28-17-972Z/experimental/sample-2/inventory.json` — 6 entities (5 internal + 1 external `IncidentReport`), 11 transitions (all `services.py` mutators), 5 scheduled jobs, 2 integration contracts (`payment`, `assessor`), 3 value types, 1 auxiliary enum, 4 cross-cutting invariants, 7 config constants, 8 routes, and 1 webhook.
+
+Key modeling choices worth flagging:
+- FKs (`policy_number`, `claim_number`, `assessor_name`) replaced with relationship fields (`policy: Policy`, `claim: Claim`, `assessor: Assessor`) per the distill convention.
+- Derived properties on `Claim` include `has_completed_assessment` (sourced from the `_has_completed_assessment` helper used by both `approve_claim` and the auto-approval scheduler) and `total_paid`; on `Payout`, a `retry_due_at` derived property is added so `payout_retry_job.when` stays as a simple field comparison.
+- `auto_approval_scheduler` fires on the entity-property-change form (`claim: Claim.has_completed_assessment`), with the multi-clause eligibility check expressed in `requires`.
+- `assessment_sla_job` has empty `ensures` with guidance — it surfaces breached SLAs but the code doesn't mutate state.
+- All arrays sorted alphabetically; field lists inside each entity and value type also sorted alphabetically.

@@ -1,0 +1,404 @@
+{
+  "config": [
+    {
+      "default_expr": "14.days",
+      "name": "assessment_sla",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "5.days",
+      "name": "auto_ack_after",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "50_000_00",
+      "name": "auto_approve_max_pence",
+      "type_expr": "Integer"
+    },
+    {
+      "default_expr": "90.days",
+      "name": "auto_close_denied_after",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "2.days",
+      "name": "link_window",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "28.days",
+      "name": "payout_retry_after",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "21.days",
+      "name": "stalled_after",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "name": "description",
+          "type_expr": "String"
+        },
+        {
+          "name": "incident_date",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "linked_claim",
+          "optional": true,
+          "type_expr": "Claim?"
+        },
+        {
+          "name": "policy_number",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "received_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "report_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "source",
+          "type_expr": "String"
+        }
+      ],
+      "kind": "external",
+      "name": "IncidentReport"
+    },
+    {
+      "fields": [
+        {
+          "name": "assessment_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "assessor",
+          "type_expr": "Assessor"
+        },
+        {
+          "name": "claim",
+          "type_expr": "Claim"
+        },
+        {
+          "name": "completed_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "findings",
+          "type_expr": "String"
+        },
+        {
+          "name": "started_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "status",
+          "type_expr": "AssessmentStatus"
+        }
+      ],
+      "kind": "internal",
+      "name": "Assessment"
+    },
+    {
+      "fields": [
+        {
+          "name": "name",
+          "type_expr": "String"
+        },
+        {
+          "name": "specialties",
+          "type_expr": "Set<String>"
+        }
+      ],
+      "kind": "internal",
+      "name": "Assessor"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "age"
+        },
+        {
+          "name": "has_completed_assessment"
+        },
+        {
+          "name": "is_stalled"
+        },
+        {
+          "name": "is_within_sla"
+        }
+      ],
+      "fields": [
+        {
+          "name": "amount_claimed_pence",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "claim_number",
+          "type_expr": "String"
+        },
+        {
+          "name": "denial_reason",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "incident_date",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "last_activity_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "policy",
+          "type_expr": "Policy"
+        },
+        {
+          "name": "status",
+          "type_expr": "ClaimStatus"
+        },
+        {
+          "name": "submitted_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "total_paid",
+          "type_expr": "sum(paid_payouts.amount_pence)"
+        }
+      ],
+      "kind": "internal",
+      "name": "Claim",
+      "projections": [
+        {
+          "name": "completed_assessments",
+          "source": "assessments"
+        },
+        {
+          "name": "paid_payouts",
+          "source": "payouts"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "assessments",
+          "target": "Assessment"
+        },
+        {
+          "name": "payouts",
+          "target": "Payout"
+        }
+      ]
+    },
+    {
+      "derived_values": [
+        {
+          "name": "retry_due_at"
+        }
+      ],
+      "fields": [
+        {
+          "name": "amount_pence",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "claim",
+          "type_expr": "Claim"
+        },
+        {
+          "name": "failed_attempts",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "last_failure_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "paid_at",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "payout_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "scheduled_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "status",
+          "type_expr": "PayoutStatus"
+        },
+        {
+          "name": "retry_anchor",
+          "type_expr": "coalesce(last_failure_at, scheduled_at)"
+        }
+      ],
+      "kind": "internal",
+      "name": "Payout"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "has_open_claims"
+        }
+      ],
+      "fields": [
+        {
+          "name": "coverage_limit_pence",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "holder",
+          "type_expr": "String"
+        },
+        {
+          "name": "holder_tags",
+          "type_expr": "Set<String>"
+        },
+        {
+          "name": "policy_number",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "PolicyStatus"
+        }
+      ],
+      "kind": "internal",
+      "name": "Policy",
+      "projections": [
+        {
+          "name": "open_claims",
+          "source": "claims"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "claims",
+          "target": "Claim"
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "AssessmentStatus",
+      "values": [
+        "completed",
+        "in_progress",
+        "pending"
+      ]
+    },
+    {
+      "name": "ClaimStatus",
+      "values": [
+        "approved",
+        "assessing",
+        "closed",
+        "denied",
+        "paid",
+        "submitted",
+        "triaged"
+      ]
+    },
+    {
+      "name": "PaymentResultStatus",
+      "values": [
+        "accepted",
+        "pending_review",
+        "rejected"
+      ]
+    },
+    {
+      "name": "PayoutStatus",
+      "values": [
+        "failed",
+        "paid",
+        "scheduled"
+      ]
+    },
+    {
+      "name": "PolicyStatus",
+      "values": [
+        "active",
+        "cancelled",
+        "lapsed"
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "fields": [
+        {
+          "name": "claim_number",
+          "type_expr": "String"
+        },
+        {
+          "name": "dispatch_id",
+          "type_expr": "String"
+        },
+        {
+          "name": "specialties",
+          "type_expr": "List<String>"
+        }
+      ],
+      "name": "AssessorDispatch"
+    },
+    {
+      "fields": [
+        {
+          "name": "account_number",
+          "type_expr": "String"
+        },
+        {
+          "name": "amount_pence",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "reference",
+          "type_expr": "String"
+        },
+        {
+          "name": "sort_code",
+          "type_expr": "String"
+        }
+      ],
+      "name": "PaymentRequest"
+    },
+    {
+      "fields": [
+        {
+          "name": "request",
+          "type_expr": "PaymentRequest"
+        },
+        {
+          "name": "status",
+          "type_expr": "PaymentResultStatus"
+        },
+        {
+          "name": "submitted_at",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "upstream_id",
+          "type_expr": "String"
+        }
+      ],
+      "name": "PaymentResult"
+    }
+  ],
+  "version": 3
+}

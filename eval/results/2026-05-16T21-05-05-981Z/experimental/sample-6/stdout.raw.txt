@@ -1,0 +1,15 @@
+Inventory written to `eval/results/2026-05-16T21-05-05-981Z/experimental/sample-6/inventory.json` (564 lines, 21.7 KB). The translator runs against it cleanly, producing a spec that covers all nine patterns documented in the fixture README:
+
+- **6 entities** (5 internal + 1 external `IncidentReport`) with Allium-typed fields, FK → relationship transformation (`policy: Policy`, `claim: Claim`, `assessor: Assessor`, `linked_claim: Claim?`)
+- **Status enums** (`PolicyStatus`, `ClaimStatus`, `AssessmentStatus`, `PayoutStatus`) on each stateful entity
+- **Relationships** (`assessments`, `payouts`, `claims`, `open_claims`, derived `completed_assessments`/`paid_payouts`)
+- **Derived properties** with `{name, expression}` shape referencing `config.<name>` (`age`, `is_stalled`, `is_within_sla`, `total_paid`, `has_completed_assessment`, `has_open_claims`)
+- **11 transitions** with structured `body` (params, requires, ensures with assign/create/invoke kinds)
+- **5 scheduled jobs** with temporal `when` clauses
+- **2 contracts** (`payment`, `assessor`) with verbatim preconditions for invariant derivation
+- **3 value types** + **PaymentResultStatus** auxiliary enum
+- **4 invariants** derived strictly from the four allowed rule sources
+- **7 config items** with verbatim numeric literals (`50_000_00`, `1_000_000_00`)
+- **8 routes** + **1 webhook** with `create_fields` and `linking_rule`
+
+Guidance fields capture the non-obvious bits: implicit `is_stalled` state, business-day approximation, scattered ApproveClaim logic, observational SLA job, and the payment-retry failure branch.

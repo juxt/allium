@@ -1,0 +1,562 @@
+-- allium: 3
+-- insurance-claims.allium
+--
+-- Scope: claim lifecycle for an insurance carrier — from policy registration
+-- through submission, triage, assessment, approval/denial, payout and closure.
+--
+-- Includes: Policy, Claim, Assessor, Assessment, Payout, IncidentReport
+-- Excludes:
+--   - Persistence (in-memory Store / would be Postgres in production)
+--   - HTTP framework details (paths, status codes, body parsing)
+--   - The bank's Faster Payments wire format (library-spec candidate)
+--   - The assessor-network dispatch wire format (library-spec candidate)
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+-- Arrives over a webhook from police / medical feeds. The carrier persists
+-- the report and tries to link it to a matching claim, but does not own its
+-- lifecycle: there is no rule that mutates an IncidentReport after creation.
+external entity IncidentReport {
+    source: String
+    policy: Policy?
+    incident_date: Timestamp
+    description: String
+    received_at: Timestamp
+    linked_claim: Claim?
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum PolicyStatus { active | lapsed | cancelled }
+enum ClaimStatus { submitted | triaged | assessing | approved | denied | paid | closed }
+enum AssessmentStatus { pending | in_progress | completed }
+enum PayoutStatus { scheduled | paid | failed }
+
+------------------------------------------------------------
+-- Entities and Variants
+------------------------------------------------------------
+
+entity Policy {
+    policy_number: String
+    holder: String
+    coverage_limit_pence: Integer
+    status: PolicyStatus
+    holder_tags: Set<String>
+
+    claims: Claim with policy = this
+    open_claims: claims where status not in {paid, denied, closed}
+
+    has_open_claims: open_claims.count > 0
+    is_trusted_holder: "trusted" in holder_tags
+
+    transitions status {
+        active -> lapsed
+        active -> cancelled
+        lapsed -> active
+        terminal: cancelled
+    }
+}
+
+entity Claim {
+    claim_number: String
+    policy: Policy
+    incident_date: Timestamp
+    amount_claimed_pence: Integer
+    submitted_at: Timestamp
+    last_activity_at: Timestamp
+    status: ClaimStatus
+    denial_reason: String? when status = denied
+
+    assessments: Assessment with claim = this
+    payouts: Payout with claim = this
+
+    completed_assessments: assessments where status = completed
+    paid_payouts: payouts where status = paid
+
+    has_completed_assessment: completed_assessments.count > 0
+    age: now - submitted_at
+    is_within_sla: age <= config.assessment_sla
+    is_stalled: status = assessing and (now - last_activity_at) > config.stalled_after
+    total_paid_pence: sum_amount_pence(paid_payouts)
+    is_closed: status in {paid, denied, closed}
+
+    is_eligible_for_auto_approval:
+        status = assessing
+        and amount_claimed_pence < config.auto_approve_max_pence
+        and policy.is_trusted_holder
+        and has_completed_assessment
+
+    transitions status {
+        submitted -> triaged
+        triaged -> assessing
+        triaged -> denied
+        assessing -> approved
+        assessing -> denied
+        approved -> paid
+        denied -> closed
+        terminal: paid, closed
+    }
+}
+
+entity Assessor {
+    name: String
+    specialties: Set<String>
+}
+
+entity Assessment {
+    claim: Claim
+    assessor: Assessor
+    findings: String
+    status: AssessmentStatus
+    started_at: Timestamp? when status = in_progress | completed
+    completed_at: Timestamp? when status = completed
+
+    transitions status {
+        pending -> in_progress
+        in_progress -> completed
+        terminal: completed
+    }
+}
+
+entity Payout {
+    claim: Claim
+    amount_pence: Integer
+    status: PayoutStatus
+    scheduled_at: Timestamp
+    paid_at: Timestamp? when status = paid
+    failed_attempts: Integer
+    last_failure_at: Timestamp? when status = failed
+
+    is_due_for_retry:
+        status = failed
+        and last_failure_at + config.payout_retry_after <= now
+
+    transitions status {
+        scheduled -> paid
+        scheduled -> failed
+        failed -> paid
+        failed -> failed
+        terminal: paid
+    }
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    -- A claim must reach a completed assessment within this window of its
+    -- submission, otherwise it is out of SLA.
+    assessment_sla: Duration = 14.days
+
+    -- How long an "assessing" claim can sit without activity before it counts
+    -- as stalled. Implicit state — there is no `stalled` column on the claim.
+    stalled_after: Duration = 21.days
+
+    -- Submitted claims that go un-triaged for this long are auto-acknowledged
+    -- (auto-triaged). The implementation approximates "business days"; the
+    -- spec treats it as a calendar-day duration at this level of abstraction.
+    auto_ack_after: Duration = 7.days
+
+    -- Failed payouts are retried after this delay.
+    payout_retry_after: Duration = 28.days
+
+    -- Denied claims with no activity for this long are auto-closed.
+    auto_close_denied_after: Duration = 90.days
+
+    -- Maximum claim amount eligible for auto-approval (£50,000).
+    auto_approve_max_pence: Integer = 5_000_000
+
+    -- Time window (± this duration) within which an incident report may be
+    -- linked to a claim by matching policy + incident date.
+    incident_link_window: Duration = 2.days
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+-- ---------- Policy and assessor setup ----------
+
+rule RegisterPolicy {
+    when: RegisterPolicy(policy_number, holder, coverage_limit_pence, holder_tags)
+    ensures: Policy.created(
+        policy_number: policy_number,
+        holder: holder,
+        coverage_limit_pence: coverage_limit_pence,
+        status: active,
+        holder_tags: holder_tags
+    )
+}
+
+rule RegisterAssessor {
+    when: RegisterAssessor(name, specialties)
+    ensures: Assessor.created(name: name, specialties: specialties)
+}
+
+-- ---------- Claim submission ----------
+
+rule SubmitClaim {
+    when: AdjusterSubmitsClaim(claim_number, policy, incident_date, amount_claimed_pence)
+
+    requires: policy.status = active
+    requires: amount_claimed_pence <= policy.coverage_limit_pence
+
+    ensures: Claim.created(
+        claim_number: claim_number,
+        policy: policy,
+        incident_date: incident_date,
+        amount_claimed_pence: amount_claimed_pence,
+        submitted_at: now,
+        last_activity_at: now,
+        status: submitted
+    )
+}
+
+-- ---------- Triage ----------
+
+rule AdjusterTriagesClaim {
+    when: AdjusterTriagesClaim(claim)
+    requires: claim.status = submitted
+    ensures: claim.status = triaged
+    ensures: claim.last_activity_at = now
+}
+
+rule AutoAcknowledgeClaim {
+    when: claim: Claim.submitted_at + config.auto_ack_after <= now
+    requires: claim.status = submitted
+    ensures: claim.status = triaged
+    ensures: claim.last_activity_at = now
+
+    @guidance
+        -- Implementation approximates "5 business days" by counting weekdays
+        -- between submission and now. The spec abstracts this to a calendar
+        -- duration; the underlying intent is "if no human has touched it for
+        -- about a working week, get it moving."
+}
+
+-- ---------- Assessment ----------
+
+rule StartAssessment {
+    when: AdjusterStartsAssessment(claim, assessor)
+    requires: claim.status = triaged
+    ensures: claim.status = assessing
+    ensures: claim.last_activity_at = now
+    ensures: Assessment.created(
+        claim: claim,
+        assessor: assessor,
+        findings: "",
+        status: in_progress,
+        started_at: now
+    )
+}
+
+rule CompleteAssessment {
+    when: AssessorCompletesAssessment(assessment, findings)
+    requires: assessment.status = in_progress
+    ensures: assessment.status = completed
+    ensures: assessment.findings = findings
+    ensures: assessment.completed_at = now
+    ensures: assessment.claim.last_activity_at = now
+}
+
+-- ---------- Approval and denial ----------
+
+rule AdjusterApprovesClaim {
+    when: AdjusterApprovesClaim(claim)
+
+    requires: claim.status = assessing
+    requires: claim.has_completed_assessment
+
+    ensures: claim.status = approved
+    ensures: claim.last_activity_at = now
+    ensures: Payout.created(
+        claim: claim,
+        amount_pence: claim.amount_claimed_pence,
+        status: scheduled,
+        scheduled_at: now,
+        failed_attempts: 0
+    )
+
+    @guidance
+        -- The adjuster-facing route both approves the claim *and* schedules
+        -- the payout in a single user-visible action. The auto-approval rule
+        -- does not schedule a payout — that asymmetry is preserved here.
+}
+
+rule AutoApproveClaim {
+    when: claim: Claim.is_eligible_for_auto_approval
+
+    ensures: claim.status = approved
+    ensures: claim.last_activity_at = now
+
+    @guidance
+        -- Scattered logic: an adjuster can approve a claim by hand
+        -- (AdjusterApprovesClaim) and a nightly scheduler can approve low-
+        -- value claims for trusted holders. Both produce the same status
+        -- transition; only the adjuster path schedules a payout up front.
+}
+
+rule DenyClaim {
+    when: AdjusterDeniesClaim(claim, reason)
+    requires: claim.status in {triaged, assessing}
+    ensures: claim.status = denied
+    ensures: claim.denial_reason = reason
+    ensures: claim.last_activity_at = now
+}
+
+-- ---------- Payout ----------
+
+rule MarkPayoutPaid {
+    when: MarkPayoutPaid(payout)
+    requires: payout.status in {scheduled, failed}
+    ensures: payout.status = paid
+    ensures: payout.paid_at = now
+    ensures: payout.claim.status = paid
+    ensures: payout.claim.last_activity_at = now
+}
+
+rule MarkPayoutFailed {
+    when: MarkPayoutFailed(payout)
+    requires: payout.status in {scheduled, failed}
+    ensures: payout.status = failed
+    ensures: payout.failed_attempts = payout.failed_attempts + 1
+    ensures: payout.last_failure_at = now
+}
+
+rule RetryFailedPayout {
+    when: payout: Payout.is_due_for_retry
+    requires: payout.status = failed
+    ensures: PayoutRetryAttempted(payout: payout, amount_pence: payout.amount_pence)
+
+    @guidance
+        -- The retry submits a fresh Faster Payments request to the bank. The
+        -- bank's response then drives one of MarkPayoutPaid / MarkPayoutFailed.
+        -- The wire-level contract with the bank lives in a separate payments
+        -- library spec; see PaymentSubmission below.
+}
+
+-- ---------- Auto-close ----------
+
+rule AutoCloseDeniedClaim {
+    when: claim: Claim.last_activity_at + config.auto_close_denied_after <= now
+    requires: claim.status = denied
+    ensures: claim.status = closed
+    ensures: claim.last_activity_at = now
+}
+
+-- ---------- Inbound webhook: incident reports ----------
+
+rule ReceiveIncidentReport {
+    when: IncidentReportWebhook(source, policy, incident_date, description)
+
+    let matching_claim =
+        if policy != null:
+            Claims.where(c => c.policy = policy
+                and abs_time(c.incident_date - incident_date) <= config.incident_link_window).first
+        else:
+            null
+
+    ensures: IncidentReport.created(
+        source: source,
+        policy: policy,
+        incident_date: incident_date,
+        description: description,
+        received_at: now,
+        linked_claim: matching_claim
+    )
+
+    @guidance
+        -- Linking is best-effort: a report without a policy reference is
+        -- stored unlinked, and a report whose policy + incident date matches
+        -- no current claim is also stored unlinked. The system does not own
+        -- IncidentReport lifecycle beyond receipt.
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant ClaimAmountWithinCoverage {
+    for c in Claims:
+        c.amount_claimed_pence <= c.policy.coverage_limit_pence
+}
+
+invariant DeniedClaimHasReason {
+    for c in Claims:
+        c.status = denied implies c.denial_reason != null
+}
+
+invariant PaidClaimHasPaidPayout {
+    for c in Claims:
+        c.status = paid implies c.paid_payouts.count >= 1
+}
+
+invariant CompletedAssessmentBeforeApproval {
+    for c in Claims:
+        c.status in {approved, paid} implies c.has_completed_assessment
+}
+
+invariant TotalPaidWithinClaim {
+    for c in Claims:
+        c.total_paid_pence <= c.amount_claimed_pence
+}
+
+invariant IncidentReportLinkMatchesPolicy {
+    for r in IncidentReports:
+        r.linked_claim != null
+            implies r.linked_claim.policy = r.policy
+}
+
+------------------------------------------------------------
+-- Actor Declarations
+------------------------------------------------------------
+
+actor Adjuster {
+    identified_by: User where role = adjuster
+}
+
+actor IncidentFeed {
+    identified_by: System where source in {police, medical}
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface AdjusterClaimWorkbench {
+    facing adjuster: Adjuster
+    context claim: Claim
+
+    exposes:
+        claim.claim_number
+        claim.policy.policy_number
+        claim.policy.holder
+        claim.status
+        claim.amount_claimed_pence
+        claim.incident_date
+        claim.submitted_at
+        claim.is_within_sla
+        claim.is_stalled
+        claim.is_closed
+        claim.total_paid_pence
+        claim.denial_reason when claim.status = denied
+
+    provides:
+        AdjusterTriagesClaim(adjuster, claim)
+            when claim.status = submitted
+        AdjusterStartsAssessment(adjuster, claim, assessor: Assessor)
+            when claim.status = triaged
+        AdjusterApprovesClaim(adjuster, claim)
+            when claim.status = assessing and claim.has_completed_assessment
+        AdjusterDeniesClaim(adjuster, claim, reason: String)
+            when claim.status in {triaged, assessing}
+
+    timeout:
+        AutoAcknowledgeClaim when claim.status = submitted
+        AutoCloseDeniedClaim when claim.status = denied
+}
+
+surface AdjusterPolicyView {
+    facing adjuster: Adjuster
+    context policy: Policy
+
+    exposes:
+        policy.policy_number
+        policy.holder
+        policy.status
+        policy.coverage_limit_pence
+        policy.has_open_claims
+        policy.claims
+
+    provides:
+        AdjusterSubmitsClaim(adjuster, claim_number: String, policy,
+                             incident_date: Timestamp, amount_claimed_pence: Integer)
+            when policy.status = active
+}
+
+surface AdjusterPayoutControl {
+    facing adjuster: Adjuster
+    context payout: Payout
+
+    exposes:
+        payout.claim.claim_number
+        payout.amount_pence
+        payout.status
+        payout.scheduled_at
+        payout.paid_at when payout.status = paid
+        payout.failed_attempts
+        payout.last_failure_at when payout.status = failed
+
+    provides:
+        MarkPayoutPaid(adjuster, payout)
+            when payout.status in {scheduled, failed}
+        MarkPayoutFailed(adjuster, payout)
+            when payout.status in {scheduled, failed}
+
+    timeout:
+        RetryFailedPayout when payout.status = failed
+}
+
+surface IncidentReportIngest {
+    facing feed: IncidentFeed
+
+    provides:
+        IncidentReportWebhook(feed, source: String, policy: Policy?,
+                              incident_date: Timestamp, description: String)
+
+    @guarantee AcceptUnlinkedReports
+        -- The webhook accepts reports whose policy reference is absent or
+        -- does not match any current claim. Unlinked reports are persisted
+        -- for later reconciliation.
+}
+
+surface AssessorReportback {
+    facing assessor: Assessor
+    context assessment: Assessment where assessor = assessor
+
+    exposes:
+        assessment.claim.claim_number
+        assessment.claim.incident_date
+        assessment.status
+
+    provides:
+        AssessorCompletesAssessment(assessor, assessment, findings: String)
+            when assessment.status = in_progress
+}
+
+surface CarrierAdmin {
+    facing operator: Adjuster
+
+    provides:
+        RegisterPolicy(operator, policy_number: String, holder: String,
+                       coverage_limit_pence: Integer, holder_tags: Set<String>)
+        RegisterAssessor(operator, name: String, specialties: Set<String>)
+}
+
+------------------------------------------------------------
+-- Deferred Specifications
+------------------------------------------------------------
+
+-- Faster Payments wire contract with the upstream bank. The carrier hands
+-- off (account_number, sort_code, amount_pence, reference); the bank
+-- responds with accepted / rejected / pending_review and an upstream id.
+-- This is the bank's contract, not ours; modelled separately.
+deferred PaymentSubmission.submit    -- see: integrations/faster-payments.allium
+
+-- Assessor-network dispatch: given a claim and a list of required
+-- specialties, the network returns a dispatch reference. Modelled
+-- separately because the wire contract is the network's, not ours.
+deferred AssessorDispatch.request    -- see: integrations/assessor-network.allium
+
+------------------------------------------------------------
+-- Open Questions
+------------------------------------------------------------
+
+open question "Auto-approved claims do not have a payout scheduled — should the auto-approval scheduler also schedule the payout, or is the adjuster expected to do this by hand?"
+open question "Assessment SLA breach (claim age > assessment_sla while still in triaged/assessing) is surfaced as a derived flag but produces no notification or escalation — is that intentional?"
+open question "A stalled claim (assessing with no activity for stalled_after) is similarly only exposed as a derived flag — should it auto-escalate, auto-deny, or remain purely informational?"

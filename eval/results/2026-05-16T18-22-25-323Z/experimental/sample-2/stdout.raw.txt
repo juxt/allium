@@ -1,0 +1,1 @@
+Spec written to `eval/results/2026-05-16T18-22-25-323Z/experimental/sample-2/spec.allium` (626 lines). `allium check` passes with zero errors; two remaining warnings are about contract-return value types (`PaymentResult`, `AssessorDispatch`) that the checker doesn't trace through contract signatures.

@@ -1,0 +1,1 @@
+Distilled 497-line spec written to `eval/results/2026-05-16T19-29-47-784Z/experimental/sample-2/spec.allium`. `allium check` reports 0 errors and 4 warnings (acceptable unused-reference warnings on the external entity and two value types referenced only inside contract signatures).

@@ -1,0 +1,16 @@
+Propagation pipeline complete.
+
+**Summary**
+- Backend: `pytest+hypothesis`, K = 3 subagents (all 3 survived; 96/96 obligations covered after canonicalize + merge).
+- Merge consensus: 0 low-confidence bridges. Merger dropped some transition-graph edges that appeared in only 1/3 inventories (subagents disagreed on the exact transition_graph shape) — warnings logged to terminal; no functional impact on test generation.
+- Test files: 46 files under `./tests/` (e.g. `test_submit_claim.py`, `test_approve_claim.py`, `test_payout_retry_job.py`, plus per-entity, per-enum, per-invariant, per-config files).
+- Stage C run: `python3 -m pytest` exit 0 — 96 passing, 0 bridge-unresolved stubs, 0 likely-real-failures, 0 likely-wrong-bridges, 0 infra gaps.
+
+**Artefacts**
+- `./allium-propagated/plan.json`, `model.json`
+- `./allium-propagated/inventories/inventory-{1,2,3}.json` + `.canonical.json`
+- `./allium-propagated/merged.json`
+- `./allium-propagated/propagation-report.md`
+- `./tests/test_*.py` (46 files)
+
+Generated stubs are structurally wired but contain TODO bodies — engineers still need to fill assertions before they prove behaviour.

@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-45-00-249Z/experimental/sample-4/spec.allium` (408 lines, `-- allium: 3` first line). `allium check` and `allium analyse` both pass with zero findings — only info-level notes (38) about declared-but-unreferenced fields and external triggers, which are expected for a distilled domain spec.

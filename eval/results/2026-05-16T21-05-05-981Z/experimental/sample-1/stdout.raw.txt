@@ -1,0 +1,12 @@
+Inventory written to `inventory.json`. It validates as JSON and covers:
+
+- **6 entities** (Assessment, Assessor, Claim, IncidentReport [external], Payout, Policy) with status enums, alphabetised fields, FK-to-relationship resolution (`policy_number → policy: Policy`, etc.), relationships including derived-view forms (`completed_assessments`, `paid_payouts`, `open_claims` using exclusion form), and derived properties referencing `config.<name>`.
+- **11 transitions** from `services.py` with structured `params/lets/requires/ensures` (assign/create/invoke kinds) and `called_from` traceback.
+- **4 scheduled jobs** from `jobs.py`. `assessment_sla_job` was intentionally excluded because it only surfaces breaches without mutating state — the SLA is captured via `Claim.is_within_sla` and `config.assessment_sla`. Calendar-vs-business-day approximation noted as guidance on `auto_acknowledge_job`.
+- **4 invariants** derived strictly from the four-rule mechanical derivation (coverage cap, denied-has-reason, approved-has-completed-assessment, payout-matches-claim).
+- **2 integrations** (assessor, payment) with verbatim preconditions including the `1_000_000_00` cap (underscore placement preserved) and the literal `len(account_number) == 8 and account_number.isdigit()` text.
+- **3 value types** (AssessorDispatch, PaymentRequest, PaymentResult) and **1 aux enum** (PaymentResultStatus).
+- **7 config keys** with Allium Duration/Integer values.
+- **8 routes** + **1 webhook** (incident reports, linking by policy + date window).
+
+Allium types used throughout (String/Integer/Timestamp/Duration/Set<String>/EntityName, with nullability as a separate boolean).

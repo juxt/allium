@@ -1,0 +1,12 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T21-05-05-981Z/experimental/sample-2/inventory.json` — valid JSON with:
+
+- **6 entities** (Assessment, Assessor, Claim, IncidentReport, Payout, Policy) — IncidentReport marked external; FKs (`policy_number`, `claim_number`, `assessor_name`, `linked_claim_number`) replaced by typed relationships
+- **11 transitions** sorted alphabetically with verbatim names from `app/services.py`; bodies use Allium expressions (`=` not `==`, status literals lowercase)
+- **5 scheduled jobs** for the temporal rules in `app/jobs.py` (auto-ack, SLA, retry, auto-close, auto-approval)
+- **2 integrations** (`assessor`, `payment`) with preconditions captured verbatim
+- **3 value types** + **1 auxiliary enum** (`PaymentResultStatus`) owned by their integrations
+- **4 cross-cutting invariants** derived from the four prescribed rules
+- **7 config items** with units/underscore-grouping preserved (`50_000_00`, etc.)
+- **8 routes** + **1 webhook** (matches the README's 9-route sanity check)
+
+Field lists and arrays are alphabetically sorted; status enums sorted alphabetically; relationships use the from-target / from-derived forms as appropriate; derived properties reference `config.<name>` rather than inlining literals.

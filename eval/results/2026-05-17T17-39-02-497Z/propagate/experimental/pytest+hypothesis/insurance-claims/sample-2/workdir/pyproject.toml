@@ -1,0 +1,14 @@
+[project]
+name = "insurance-claims-fixture"
+version = "0.0.1"
+description = "Fixture codebase for the distill A/B harness. Not intended to run end-to-end; only importable so distill sees coherent code."
+requires-python = ">=3.10"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

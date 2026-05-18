@@ -1,0 +1,12 @@
+Inventory written to `eval/results/2026-05-16T21-05-05-981Z/experimental/sample-3/inventory.json`. It covers:
+
+- **6 entities** (5 internal + IncidentReport external) with alphabetised fields, FK→relationship conversion (Claim.policy, Assessment.claim/assessor, Payout.claim), derived properties (age, is_stalled, is_within_sla, has_completed_assessment, total_paid, has_open_claims), and relationships including filtered derived views (completed_assessments, paid_payouts, open_claims).
+- **11 transitions** from `services.py` with structured params/requires/ensures (assign/create/invoke kinds), each carrying `called_from` sites.
+- **5 scheduled_jobs** from `jobs.py` with temporal `when` headers referencing `config.<name>`. The SLA breach job is included with empty ensures + guidance since the code only surfaces it.
+- **2 integrations** (assessor, payment) with operations, params, return types, preconditions (verbatim shapes per the SKILL guidance), and raises.
+- **3 value_types** (AssessorDispatch, PaymentRequest, PaymentResult) and **1 auxiliary_enumeration** (PaymentResultStatus).
+- **4 invariants** derived per the four rules in SKILL.md.
+- **7 config** entries with Duration/Integer type hints, verbatim values, and file-level sources.
+- **8 routes** in `app/routes.py` and **1 webhook** (`/webhooks/incident-reports`).
+
+All Allium type hints (String, Integer, Timestamp, Set<String>, EntityName, EntityName?) rather than Python types. JSON validated.

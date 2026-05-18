@@ -1,0 +1,17 @@
+Generated 117 passing tests under `tests/` covering the 96 obligations from `allium plan`:
+
+- **test_entities.py** (29 tests) — entity_fields, entity_optional, value_equality, enum_comparable
+- **test_config.py** (7 tests) — config_default for the seven config parameters
+- **test_rules.py** (29 tests) — rule_success / rule_failure / rule_entity_creation across all rules
+- **test_temporal.py** (16 tests) — temporal obligations using the injected `now` seam in `app/jobs.py`
+- **test_derived.py** (15 tests) — derived values + projections (age, is_within_sla, is_stalled, has_completed_assessment, total_paid, retry_due_at, has_open_claims, completed_assessments, paid_payouts)
+- **test_invariants.py** (5 tests) — a Hypothesis `RuleBasedStateMachine` walking random valid lifecycles checking all four spec invariants after every step, plus per-invariant targeted PBTs
+- **test_surfaces.py** (21 tests) — surface_provides (Routes + Webhooks), surface_actor smoke, and contract_signature/@invariant tests for AssessorService and PaymentService
+
+Implementation bridge notes worth flagging:
+- `Claim.policy: Policy` in the spec ↔ `policy_number: str` FK in code (documented in README); tests assert on the FK shape.
+- `IncidentReport.linked_claim` ↔ `linked_claim_number: str | None`.
+- `RegisterPolicy` is listed in `surface Routes.provides` but the implementation exposes it via the service layer rather than a dedicated HTTP handler — the test documents this with a service-layer existence check.
+- `AutoApprovalScheduler` does not accept an injected `now` (it computes nothing time-dependent itself), so the temporal-seam parametrize covers only the four jobs that do.
+
+Pyright reports `Import "tests._helpers" could not be resolved` because no pyrightconfig pins the project root; pytest's rootdir-based imports work at runtime (all 117 tests pass).

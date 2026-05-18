@@ -1,0 +1,9 @@
+Inventory is valid JSON. It contains:
+
+- **6 entities** (5 internal + IncidentReport external) with status enums, fields (alphabetized, with Allium types), relationships, and derived properties — including `eligible_for_auto_approval` to drive the auto-approval rule and `retry_due_at` for the payout retry rule.
+- **12 transitions** with structured params/lets/requires/ensures bodies (the IncidentReport webhook is modelled via `receive_incident_report` with a `let linked_claim = ...` binding).
+- **4 scheduled jobs** with proper `<var>: <Type>.<field-expr> <op> <rhs>` `when:` headers (auto_approval uses the change-form on `eligible_for_auto_approval`). The SLA job was deliberately excluded since it surfaces but does not mutate; the property is captured as `is_within_sla` on Claim.
+- **2 integrations** with verbatim preconditions ready for `@invariant` derivation.
+- **3 value types**, **1 auxiliary enum**, **5 cross-cutting invariants** (each traceable to one of the four derivation rules), **7 config keys**, **8 routes**, **1 webhook**.
+
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T21-21-25-344Z/experimental/sample-2/inventory.json`.

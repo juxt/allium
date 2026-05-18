@@ -1,0 +1,23 @@
+{
+  "variant": "experimental",
+  "sample": 3,
+  "claudePath": "/Users/yavorpanayotov/.local/bin/claude",
+  "args": [
+    "--plugin-dir",
+    "/Users/yavorpanayotov/IdeaProjects/allium-4.0/plugins/experimental",
+    "--print",
+    "--permission-mode",
+    "bypassPermissions",
+    "Use the distill skill's inventory pass to produce a structured inventory\nof the Python code in this directory. Write the inventory as JSON to:\n\n  /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T21-21-25-344Z/experimental/sample-3/inventory.json\n\nThe downstream pipeline contains a deterministic translator that converts\nthe inventory to the canonical .allium spec. You do not need to write the\nspec yourself. Concentrate your effort on producing a complete, correct,\nwell-structured inventory that follows the schema in the distill skill's\nSKILL.md, covering: header, entities (with kind, fields, status_enum,\nrelationships, derived_properties expressed as {name, expression}),\ntransitions (with structured body: params, lets, requires, ensures with\nkind: assign/create/invoke), scheduled_jobs (similarly structured),\ninvariants, integrations with operations and preconditions, value_types,\nauxiliary_enumerations, config, routes, and webhooks.\n\nRead every file under ./app first. You have access to Read, Write, Bash\nand other tools — use them as the skill directs.\n\nImportant: the inventory's type_hint fields must use Allium types\n(String, Integer, Timestamp, Set<String>, EntityName, EntityName?, etc.),\nnot Python types (str, int, datetime). The translator does not convert."
+  ],
+  "cwd": "/Users/yavorpanayotov/IdeaProjects/allium-4.0/fixtures/insurance-claims",
+  "model": null,
+  "exitCode": 0,
+  "signal": null,
+  "durationMs": 631826,
+  "specBytes": 11540,
+  "inventoryPresent": true,
+  "translatorStatus": "ok",
+  "promptHash": "2c62101e",
+  "startedAt": "2026-05-16T21:21:25.347Z"
+}

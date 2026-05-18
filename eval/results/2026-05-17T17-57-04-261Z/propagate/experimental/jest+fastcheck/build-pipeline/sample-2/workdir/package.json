@@ -1,0 +1,19 @@
+{
+  "name": "build-pipeline-fixture",
+  "version": "0.0.1",
+  "description": "Fixture codebase for the distill A/B harness. Build/CI pipeline mini-system in TypeScript: pipelines, builds, artifacts, GitHub webhook, artifact storage. Not intended to run; only readable so distill sees coherent code.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@types/jest": "^30.0.0",
+    "fast-check": "^4.8.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.9"
+  }
+}

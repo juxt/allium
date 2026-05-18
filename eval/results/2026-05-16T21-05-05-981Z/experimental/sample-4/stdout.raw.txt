@@ -1,0 +1,3 @@
+The translator runs end-to-end with no errors and emits a complete spec covering: external entities, value types, contracts (with derived `@invariant` names), enums, entities (with relationships and derived properties), config, rules, top-level invariants, and surfaces.
+
+Inventory written to `eval/results/2026-05-16T21-05-05-981Z/experimental/sample-4/inventory.json` — 6 entities (Assessment/Assessor/Claim/IncidentReport/Payout/Policy), 11 transitions, 5 scheduled jobs, 2 integrations with preconditions, 3 value types + 1 aux enum, 4 invariants, 7 config keys, 8 routes, and 1 webhook with linking rule and create_fields.

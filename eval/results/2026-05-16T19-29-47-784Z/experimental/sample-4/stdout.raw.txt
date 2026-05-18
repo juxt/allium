@@ -1,0 +1,1 @@
+Spec written (435 lines), starts with `-- allium: 3`, passes `allium check` with 0 errors and 2 unused-value warnings (both value types referenced only inside contracts).

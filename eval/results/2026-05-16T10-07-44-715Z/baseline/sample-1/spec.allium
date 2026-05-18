@@ -1,0 +1,546 @@
+-- allium: 3
+
+-- ============================================================================
+-- Insurance Claims Processing System
+--
+-- An adjuster-facing service that submits, triages, assesses, approves,
+-- denies, pays out and closes insurance claims. Receives external incident
+-- reports via webhook, dispatches assessors and sends payments through
+-- third-party integrations.
+-- ============================================================================
+
+
+-- ---------------------------------------------------------------------------
+-- Status enums
+-- ---------------------------------------------------------------------------
+
+enum PolicyStatus {
+  active
+  lapsed
+  cancelled
+}
+
+enum ClaimStatus {
+  submitted
+  triaged
+  assessing
+  approved
+  denied
+  paid
+  closed
+}
+
+enum AssessmentStatus {
+  pending
+  in_progress
+  completed
+}
+
+enum PayoutStatus {
+  scheduled
+  paid
+  failed
+}
+
+enum IncidentSource {
+  police
+  medical
+}
+
+enum PaymentResultStatus {
+  accepted
+  rejected
+  pending_review
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Temporal constants
+-- ---------------------------------------------------------------------------
+
+const ASSESSMENT_SLA: Duration = 14 days
+const STALLED_AFTER: Duration = 21 days
+const AUTO_ACK_AFTER: Duration = 5 business_days
+const PAYOUT_RETRY_AFTER: Duration = 28 days
+const AUTO_CLOSE_DENIED_AFTER: Duration = 90 days
+const INCIDENT_LINK_WINDOW: Duration = 2 days
+const AUTO_APPROVE_MAX_PENCE: Integer = 5_000_000  -- £50,000
+const FASTER_PAYMENT_UPSTREAM_CAP_PENCE: Integer = 100_000_000  -- £1,000,000
+
+
+-- ---------------------------------------------------------------------------
+-- Entities
+-- ---------------------------------------------------------------------------
+
+entity Policy {
+  policy_number: String  (identity)
+  holder: String
+  coverage_limit_pence: Integer
+  status: PolicyStatus = active
+  holder_tags: Set<String> = {}
+
+  derived has_open_claims: Boolean =
+    exists Claim c
+    where c.policy == this
+      and c.status not in {paid, denied, closed}
+
+  derived is_trusted_holder: Boolean = "trusted" in holder_tags
+}
+
+entity Claim {
+  claim_number: String  (identity)
+  policy: Policy                            -- FK by policy_number
+  incident_date: DateTime
+  amount_claimed_pence: Integer
+  submitted_at: DateTime = now()
+  last_activity_at: DateTime = now()
+  status: ClaimStatus = submitted
+  denial_reason: String?
+
+  derived age: Duration = now() - submitted_at
+
+  derived is_within_sla: Boolean = age <= ASSESSMENT_SLA
+
+  -- Implicit state: there is deliberately no `stalled` column. Derived from
+  -- (status, last_activity_at).
+  derived is_stalled: Boolean =
+    status == assessing
+    and (now() - last_activity_at) > STALLED_AFTER
+
+  derived total_paid_pence: Integer =
+    sum p.amount_pence
+    over Payout p
+    where p.claim == this and p.status == paid
+
+  derived closed: Boolean = status in {paid, denied, closed}
+}
+
+entity Assessor {
+  name: String  (identity)
+  specialties: Set<String> = {}
+}
+
+entity Assessment {
+  assessment_id: String  (identity)
+  claim: Claim
+  assessor: Assessor
+  findings: String = ""
+  status: AssessmentStatus = pending
+  started_at: DateTime?
+  completed_at: DateTime?
+}
+
+entity Payout {
+  payout_id: String  (identity)
+  claim: Claim
+  amount_pence: Integer
+  status: PayoutStatus = scheduled
+  scheduled_at: DateTime = now()
+  paid_at: DateTime?
+  failed_attempts: Integer = 0
+  last_failure_at: DateTime?
+}
+
+-- External entity: arrives over the webhook surface, lifecycle owned upstream.
+external entity IncidentReport {
+  report_id: String  (identity)
+  source: String                            -- e.g. "police", "medical"
+  policy_number: String?
+  incident_date: DateTime
+  description: String
+  received_at: DateTime = now()
+  linked_claim: Claim?
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Invariants
+-- ---------------------------------------------------------------------------
+
+invariant ClaimAmountWithinCoverage on Claim {
+  amount_claimed_pence <= policy.coverage_limit_pence
+}
+
+invariant DeniedClaimsHaveReason on Claim {
+  status == denied implies denial_reason != null
+}
+
+invariant PaidPayoutHasTimestamp on Payout {
+  status == paid implies paid_at != null
+}
+
+invariant FailedPayoutHasFailureAttempt on Payout {
+  status == failed implies failed_attempts >= 1 and last_failure_at != null
+}
+
+invariant CompletedAssessmentHasTimestamp on Assessment {
+  status == completed implies completed_at != null
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Claim state machine — single source of truth in app/services.py.
+-- The `approve` transition is reachable from BOTH the adjuster API
+-- (POST /claims/<n>/approve) AND the auto-approval scheduler (jobs.py).
+-- ---------------------------------------------------------------------------
+
+state_machine Claim on status {
+
+  transition submit
+    from (none)
+    to submitted
+    creates Claim
+    guard {
+      policy != null
+      policy.status == active
+      amount_claimed_pence <= policy.coverage_limit_pence
+    }
+    on_reject ClaimRejected
+
+  transition triage
+    from submitted
+    to triaged
+    effect { last_activity_at = now() }
+    on_invalid InvalidTransition
+
+  transition start_assessment
+    from triaged
+    to assessing
+    requires { Assessor exists with name == input.assessor_name }
+    effect {
+      create Assessment {
+        claim = this
+        assessor = input.assessor
+        status = in_progress
+        started_at = now()
+      }
+      last_activity_at = now()
+    }
+    on_invalid InvalidTransition
+
+  transition approve
+    from assessing
+    to approved
+    guard {
+      exists Assessment a
+        where a.claim == this and a.status == completed
+    }
+    effect { last_activity_at = now() }
+    on_invalid InvalidTransition
+
+  transition deny
+    from { triaged, assessing }
+    to denied
+    effect {
+      denial_reason = input.reason
+      last_activity_at = now()
+    }
+    on_invalid InvalidTransition
+
+  transition mark_paid_via_payout
+    from approved
+    to paid
+    triggered_by Payout.status -> paid
+    effect { last_activity_at = now() }
+
+  transition auto_close_denied
+    from denied
+    to closed
+    triggered_by job auto_close_denied_job
+    effect { last_activity_at = now() }
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Assessment state machine
+-- ---------------------------------------------------------------------------
+
+state_machine Assessment on status {
+
+  transition open
+    from (none)
+    to in_progress
+    triggered_by Claim.start_assessment
+    effect { started_at = now() }
+
+  transition complete
+    from in_progress
+    to completed
+    effect {
+      findings = input.findings
+      completed_at = now()
+      claim.last_activity_at = now()
+    }
+    on_invalid InvalidTransition
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Payout state machine
+-- ---------------------------------------------------------------------------
+
+state_machine Payout on status {
+
+  transition schedule
+    from (none)
+    to scheduled
+    triggered_by Claim.approve
+    creates Payout
+    guard { claim.status == approved }
+    effect {
+      amount_pence = claim.amount_claimed_pence
+      scheduled_at = now()
+      claim.last_activity_at = now()
+    }
+    on_invalid InvalidTransition
+
+  transition mark_paid
+    from { scheduled, failed }
+    to paid
+    effect {
+      paid_at = now()
+      claim.status = paid                   -- cascades to Claim state machine
+      claim.last_activity_at = now()
+    }
+
+  transition mark_failed
+    from { scheduled, failed }
+    to failed
+    effect {
+      failed_attempts = failed_attempts + 1
+      last_failure_at = now()
+    }
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Temporal rules / scheduled jobs
+-- ---------------------------------------------------------------------------
+
+job auto_acknowledge_job {
+  description "Auto-triage SUBMITTED claims that have sat for 5+ business days."
+  for_each Claim c
+    where c.status == submitted
+      and business_days_between(c.submitted_at, now()) >= 5
+  action { invoke Claim.triage(c) }
+}
+
+job assessment_sla_job {
+  description "Surface claims that have breached the 14-day assessment SLA."
+  for_each Claim c
+    where c.status in {triaged, assessing}
+      and (now() - c.submitted_at) > ASSESSMENT_SLA
+  action { emit SlaBreached(c.claim_number) }
+}
+
+job payout_retry_job {
+  description "Retry FAILED payouts that are older than 28 days."
+  for_each Payout p
+    where p.status == failed
+      and (now() - (p.last_failure_at ?? p.scheduled_at)) >= PAYOUT_RETRY_AFTER
+  action {
+    try {
+      FasterPayments.send_faster_payment(
+        account_number = "00000000",
+        sort_code = "00-00-00",
+        amount_pence = p.amount_pence,
+        reference = p.payout_id,
+      )
+      invoke Payout.mark_paid(p)
+    } catch PaymentError {
+      invoke Payout.mark_failed(p)
+    }
+  }
+}
+
+job auto_close_denied_job {
+  description "Close DENIED claims that have been inactive for 90 days."
+  for_each Claim c
+    where c.status == denied
+      and (now() - c.last_activity_at) >= AUTO_CLOSE_DENIED_AFTER
+  action {
+    set c.status = closed
+    set c.last_activity_at = now()
+  }
+}
+
+job auto_approval_scheduler {
+  description "
+    Auto-approve low-value claims for trusted holders once their assessment
+    is completed, so an adjuster doesn't need to click through them by hand.
+    Scattered logic: invokes the same Claim.approve transition as the
+    adjuster API in routes.py.
+  "
+  for_each Claim c
+    where c.status == assessing
+      and c.amount_claimed_pence < AUTO_APPROVE_MAX_PENCE
+      and "trusted" in c.policy.holder_tags
+      and exists Assessment a
+            where a.claim == c and a.status == completed
+  action { invoke Claim.approve(c) }
+}
+
+
+-- ---------------------------------------------------------------------------
+-- HTTP surface — adjuster-facing API (app/routes.py)
+-- ---------------------------------------------------------------------------
+
+surface AdjusterAPI {
+
+  POST /claims
+    body { claim_number, policy_number, incident_date, amount_claimed_pence }
+    action { invoke Claim.submit }
+    returns { claim_number, status }
+
+  POST /claims/<claim_number>/triage
+    action { invoke Claim.triage }
+    returns { claim_number, status }
+
+  POST /claims/<claim_number>/assess
+    body { assessor_name }
+    action { invoke Claim.start_assessment }
+    returns { assessment_id, claim_number, assessor_name }
+
+  POST /claims/<claim_number>/approve
+    action {
+      invoke Claim.approve
+      invoke Payout.schedule
+    }
+    returns { claim_number, status, payout_id }
+
+  POST /claims/<claim_number>/deny
+    body { reason }
+    action { invoke Claim.deny }
+    returns { claim_number, status, denial_reason }
+
+  POST /payouts/<payout_id>/mark-paid
+    action { invoke Payout.mark_paid }
+    returns { payout_id, status }
+
+  GET /policies/<policy_number>/claims
+    returns list of {
+      claim_number,
+      status,
+      amount_claimed_pence,
+      is_within_sla,
+      is_stalled,
+    }
+    over Claim c where c.policy.policy_number == policy_number
+
+  GET /claims/<claim_number>
+    returns {
+      claim_number,
+      policy_number,
+      status,
+      amount_claimed_pence,
+      total_paid_pence,
+      is_within_sla,
+      is_stalled,
+      closed,
+    }
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Webhook surface — inbound external feeds (app/webhooks.py)
+-- ---------------------------------------------------------------------------
+
+surface IncidentWebhook {
+
+  POST /webhooks/incident-reports
+    description "
+      External feeds (police, medical) push IncidentReport objects as they
+      happen. The system persists every report and best-effort links it to
+      an existing Claim by policy_number plus incident-date proximity
+      (±2 days).
+    "
+    body { source, policy_number?, incident_date, description }
+    action {
+      create IncidentReport r {
+        report_id = generate_uuid()
+        source = body.source
+        policy_number = body.policy_number
+        incident_date = body.incident_date
+        description = body.description
+        received_at = now()
+      }
+      if r.policy_number != null {
+        let match = first Claim c
+          where c.policy.policy_number == r.policy_number
+            and abs(c.incident_date - r.incident_date) <= INCIDENT_LINK_WINDOW
+        if match != null { set r.linked_claim = match }
+      }
+    }
+    returns { report_id, linked_claim_number }
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Third-party integration: Faster Payments (bank).
+-- Library-spec candidate — the bank owns this contract, not us.
+-- ---------------------------------------------------------------------------
+
+contract FasterPayments {
+
+  type PaymentRequest {
+    account_number: String   -- must be exactly 8 digits
+    sort_code: String        -- must match NN-NN-NN
+    amount_pence: Integer    -- must be > 0 and <= 100_000_000
+    reference: String        -- appears on the recipient's statement
+  }
+
+  type PaymentResult {
+    request: PaymentRequest
+    status: PaymentResultStatus
+    upstream_id: String      -- format: "fp-<reference>"
+    submitted_at: DateTime
+  }
+
+  error PaymentError
+
+  operation send_faster_payment
+    input {
+      account_number: String
+      sort_code: String
+      amount_pence: Integer
+      reference: String
+    }
+    guard {
+      amount_pence > 0
+        else raise PaymentError("amount must be positive")
+      length(account_number) == 8 and account_number matches /^[0-9]{8}$/
+        else raise PaymentError("account_number must be 8 digits")
+      sort_code matches /^[0-9]{2}-[0-9]{2}-[0-9]{2}$/
+        else raise PaymentError("sort_code must be in NN-NN-NN format")
+      amount_pence <= FASTER_PAYMENT_UPSTREAM_CAP_PENCE
+        else raise PaymentError("upstream caps Faster Payments at £1,000,000")
+    }
+    returns PaymentResult with status = accepted
+}
+
+
+-- ---------------------------------------------------------------------------
+-- Third-party integration: assessor-network dispatch.
+-- ---------------------------------------------------------------------------
+
+contract AssessorNetwork {
+
+  type AssessorDispatch {
+    dispatch_id: String     -- format: "disp-<8 hex chars>"
+    claim_number: String
+    specialties: List<String>
+  }
+
+  error AssessorDispatchError
+
+  operation request_assessor_dispatch
+    input {
+      claim_number: String
+      specialties: List<String>
+    }
+    guard {
+      length(specialties) >= 1
+        else raise AssessorDispatchError("at least one specialty is required")
+    }
+    returns AssessorDispatch
+}

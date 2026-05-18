@@ -1,0 +1,12 @@
+Inventory written. Summary:
+
+- **6 entities**: `Assessment`, `Assessor`, `Claim`, `IncidentReport` (external), `Payout`, `Policy` — with FK→relationship distillation (e.g. `policy_number` → `policy: Policy`).
+- **11 transitions**: all service-layer functions, each with structured `requires` / `ensures` (assign/create/invoke) and `called_from` provenance.
+- **4 scheduled jobs**: `auto_acknowledge_job`, `auto_approval_scheduler` (modelled as fires-on-eligibility-change via a derived property), `auto_close_denied_job`, `payout_retry_job`.
+- **2 integrations**: `assessor`, `payment` — with verbatim preconditions matching the skill's worked examples.
+- **3 value types** + **1 auxiliary enum** for the payment/assessor module types.
+- **4 invariants** derived mechanically from the four rules (within-coverage, denied-has-reason, approved-has-assessment, payout-amount-matches).
+- **7 config keys** (all temporal constants + the auto-approve cap + link window).
+- **8 routes** in `app/routes.py` + **1 webhook** for incident reports.
+
+Notable guidance captured: `is_stalled` is implicit (no column); `auto_approval_scheduler` only invokes ApproveClaim and skips payout scheduling; `auto_acknowledge_job` uses business-day approximation modelled as calendar days; `payout_retry_job`'s success/failure outcomes are noted in guidance since they don't fit a single conjunctive `ensures`.

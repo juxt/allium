@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T20-13-50-389Z/experimental/sample-3/spec.allium` (333 lines, 0 errors from `allium check`, 4 minor info warnings). Inventory also written alongside.

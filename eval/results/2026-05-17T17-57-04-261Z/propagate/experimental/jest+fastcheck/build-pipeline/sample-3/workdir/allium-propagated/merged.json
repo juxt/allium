@@ -1,0 +1,1183 @@
+{
+  "code_root": ".",
+  "consensus_metadata": {
+    "generated_at": null,
+    "sample_count": 3
+  },
+  "framework": "jest+fastcheck",
+  "obligations": [
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::ARTIFACT_TTL_MS"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "config-default.artifact_ttl",
+      "preconditions": [],
+      "target_file": "tests/artifact-ttl.test.ts",
+      "test_kind": "assertion",
+      "test_name": "config_default_artifact_ttl"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::QUEUED_TIMEOUT_MS"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "config-default.queued_timeout",
+      "preconditions": [],
+      "target_file": "tests/queued-timeout.test.ts",
+      "test_kind": "assertion",
+      "test_name": "config_default_queued_timeout"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "medium",
+        "primary_symbol": "src/integrations/storage.ts::uploadArtifactBlob"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "config-default.storage_max_bytes",
+      "preconditions": [],
+      "target_file": "tests/storage-max-bytes.test.ts",
+      "test_kind": "assertion",
+      "test_name": "config_default_storage_max_bytes"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::STUCK_AFTER_MS"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "config-default.stuck_after",
+      "preconditions": [],
+      "target_file": "tests/stuck-after.test.ts",
+      "test_kind": "assertion",
+      "test_name": "config_default_stuck_after"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/integrations/storage.ts::deleteArtifactBlob"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "contract-signature.StorageService.deleteArtifactBlob",
+      "preconditions": [
+        "bucket != null",
+        "key != null"
+      ],
+      "target_file": "tests/storage-service.test.ts",
+      "test_kind": "contract",
+      "test_name": "contract_signature_storage_service_delete_artifact_blob"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/integrations/storage.ts::uploadArtifactBlob"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "contract-signature.StorageService.uploadArtifactBlob",
+      "preconditions": [
+        "req.bucket != null",
+        "req.sizeBytes <= config.storage_max_bytes",
+        "req.sizeBytes > 0"
+      ],
+      "target_file": "tests/storage-service.test.ts",
+      "test_kind": "contract",
+      "test_name": "contract_signature_storage_service_upload_artifact_blob"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::artifactIsExpired"
+      },
+      "fixtures_required": [],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "derived.Artifact.artifactIsExpired",
+      "preconditions": [],
+      "target_file": "tests/artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "derived_artifact_artifact_is_expired"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::buildIsStuck"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "derived.Build.buildIsStuck",
+      "preconditions": [],
+      "target_file": "tests/build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "derived_build_build_is_stuck"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Artifact"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-fields.Artifact",
+      "preconditions": [],
+      "target_file": "tests/artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_fields_artifact"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Build"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-fields.Build",
+      "preconditions": [],
+      "target_file": "tests/build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_fields_build"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::GithubPushEvent"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-fields.GithubPushEvent",
+      "preconditions": [],
+      "target_file": "tests/github-push-event.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_fields_github_push_event"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Pipeline"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-fields.Pipeline",
+      "preconditions": [],
+      "target_file": "tests/pipeline.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_fields_pipeline"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/integrations/storage.ts::UploadRequest"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-fields.UploadRequest",
+      "preconditions": [],
+      "target_file": "tests/upload-request.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_fields_upload_request"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/integrations/storage.ts::UploadResponse"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-fields.UploadResponse",
+      "preconditions": [],
+      "target_file": "tests/upload-response.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_fields_upload_response"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Artifact"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-optional.Artifact.expiresAt",
+      "preconditions": [],
+      "target_file": "tests/artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_optional_artifact_expires_at"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Artifact"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-optional.Artifact.storageKey",
+      "preconditions": [],
+      "target_file": "tests/artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_optional_artifact_storage_key"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Artifact"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-optional.Artifact.uploadedAt",
+      "preconditions": [],
+      "target_file": "tests/artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_optional_artifact_uploaded_at"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Build"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-optional.Build.failureReason",
+      "preconditions": [],
+      "target_file": "tests/build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_optional_build_failure_reason"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Build"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-optional.Build.finishedAt",
+      "preconditions": [],
+      "target_file": "tests/build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_optional_build_finished_at"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::Build"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "entity-optional.Build.startedAt",
+      "preconditions": [],
+      "target_file": "tests/build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_optional_build_started_at"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/artifacts.ts::registerArtifact"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/models.ts::Store"
+      },
+      "fixtures_required": [
+        "an_artifact"
+      ],
+      "injection_points": [],
+      "obligation_id": "entity-relationship.Build.artifacts",
+      "preconditions": [],
+      "target_file": "tests/build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_relationship_build_artifacts"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/builds.ts::enqueueBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/models.ts::Store"
+      },
+      "fixtures_required": [
+        "a_build"
+      ],
+      "injection_points": [],
+      "obligation_id": "entity-relationship.Pipeline.builds",
+      "preconditions": [],
+      "target_file": "tests/pipeline.test.ts",
+      "test_kind": "assertion",
+      "test_name": "entity_relationship_pipeline_builds"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::ArtifactStatus"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "enum-comparable.ArtifactStatus",
+      "preconditions": [],
+      "target_file": "tests/artifact-status.test.ts",
+      "test_kind": "assertion",
+      "test_name": "enum_comparable_artifact_status"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::BuildStatus"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "enum-comparable.BuildStatus",
+      "preconditions": [],
+      "target_file": "tests/build-status.test.ts",
+      "test_kind": "assertion",
+      "test_name": "enum_comparable_build_status"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::PipelineStatus"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "enum-comparable.PipelineStatus",
+      "preconditions": [],
+      "target_file": "tests/pipeline-status.test.ts",
+      "test_kind": "assertion",
+      "test_name": "enum_comparable_pipeline_status"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/jobs.ts::failStuckBuilds",
+          "src/routes.ts::markBuildFailed"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::markBuildFailed"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "invariant.FailedBuildsHaveReason",
+      "preconditions": [],
+      "target_file": "tests/failed-builds-have-reason.test.ts",
+      "test_kind": "pbt",
+      "test_name": "invariant_failed_builds_have_reason"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/models.ts::pipelineActiveBuildCount"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state",
+        "a_build_in_running_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "projection.Pipeline.active_builds",
+      "preconditions": [],
+      "target_file": "tests/pipeline.test.ts",
+      "test_kind": "assertion",
+      "test_name": "projection_pipeline_active_builds"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::enqueueBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::enqueueBuild"
+      },
+      "fixtures_required": [
+        "a_pipeline_in_active_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-entity-creation.EnqueueBuild.1",
+      "preconditions": [
+        "Pipeline.status = active"
+      ],
+      "target_file": "tests/enqueue-build.test.ts",
+      "test_kind": "scenario",
+      "test_name": "rule_entity_creation_enqueue_build_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::receiveGithubPushEvent"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/webhooks.ts::receiveGithubPushEvent"
+      },
+      "fixtures_required": [],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-entity-creation.ReceiveGithubPushEvent.1__1",
+      "preconditions": [],
+      "target_file": "tests/receive-github-push-event.test.ts",
+      "test_kind": "scenario",
+      "test_name": "rule_entity_creation_receive_github_push_event_1_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::receiveGithubPushEvent"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/webhooks.ts::receiveGithubPushEvent"
+      },
+      "fixtures_required": [],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-entity-creation.ReceiveGithubPushEvent.1__2",
+      "preconditions": [],
+      "target_file": "tests/receive-github-push-event.test.ts",
+      "test_kind": "scenario",
+      "test_name": "rule_entity_creation_receive_github_push_event_1_2"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::registerArtifact"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/artifacts.ts::registerArtifact"
+      },
+      "fixtures_required": [
+        "a_build_in_success_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-entity-creation.RegisterArtifact.1",
+      "preconditions": [
+        "Build.status = success",
+        "sizeBytes > 0"
+      ],
+      "target_file": "tests/register-artifact.test.ts",
+      "test_kind": "scenario",
+      "test_name": "rule_entity_creation_register_artifact_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::cancelBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::cancelBuild"
+      },
+      "fixtures_required": [
+        "a_build_in_success_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.CancelBuild.1",
+      "preconditions": [
+        "Build.status in {queued, running}"
+      ],
+      "target_file": "tests/cancel-build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_cancel_build_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::enqueueBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::enqueueBuild"
+      },
+      "fixtures_required": [
+        "a_pipeline_in_paused_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.EnqueueBuild.1",
+      "preconditions": [
+        "Pipeline.status = active"
+      ],
+      "target_file": "tests/enqueue-build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_enqueue_build_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/artifacts.ts::markArtifactExpired"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::expireOldArtifacts"
+      },
+      "fixtures_required": [
+        "an_artifact_in_pending_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-failure.ExpireOldArtifacts.1",
+      "preconditions": [
+        "Artifact.status = uploaded"
+      ],
+      "target_file": "tests/expire-old-artifacts.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_expire_old_artifacts_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/builds.ts::markBuildFailed"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::failStuckBuilds"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-failure.FailStuckBuilds.1",
+      "preconditions": [
+        "Build.status = running"
+      ],
+      "target_file": "tests/fail-stuck-builds.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_fail_stuck_builds_1"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/services/artifacts.ts::markArtifactExpired"
+      },
+      "fixtures_required": [
+        "an_artifact_in_pending_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.MarkArtifactExpired.1",
+      "preconditions": [
+        "Artifact.status = uploaded"
+      ],
+      "target_file": "tests/mark-artifact-expired.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_mark_artifact_expired_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::markArtifactUploaded"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/artifacts.ts::markArtifactUploaded"
+      },
+      "fixtures_required": [
+        "an_artifact_in_uploaded_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.MarkArtifactUploaded.1",
+      "preconditions": [
+        "Artifact.status = pending"
+      ],
+      "target_file": "tests/mark-artifact-uploaded.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_mark_artifact_uploaded_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::markBuildFailed"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::markBuildFailed"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.MarkBuildFailed.1",
+      "preconditions": [
+        "Build.status = running"
+      ],
+      "target_file": "tests/mark-build-failed.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_mark_build_failed_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::markBuildSuccess"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::markBuildSuccess"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.MarkBuildSuccess.1",
+      "preconditions": [
+        "Build.status = running"
+      ],
+      "target_file": "tests/mark-build-success.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_mark_build_success_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::registerArtifact"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/artifacts.ts::registerArtifact"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.RegisterArtifact.1",
+      "preconditions": [
+        "Build.status = success"
+      ],
+      "target_file": "tests/register-artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_register_artifact_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::registerArtifact"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/artifacts.ts::registerArtifact"
+      },
+      "fixtures_required": [
+        "a_build_in_success_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.RegisterArtifact.2",
+      "preconditions": [
+        "sizeBytes > 0"
+      ],
+      "target_file": "tests/register-artifact.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_register_artifact_2"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::startBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::startBuild"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-failure.StartBuild.1",
+      "preconditions": [
+        "Build.status = queued"
+      ],
+      "target_file": "tests/start-build.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_start_build_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/builds.ts::cancelBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::timeoutQueuedBuilds"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-failure.TimeoutQueuedBuilds.1",
+      "preconditions": [
+        "Build.status = queued"
+      ],
+      "target_file": "tests/timeout-queued-builds.test.ts",
+      "test_kind": "assertion",
+      "test_name": "rule_failure_timeout_queued_builds_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::cancelBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::cancelBuild"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state",
+        "a_build_in_running_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.CancelBuild",
+      "preconditions": [
+        "Build.status in {queued, running}"
+      ],
+      "target_file": "tests/cancel-build.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_cancel_build"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::enqueueBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::enqueueBuild"
+      },
+      "fixtures_required": [
+        "a_pipeline_in_active_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.EnqueueBuild",
+      "preconditions": [
+        "Pipeline.status = active"
+      ],
+      "target_file": "tests/enqueue-build.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_enqueue_build"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/artifacts.ts::markArtifactExpired"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::expireOldArtifacts"
+      },
+      "fixtures_required": [
+        "an_artifact_in_uploaded_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.ExpireOldArtifacts",
+      "preconditions": [
+        "Artifact.artifactIsExpired",
+        "Artifact.status = uploaded"
+      ],
+      "target_file": "tests/expire-old-artifacts.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_expire_old_artifacts"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/builds.ts::markBuildFailed"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::failStuckBuilds"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.FailStuckBuilds",
+      "preconditions": [
+        "Build.buildIsStuck",
+        "Build.status = running"
+      ],
+      "target_file": "tests/fail-stuck-builds.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_fail_stuck_builds"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/services/artifacts.ts::markArtifactExpired"
+      },
+      "fixtures_required": [
+        "an_artifact_in_uploaded_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-success.MarkArtifactExpired",
+      "preconditions": [
+        "Artifact.status = uploaded"
+      ],
+      "target_file": "tests/mark-artifact-expired.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_mark_artifact_expired"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::markArtifactUploaded"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/artifacts.ts::markArtifactUploaded"
+      },
+      "fixtures_required": [
+        "an_artifact_in_pending_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.MarkArtifactUploaded",
+      "preconditions": [
+        "Artifact.status = pending"
+      ],
+      "target_file": "tests/mark-artifact-uploaded.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_mark_artifact_uploaded"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::markBuildFailed"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::markBuildFailed"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.MarkBuildFailed",
+      "preconditions": [
+        "Build.status = running"
+      ],
+      "target_file": "tests/mark-build-failed.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_mark_build_failed"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::markBuildSuccess"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::markBuildSuccess"
+      },
+      "fixtures_required": [
+        "a_build_in_running_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.MarkBuildSuccess",
+      "preconditions": [
+        "Build.status = running"
+      ],
+      "target_file": "tests/mark-build-success.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_mark_build_success"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::receiveGithubPushEvent"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/webhooks.ts::receiveGithubPushEvent"
+      },
+      "fixtures_required": [],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.ReceiveGithubPushEvent__1",
+      "preconditions": [],
+      "target_file": "tests/receive-github-push-event-1.test.ts",
+      "test_kind": "scenario",
+      "test_name": "rule_success_receive_github_push_event_1"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::receiveGithubPushEvent"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/webhooks.ts::receiveGithubPushEvent"
+      },
+      "fixtures_required": [],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.ReceiveGithubPushEvent__2",
+      "preconditions": [],
+      "target_file": "tests/receive-github-push-event-2.test.ts",
+      "test_kind": "scenario",
+      "test_name": "rule_success_receive_github_push_event_2"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::registerArtifact"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/artifacts.ts::registerArtifact"
+      },
+      "fixtures_required": [
+        "a_build_in_success_state"
+      ],
+      "injection_points": [],
+      "obligation_id": "rule-success.RegisterArtifact",
+      "preconditions": [
+        "Build.status = success",
+        "sizeBytes > 0"
+      ],
+      "target_file": "tests/register-artifact.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_register_artifact"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::startBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/services/builds.ts::startBuild"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.StartBuild",
+      "preconditions": [
+        "Build.status = queued"
+      ],
+      "target_file": "tests/start-build.test.ts",
+      "test_kind": "state_machine",
+      "test_name": "rule_success_start_build"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/builds.ts::cancelBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::timeoutQueuedBuilds"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "rule-success.TimeoutQueuedBuilds",
+      "preconditions": [
+        "Build.status = queued"
+      ],
+      "target_file": "tests/timeout-queued-builds.test.ts",
+      "test_kind": "temporal",
+      "test_name": "rule_success_timeout_queued_builds"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/index.ts::Router"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/routes.ts::router"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "surface-actor.Routes",
+      "preconditions": [],
+      "target_file": "tests/routes.test.ts",
+      "test_kind": "assertion",
+      "test_name": "surface_actor_routes"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/webhooks.ts::receiveGithubPushEvent"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/routes.ts::router"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "surface-actor.Webhooks",
+      "preconditions": [],
+      "target_file": "tests/webhooks.test.ts",
+      "test_kind": "assertion",
+      "test_name": "surface_actor_webhooks"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/index.ts::Router"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/routes.ts::router"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "surface-provides.Routes",
+      "preconditions": [],
+      "target_file": "tests/routes.test.ts",
+      "test_kind": "assertion",
+      "test_name": "surface_provides_routes"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/routes.ts::receiveGithubPushEvent",
+          "src/routes.ts::router"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/webhooks.ts::receiveGithubPushEvent"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "surface-provides.Webhooks",
+      "preconditions": [],
+      "target_file": "tests/webhooks.test.ts",
+      "test_kind": "assertion",
+      "test_name": "surface_provides_webhooks"
+    },
+    {
+      "bridge": {
+        "candidates": [
+          "src/services/builds.ts::cancelBuild"
+        ],
+        "confidence": "medium",
+        "primary_symbol": "src/jobs.ts::timeoutQueuedBuilds"
+      },
+      "fixtures_required": [
+        "a_build_in_queued_state"
+      ],
+      "injection_points": [
+        "clock"
+      ],
+      "obligation_id": "temporal.TimeoutQueuedBuilds",
+      "preconditions": [
+        "Build.status = queued"
+      ],
+      "target_file": "tests/timeout-queued-builds.test.ts",
+      "test_kind": "temporal",
+      "test_name": "temporal_timeout_queued_builds"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/integrations/storage.ts::UploadRequest"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "value-equality.UploadRequest",
+      "preconditions": [],
+      "target_file": "tests/upload-request.test.ts",
+      "test_kind": "assertion",
+      "test_name": "value_equality_upload_request"
+    },
+    {
+      "bridge": {
+        "candidates": [],
+        "confidence": "high",
+        "primary_symbol": "src/integrations/storage.ts::UploadResponse"
+      },
+      "fixtures_required": [],
+      "injection_points": [],
+      "obligation_id": "value-equality.UploadResponse",
+      "preconditions": [],
+      "target_file": "tests/upload-response.test.ts",
+      "test_kind": "assertion",
+      "test_name": "value_equality_upload_response"
+    }
+  ],
+  "spec_path": "./allium-distilled/spec.allium",
+  "transition_graph": {
+    "Artifact": [
+      {
+        "from": "pending",
+        "to": "uploaded",
+        "via_rule": "MarkArtifactUploaded"
+      },
+      {
+        "from": "uploaded",
+        "to": "expired",
+        "via_rule": "MarkArtifactExpired"
+      }
+    ],
+    "Build": [
+      {
+        "from": "queued",
+        "to": "cancelled",
+        "via_rule": "CancelBuild"
+      },
+      {
+        "from": "queued",
+        "to": "cancelled",
+        "via_rule": "TimeoutQueuedBuilds"
+      },
+      {
+        "from": "queued",
+        "to": "running",
+        "via_rule": "StartBuild"
+      },
+      {
+        "from": "running",
+        "to": "cancelled",
+        "via_rule": "CancelBuild"
+      },
+      {
+        "from": "running",
+        "to": "failed",
+        "via_rule": "FailStuckBuilds"
+      },
+      {
+        "from": "running",
+        "to": "failed",
+        "via_rule": "MarkBuildFailed"
+      },
+      {
+        "from": "running",
+        "to": "success",
+        "via_rule": "MarkBuildSuccess"
+      }
+    ]
+  }
+}

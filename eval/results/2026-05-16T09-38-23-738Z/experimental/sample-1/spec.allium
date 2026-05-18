@@ -1,0 +1,526 @@
+-- allium: 3
+
+-- Insurance claims processing.
+-- Distilled from app/ (models, services, jobs, routes, webhooks, integrations).
+
+-- =========================================================================
+-- Status enums
+-- =========================================================================
+
+enum PolicyStatus { ACTIVE, LAPSED, CANCELLED }
+
+enum ClaimStatus {
+  SUBMITTED,
+  TRIAGED,
+  ASSESSING,
+  APPROVED,
+  DENIED,
+  PAID,
+  CLOSED,
+}
+
+enum AssessmentStatus { PENDING, IN_PROGRESS, COMPLETED }
+
+enum PayoutStatus { SCHEDULED, PAID, FAILED }
+
+-- =========================================================================
+-- Temporal constants
+-- =========================================================================
+
+const ASSESSMENT_SLA          : Duration = days(14)
+const STALLED_AFTER           : Duration = days(21)
+const AUTO_ACK_AFTER          : Duration = business_days(5)
+const PAYOUT_RETRY_AFTER      : Duration = days(28)
+const AUTO_CLOSE_DENIED_AFTER : Duration = days(90)
+const INCIDENT_LINK_WINDOW    : Duration = days(2)
+
+const AUTO_APPROVE_MAX_PENCE  : Integer  = 5_000_000   -- £50,000
+
+-- =========================================================================
+-- Entities
+-- =========================================================================
+
+entity Policy {
+  policy_number        : String  identity
+  holder               : String
+  coverage_limit_pence : Integer
+  status               : PolicyStatus  default ACTIVE
+  holder_tags          : Set<String>   default {}
+
+  derived has_open_claims : Boolean =
+    exists c in Claim
+      where c.policy == self
+        and c.status not in { PAID, DENIED, CLOSED }
+}
+
+entity Claim {
+  claim_number         : String    identity
+  policy               : Policy                       -- FK to Policy.policy_number
+  incident_date        : DateTime
+  amount_claimed_pence : Integer
+  submitted_at         : DateTime  default now()
+  last_activity_at     : DateTime  default now()
+  status               : ClaimStatus default SUBMITTED
+  denial_reason        : String?
+
+  derived age           : Duration = now() - submitted_at
+  derived is_within_sla : Boolean  = age <= ASSESSMENT_SLA
+
+  -- Implicit state: no `stalled` column; derived from (status, last_activity_at).
+  derived is_stalled    : Boolean  =
+    status == ASSESSING and (now() - last_activity_at) > STALLED_AFTER
+
+  derived total_paid_pence : Integer =
+    sum(p.amount_pence for p in Payout
+        where p.claim == self and p.status == PAID)
+
+  derived closed : Boolean = status in { PAID, DENIED, CLOSED }
+}
+
+entity Assessor {
+  name        : String        identity
+  specialties : Set<String>   default {}
+}
+
+entity Assessment {
+  assessment_id : String              identity
+  claim         : Claim
+  assessor      : Assessor
+  findings      : String              default ""
+  status        : AssessmentStatus    default PENDING
+  started_at    : DateTime?
+  completed_at  : DateTime?
+}
+
+entity Payout {
+  payout_id        : String        identity
+  claim            : Claim
+  amount_pence     : Integer
+  status           : PayoutStatus  default SCHEDULED
+  scheduled_at     : DateTime      default now()
+  paid_at          : DateTime?
+  failed_attempts  : Integer       default 0
+  last_failure_at  : DateTime?
+}
+
+-- External entity: pushed in by police / medical feeds via webhook.
+-- Lifecycle is not owned by this system; we only receive and link.
+external entity IncidentReport {
+  report_id            : String     identity
+  source               : String                     -- e.g. "police", "medical"
+  policy_number        : String?
+  incident_date        : DateTime
+  description          : String
+  received_at          : DateTime   default now()
+  linked_claim         : Claim?
+}
+
+-- =========================================================================
+-- Registration triggers (setup)
+-- =========================================================================
+
+trigger register_policy(
+  policy_number        : String,
+  holder               : String,
+  coverage_limit_pence : Integer,
+  holder_tags          : Set<String> = {},
+) {
+  create Policy {
+    policy_number        = policy_number,
+    holder               = holder,
+    coverage_limit_pence = coverage_limit_pence,
+    holder_tags          = holder_tags,
+    status               = ACTIVE,
+  }
+}
+
+trigger register_assessor(name : String, specialties : Set<String>) {
+  create Assessor { name = name, specialties = specialties }
+}
+
+-- =========================================================================
+-- Claim state machine — guarded transitions
+-- =========================================================================
+
+trigger submit_claim(
+  claim_number         : String,
+  policy_number        : String,
+  incident_date        : DateTime,
+  amount_claimed_pence : Integer,
+) {
+  let policy = Policy[policy_number]
+    or reject "unknown policy {policy_number}"
+
+  require policy.status == ACTIVE
+    else reject "policy {policy_number} is {policy.status}"
+
+  require amount_claimed_pence <= policy.coverage_limit_pence
+    else reject "amount claimed exceeds coverage limit"
+
+  create Claim {
+    claim_number         = claim_number,
+    policy               = policy,
+    incident_date        = incident_date,
+    amount_claimed_pence = amount_claimed_pence,
+    status               = SUBMITTED,
+  }
+}
+
+trigger triage(claim : Claim) {
+  require claim.status == SUBMITTED
+    else invalid_transition
+
+  claim.status           := TRIAGED
+  claim.last_activity_at := now()
+}
+
+trigger start_assessment(claim : Claim, assessor : Assessor) {
+  require claim.status == TRIAGED
+    else invalid_transition
+  require assessor exists in Assessor
+    else reject "unknown assessor"
+
+  create Assessment {
+    claim       = claim,
+    assessor    = assessor,
+    status      = IN_PROGRESS,
+    started_at  = now(),
+  }
+  claim.status           := ASSESSING
+  claim.last_activity_at := now()
+}
+
+trigger complete_assessment(assessment : Assessment, findings : String) {
+  require assessment.status == IN_PROGRESS
+    else invalid_transition
+
+  assessment.findings     := findings
+  assessment.status       := COMPLETED
+  assessment.completed_at := now()
+  assessment.claim.last_activity_at := now()
+}
+
+-- Guarded transition: requires ASSESSING *and* a completed Assessment.
+-- Called from both the adjuster API and the auto-approval scheduler.
+trigger approve_claim(claim : Claim) {
+  require claim.status == ASSESSING
+    else invalid_transition
+  require exists a in Assessment
+            where a.claim == claim and a.status == COMPLETED
+    else invalid_transition "claim has no completed assessment"
+
+  claim.status           := APPROVED
+  claim.last_activity_at := now()
+}
+
+trigger deny_claim(claim : Claim, reason : String) {
+  require claim.status in { TRIAGED, ASSESSING }
+    else invalid_transition
+
+  claim.status           := DENIED
+  claim.denial_reason    := reason
+  claim.last_activity_at := now()
+}
+
+trigger schedule_payout(claim : Claim) -> Payout {
+  require claim.status == APPROVED
+    else invalid_transition
+
+  let payout = create Payout {
+    claim         = claim,
+    amount_pence  = claim.amount_claimed_pence,
+    status        = SCHEDULED,
+  }
+  claim.last_activity_at := now()
+  return payout
+}
+
+trigger mark_payout_paid(payout : Payout) {
+  payout.status   := PAID
+  payout.paid_at  := now()
+  payout.claim.status           := PAID
+  payout.claim.last_activity_at := now()
+}
+
+trigger mark_payout_failed(payout : Payout) {
+  payout.status           := FAILED
+  payout.failed_attempts  := payout.failed_attempts + 1
+  payout.last_failure_at  := now()
+}
+
+-- Composite trigger fired by the adjuster API's POST /claims/{n}/approve.
+trigger adjuster_approve(claim : Claim) -> Payout {
+  apply approve_claim(claim)
+  return apply schedule_payout(claim)
+}
+
+-- =========================================================================
+-- Temporal / scheduled rules
+-- =========================================================================
+
+-- Auto-acknowledge anything sat in SUBMITTED for >= 5 business days.
+rule auto_acknowledge schedule daily {
+  for claim in Claim
+  where claim.status == SUBMITTED
+    and business_days_between(claim.submitted_at, now()) >= 5
+  apply triage(claim)
+}
+
+-- Surface claims that have breached the 14-day assessment SLA. Read-only:
+-- the rule emits a signal; the claim itself is not mutated.
+rule assessment_sla_breach schedule daily {
+  for claim in Claim
+  where claim.status in { TRIAGED, ASSESSING }
+    and (now() - claim.submitted_at) > ASSESSMENT_SLA
+  emit sla_breached(claim)
+}
+
+-- Retry FAILED payouts after 28 days. The retry anchor prefers
+-- last_failure_at, falling back to scheduled_at.
+rule payout_retry schedule daily {
+  for payout in Payout
+  where payout.status == PayoutStatus.FAILED
+    and (now() - coalesce(payout.last_failure_at, payout.scheduled_at))
+         >= PAYOUT_RETRY_AFTER
+  do {
+    try {
+      PaymentClient.send_faster_payment(
+        account_number = "00000000",
+        sort_code      = "00-00-00",
+        amount_pence   = payout.amount_pence,
+        reference      = payout.payout_id,
+      )
+      apply mark_payout_paid(payout)
+    } catch PaymentError {
+      apply mark_payout_failed(payout)
+    }
+  }
+}
+
+-- Auto-close DENIED claims that have had no activity for 90 days.
+rule auto_close_denied schedule daily {
+  for claim in Claim
+  where claim.status == DENIED
+    and (now() - claim.last_activity_at) >= AUTO_CLOSE_DENIED_AFTER
+  do {
+    claim.status           := CLOSED
+    claim.last_activity_at := now()
+  }
+}
+
+-- Auto-approve low-value, trusted-holder claims with a completed
+-- assessment. Also calls approve_claim(); the guard on approve_claim
+-- still applies.
+rule auto_approval_scheduler schedule daily {
+  for claim in Claim
+  where claim.status == ASSESSING
+    and claim.amount_claimed_pence < AUTO_APPROVE_MAX_PENCE
+    and "trusted" in claim.policy.holder_tags
+    and exists a in Assessment
+              where a.claim == claim and a.status == COMPLETED
+  apply approve_claim(claim)
+}
+
+-- =========================================================================
+-- Surfaces — adjuster-facing HTTP API
+-- =========================================================================
+
+surface AdjusterAPI {
+
+  POST /claims
+    body { claim_number, policy_number, incident_date, amount_claimed_pence }
+    -> apply submit_claim(...)
+    response { claim_number, status }
+
+  POST /claims/{claim_number}/triage
+    -> apply triage(Claim[claim_number])
+    response { claim_number, status }
+
+  POST /claims/{claim_number}/assess
+    body { assessor_name }
+    -> apply start_assessment(Claim[claim_number], Assessor[assessor_name])
+    response { assessment_id, claim_number, assessor_name }
+
+  POST /claims/{claim_number}/approve
+    -> apply adjuster_approve(Claim[claim_number])
+    response { claim_number, status, payout_id }
+
+  POST /claims/{claim_number}/deny
+    body { reason }
+    -> apply deny_claim(Claim[claim_number], reason)
+    response { claim_number, status, denial_reason }
+
+  POST /payouts/{payout_id}/mark-paid
+    -> apply mark_payout_paid(Payout[payout_id])
+    response { payout_id, status }
+
+  GET /policies/{policy_number}/claims
+    -> [ { claim_number, status, amount_claimed_pence,
+           is_within_sla, is_stalled }
+         for c in Claim where c.policy.policy_number == policy_number ]
+
+  GET /claims/{claim_number}
+    -> { claim_number, policy_number, status, amount_claimed_pence,
+         total_paid_pence: claim.total_paid_pence,
+         is_within_sla, is_stalled, closed }
+}
+
+-- =========================================================================
+-- Surfaces — inbound webhooks
+-- =========================================================================
+
+surface IncidentWebhook {
+
+  POST /webhooks/incident-reports
+    body { source, policy_number?, incident_date, description }
+    -> apply receive_incident_report(...)
+    response { report_id, linked_claim_number }
+}
+
+trigger receive_incident_report(
+  source        : String,
+  policy_number : String?,
+  incident_date : DateTime,
+  description   : String,
+) -> IncidentReport {
+  let report = create IncidentReport {
+    source        = source,
+    policy_number = policy_number,
+    incident_date = incident_date,
+    description   = description,
+  }
+  apply try_link_incident_report(report)
+  return report
+}
+
+-- Best-effort linkage by (policy_number, incident_date ± 2 days).
+-- No-op if policy_number is null or no claim matches the window.
+trigger try_link_incident_report(report : IncidentReport) {
+  when report.policy_number != null
+
+  let candidate = first c in Claim
+    where c.policy.policy_number == report.policy_number
+      and abs(c.incident_date - report.incident_date) <= INCIDENT_LINK_WINDOW
+
+  when candidate != null
+    report.linked_claim := candidate
+}
+
+-- =========================================================================
+-- Third-party contracts (library specs — owned by the vendor)
+-- =========================================================================
+
+-- Faster-Payments-shaped bank API. The contract belongs to the bank; we only
+-- consume it.
+contract PaymentClient {
+
+  enum PaymentResultStatus { ACCEPTED, REJECTED, PENDING_REVIEW }
+
+  type PaymentRequest {
+    account_number : String     -- 8 digits, "^[0-9]{8}$"
+    sort_code      : String     -- "NN-NN-NN", "^[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+    amount_pence   : Integer
+    reference      : String     -- appears on recipient's statement
+  }
+
+  type PaymentResult {
+    request       : PaymentRequest
+    status        : PaymentResultStatus
+    upstream_id   : String
+    submitted_at  : DateTime
+  }
+
+  error PaymentError
+
+  operation send_faster_payment(
+    account_number : String,
+    sort_code      : String,
+    amount_pence   : Integer,
+    reference      : String,
+  ) -> PaymentResult
+    raises PaymentError
+
+    precondition amount_pence > 0
+      else PaymentError "amount must be positive"
+    precondition account_number matches /^[0-9]{8}$/
+      else PaymentError "account_number must be 8 digits"
+    precondition sort_code matches /^[0-9]{2}-[0-9]{2}-[0-9]{2}$/
+      else PaymentError "sort_code must be in NN-NN-NN format"
+    precondition amount_pence <= 100_000_000     -- £1,000,000 upstream cap
+      else PaymentError "upstream caps Faster Payments at £1,000,000"
+
+    postcondition result.status == ACCEPTED
+      and result.upstream_id == "fp-" ++ reference
+}
+
+-- External assessor-network dispatch endpoint.
+contract AssessorNetwork {
+
+  type AssessorDispatch {
+    dispatch_id   : String     -- "disp-<8 hex chars>"
+    claim_number  : String
+    specialties   : List<String>
+  }
+
+  error AssessorDispatchError
+
+  operation request_assessor_dispatch(
+    claim_number : String,
+    specialties  : List<String>,
+  ) -> AssessorDispatch
+    raises AssessorDispatchError
+
+    precondition specialties is non_empty
+      else AssessorDispatchError "at least one specialty is required"
+}
+
+-- =========================================================================
+-- Invariants
+-- =========================================================================
+
+invariant approval_requires_completed_assessment {
+  for claim in Claim where claim.status in { APPROVED, PAID }
+  exists a in Assessment where a.claim == claim and a.status == COMPLETED
+}
+
+invariant payout_only_for_approved_or_later {
+  for payout in Payout
+  payout.claim.status in { APPROVED, PAID }
+}
+
+invariant payout_amount_matches_claim_at_schedule_time {
+  for payout in Payout
+  payout.amount_pence == payout.claim.amount_claimed_pence
+}
+
+invariant denial_reason_iff_denied {
+  for claim in Claim
+  (claim.status == DENIED) iff (claim.denial_reason != null)
+}
+
+invariant terminal_states_immutable {
+  for claim in Claim where claim.status in { PAID, CLOSED }
+  no trigger may change claim.status
+}
+
+invariant denied_only_transitions_to_closed {
+  for claim in Claim where claim.status == DENIED
+  the only permitted next status is CLOSED (via auto_close_denied)
+}
+
+invariant claim_amount_within_coverage_at_submit {
+  for claim in Claim
+  claim.amount_claimed_pence <= claim.policy.coverage_limit_pence
+}
+
+invariant stalled_is_derived_not_stored {
+  Claim has no field `stalled`
+  -- is_stalled is computed from (status == ASSESSING, last_activity_at, STALLED_AFTER)
+}
+
+invariant incident_link_window {
+  for report in IncidentReport where report.linked_claim != null
+  report.linked_claim.policy.policy_number == report.policy_number
+    and abs(report.linked_claim.incident_date - report.incident_date)
+        <= INCIDENT_LINK_WINDOW
+}

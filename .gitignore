@@ -1,2 +1,2 @@
 .DS_Store
-eval/results/
+eval/results/**/node_modules/

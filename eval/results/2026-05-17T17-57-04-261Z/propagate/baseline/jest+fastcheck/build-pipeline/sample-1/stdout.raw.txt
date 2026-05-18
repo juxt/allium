@@ -1,0 +1,19 @@
+All test files generated. The remaining diagnostics only flag missing `node_modules` (`@jest/globals`, `fast-check`) — those resolve when `npm install` runs.
+
+Generated test files (8 in `tests/`):
+
+| File | Coverage |
+|---|---|
+| `helpers.ts` | Factory functions for `Pipeline`, `Build`, `Artifact`, `GithubPushEvent`, `Store` |
+| `entities.test.ts` | entity_fields (6), entity_optional (6), enum_comparable (3), value_equality (2), config_default (4) |
+| `derived.test.ts` | derived (2), entity_relationship (2), projection (1) |
+| `rules-builds.test.ts` | rule_success/failure/entity_creation for `EnqueueBuild`, `StartBuild`, `MarkBuildSuccess`, `MarkBuildFailed`, `CancelBuild`; build transition graph; `FailedBuildsHaveReason` invariant |
+| `rules-artifacts.test.ts` | rule_success/failure/entity_creation for `RegisterArtifact`, `MarkArtifactUploaded`, `MarkArtifactExpired`; state-dependent fields |
+| `surfaces.test.ts` | surface_provides (2), surface_actor (2 — one skipped TODO), `ReceiveGithubPushEvent` end-to-end |
+| `jobs-temporal.test.ts` | temporal (`TimeoutQueuedBuilds`), rule_success/failure for `FailStuckBuilds`, `ExpireOldArtifacts`; uses `jest.useFakeTimers()` for time injection |
+| `storage-contract.test.ts` | contract_signature (2), all 5 `@invariant Precondition` checks |
+| `properties.test.ts` | fast-check PBT — random walks through build & artifact transition graphs; `FailedBuildsHaveReason` invariant; guards for `EnqueueBuild`, `RegisterArtifact` |
+
+All 63 obligations from `allium plan` are addressed. Two TODO skips left for genuinely ambiguous bridge points (no actor partition in spec; `deleteArtifactBlob` Boolean vs void signature mismatch). `package.json` was updated to add Jest + ts-jest + fast-check + `@types/jest` as dev deps and a `test` script — implementation under `src/` is untouched.
+
+To run: `npm install && npm test`.

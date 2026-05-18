@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-45-00-249Z/experimental/sample-3/spec.allium`. `allium check`: 0 errors, 2 warnings (both expected: external-entity origin + a false-positive "unused" note since the entity is referenced via plural collection & trigger parameter).

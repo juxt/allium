@@ -1,0 +1,7 @@
+Wrote `inventory.json` covering all six entities (Policy, Claim, Assessor, Assessment, Payout, IncidentReport as external), 12 transitions (including `receive_incident_report` for the webhook), 4 scheduled jobs (auto-ack, payout retry, auto-close-denied, auto-approval — with a `retry_due_at` derived property on Payout so the `when:` form is grammatical), 2 integrations (`payment`, `assessor`) with literal preconditions, 3 value types, 1 auxiliary enum (`PaymentResultStatus`), 4 invariants, 7 config keys, 8 routes and 1 webhook.
+
+Notable modeling choices:
+- FK fields distilled to relationship references: `Claim.policy_number → policy: Policy`, `Assessment.{claim_number, assessor_name} → claim, assessor`, `Payout.claim_number → claim`, `IncidentReport.{policy_number, linked_claim_number} → policy?, linked_claim?`.
+- `assessment_sla_job` omitted — it only queries state, doesn't mutate; semantics captured by `Claim.is_within_sla`.
+- `payout_retry_job.ensures` models the happy path (`MarkPayoutPaid`); guidance notes the `PaymentError` branch.
+- All arrays sorted alphabetically by `name` (or `path` for webhooks/routes) and field lists alphabetized within records.

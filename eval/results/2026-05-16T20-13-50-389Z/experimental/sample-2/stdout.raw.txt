@@ -1,0 +1,1 @@
+Spec saved to /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T20-13-50-389Z/experimental/sample-2/spec.allium (402 lines, validates with `allium check` and `allium analyse` — no findings, only info/warning diagnostics for known orphan triggers and unreferenced external-entity fields kept verbatim from the inventory).

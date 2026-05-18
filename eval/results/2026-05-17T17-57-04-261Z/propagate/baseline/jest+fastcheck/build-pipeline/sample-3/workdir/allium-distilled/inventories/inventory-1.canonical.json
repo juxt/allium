@@ -1,0 +1,886 @@
+{
+  "auxiliary_enumerations": [],
+  "config": [
+    {
+      "name": "artifact_ttl",
+      "source": "src/models.ts:ARTIFACT_TTL_MS",
+      "type_hint": "Duration",
+      "value": "7.days"
+    },
+    {
+      "name": "queued_timeout",
+      "source": "src/models.ts:QUEUED_TIMEOUT_MS",
+      "type_hint": "Duration",
+      "value": "30.minutes"
+    },
+    {
+      "name": "storage_max_bytes",
+      "source": "src/integrations/storage.ts:STORAGE_MAX_BYTES",
+      "type_hint": "Integer",
+      "value": "5_368_709_120"
+    },
+    {
+      "name": "stuck_after",
+      "source": "src/models.ts:STUCK_AFTER_MS",
+      "type_hint": "Duration",
+      "value": "1.hours"
+    }
+  ],
+  "entities": [
+    {
+      "derived_properties": [
+        {
+          "expression": "expiresAt != null and now > expiresAt",
+          "name": "artifactIsExpired"
+        }
+      ],
+      "fields": [
+        {
+          "name": "artifactId",
+          "type_hint": "String"
+        },
+        {
+          "name": "buildId",
+          "type_hint": "Build"
+        },
+        {
+          "name": "expiresAt",
+          "type_hint": "Timestamp?"
+        },
+        {
+          "name": "name",
+          "type_hint": "String"
+        },
+        {
+          "name": "sizeBytes",
+          "type_hint": "Integer"
+        },
+        {
+          "name": "status",
+          "type_hint": "ArtifactStatus"
+        },
+        {
+          "name": "storageKey",
+          "type_hint": "String?"
+        },
+        {
+          "name": "uploadedAt",
+          "type_hint": "Timestamp?"
+        }
+      ],
+      "guidance": "Build output blob; expires a TTL after upload",
+      "kind": "internal",
+      "name": "Artifact",
+      "relationships": [],
+      "status_enum": {
+        "name": "ArtifactStatus",
+        "values": [
+          "expired",
+          "pending",
+          "uploaded"
+        ]
+      }
+    },
+    {
+      "derived_properties": [
+        {
+          "expression": "status = running and startedAt != null and (now - startedAt) > config.stuck_after",
+          "name": "buildIsStuck"
+        }
+      ],
+      "fields": [
+        {
+          "name": "buildId",
+          "type_hint": "String"
+        },
+        {
+          "name": "commitSha",
+          "type_hint": "String"
+        },
+        {
+          "name": "failureReason",
+          "type_hint": "String?"
+        },
+        {
+          "name": "finishedAt",
+          "type_hint": "Timestamp?"
+        },
+        {
+          "name": "pipelineId",
+          "type_hint": "Pipeline"
+        },
+        {
+          "name": "queuedAt",
+          "type_hint": "Timestamp"
+        },
+        {
+          "name": "startedAt",
+          "type_hint": "Timestamp?"
+        },
+        {
+          "name": "status",
+          "type_hint": "BuildStatus"
+        },
+        {
+          "name": "triggeredBy",
+          "type_hint": "String"
+        }
+      ],
+      "guidance": "A run of a pipeline against a specific commit",
+      "kind": "internal",
+      "name": "Build",
+      "relationships": [
+        {
+          "name": "artifacts",
+          "target": "Artifact",
+          "with": "buildId = this"
+        }
+      ],
+      "status_enum": {
+        "name": "BuildStatus",
+        "values": [
+          "cancelled",
+          "failed",
+          "queued",
+          "running",
+          "success"
+        ]
+      }
+    },
+    {
+      "derived_properties": [],
+      "fields": [
+        {
+          "name": "branch",
+          "type_hint": "String"
+        },
+        {
+          "name": "commitSha",
+          "type_hint": "String"
+        },
+        {
+          "name": "eventId",
+          "type_hint": "String"
+        },
+        {
+          "name": "pushedBy",
+          "type_hint": "String"
+        },
+        {
+          "name": "receivedAt",
+          "type_hint": "Timestamp"
+        },
+        {
+          "name": "repoFullName",
+          "type_hint": "String"
+        }
+      ],
+      "guidance": "Inbound webhook payload from GitHub when a push occurs",
+      "kind": "external",
+      "name": "GithubPushEvent",
+      "relationships": [],
+      "status_enum": null
+    },
+    {
+      "derived_properties": [
+        {
+          "expression": "active_builds.count",
+          "name": "pipelineActiveBuildCount"
+        }
+      ],
+      "fields": [
+        {
+          "name": "createdAt",
+          "type_hint": "Timestamp"
+        },
+        {
+          "name": "defaultBranch",
+          "type_hint": "String"
+        },
+        {
+          "name": "name",
+          "type_hint": "String"
+        },
+        {
+          "name": "pipelineId",
+          "type_hint": "String"
+        },
+        {
+          "name": "repoUrl",
+          "type_hint": "String"
+        },
+        {
+          "name": "status",
+          "type_hint": "PipelineStatus"
+        }
+      ],
+      "guidance": "A configured CI pipeline watching a repo/branch",
+      "kind": "internal",
+      "name": "Pipeline",
+      "relationships": [
+        {
+          "from": "builds",
+          "name": "active_builds",
+          "where": "status in {queued, running}"
+        },
+        {
+          "name": "builds",
+          "target": "Build",
+          "with": "pipelineId = this"
+        }
+      ],
+      "status_enum": {
+        "name": "PipelineStatus",
+        "values": [
+          "active",
+          "archived",
+          "paused"
+        ]
+      }
+    }
+  ],
+  "header": {
+    "fixture_name": "BuildPipeline",
+    "source_package": "src/"
+  },
+  "integrations": [
+    {
+      "name": "storage",
+      "operations": [
+        {
+          "name": "deleteArtifactBlob",
+          "params": [
+            {
+              "name": "bucket",
+              "type_hint": "String"
+            },
+            {
+              "name": "key",
+              "type_hint": "String"
+            }
+          ],
+          "preconditions": [
+            "bucket != null",
+            "key != null"
+          ],
+          "raises": [
+            "StorageError"
+          ],
+          "return_type": "Boolean"
+        },
+        {
+          "name": "uploadArtifactBlob",
+          "params": [
+            {
+              "name": "req",
+              "type_hint": "UploadRequest"
+            }
+          ],
+          "preconditions": [
+            "req.bucket != null",
+            "req.sizeBytes <= config.storage_max_bytes",
+            "req.sizeBytes > 0"
+          ],
+          "raises": [
+            "StorageError"
+          ],
+          "return_type": "UploadResponse"
+        }
+      ],
+      "purpose": "Blob storage for artifact binaries (S3-shaped)."
+    }
+  ],
+  "invariants": [
+    {
+      "enforced_by": [
+        "markArtifactUploaded"
+      ],
+      "expression": "status in {uploaded, expired} implies expiresAt != null",
+      "name": "ArtifactExpiresAtPresentWhenUploaded",
+      "scope": "Artifact"
+    },
+    {
+      "enforced_by": [
+        "markArtifactUploaded"
+      ],
+      "expression": "status in {uploaded, expired} implies storageKey != null",
+      "name": "ArtifactStorageKeyPresentWhenUploaded",
+      "scope": "Artifact"
+    },
+    {
+      "enforced_by": [
+        "markArtifactUploaded"
+      ],
+      "expression": "status in {uploaded, expired} implies uploadedAt != null",
+      "name": "ArtifactUploadedAtPresentWhenUploaded",
+      "scope": "Artifact"
+    },
+    {
+      "enforced_by": [
+        "markBuildFailed"
+      ],
+      "expression": "status = failed implies failureReason != null",
+      "name": "BuildFailureReasonPresentWhenFailed",
+      "scope": "Build"
+    },
+    {
+      "enforced_by": [
+        "cancelBuild",
+        "markBuildFailed",
+        "markBuildSuccess"
+      ],
+      "expression": "status in {success, failed, cancelled} implies finishedAt != null",
+      "name": "BuildFinishedAtPresentWhenTerminal",
+      "scope": "Build"
+    },
+    {
+      "enforced_by": [
+        "startBuild"
+      ],
+      "expression": "status in {running, success, failed} implies startedAt != null",
+      "name": "BuildStartedAtPresentWhenStarted",
+      "scope": "Build"
+    },
+    {
+      "enforced_by": [
+        "enqueueBuild"
+      ],
+      "expression": "status = queued implies pipelineId.status = active",
+      "name": "EnqueuedBuildPipelineActive",
+      "scope": "Build"
+    },
+    {
+      "enforced_by": [
+        "registerArtifact"
+      ],
+      "expression": "buildId.status = success",
+      "name": "RegisteredArtifactBuildSuccessful",
+      "scope": "Artifact"
+    },
+    {
+      "enforced_by": [
+        "registerArtifact"
+      ],
+      "expression": "sizeBytes > 0",
+      "name": "RegisteredArtifactSizePositive",
+      "scope": "Artifact"
+    }
+  ],
+  "routes": [
+    {
+      "handler": "registerArtifact",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/artifacts"
+    },
+    {
+      "handler": "markArtifactUploaded",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/artifacts/:artifactId/uploaded"
+    },
+    {
+      "handler": "enqueueBuild",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/builds"
+    },
+    {
+      "handler": "cancelBuild",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/builds/:buildId/cancel"
+    },
+    {
+      "handler": "markBuildFailed",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/builds/:buildId/failed"
+    },
+    {
+      "handler": "startBuild",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/builds/:buildId/start"
+    },
+    {
+      "handler": "markBuildSuccess",
+      "method": "POST",
+      "module": "src/routes.ts",
+      "path": "/builds/:buildId/success"
+    }
+  ],
+  "scheduled_jobs": [
+    {
+      "body": {
+        "ensures": [
+          {
+            "args": {
+              "artifact": "artifact"
+            },
+            "kind": "invoke",
+            "trigger": "markArtifactExpired"
+          }
+        ],
+        "post_invocations": [],
+        "requires": [
+          "artifact.status = uploaded"
+        ],
+        "when": "artifact: Artifact.artifactIsExpired"
+      },
+      "guidance": "Daily sweep of uploaded artifacts past their expiry timestamp",
+      "name": "expireOldArtifacts"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "args": {
+              "build": "build",
+              "reason": "\"build exceeded running window\""
+            },
+            "kind": "invoke",
+            "trigger": "markBuildFailed"
+          }
+        ],
+        "post_invocations": [],
+        "requires": [
+          "build.status = running"
+        ],
+        "when": "build: Build.buildIsStuck"
+      },
+      "guidance": "Every 5 minutes, fail any running build past the stuck threshold",
+      "name": "failStuckBuilds"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "args": {
+              "build": "build"
+            },
+            "kind": "invoke",
+            "trigger": "cancelBuild"
+          }
+        ],
+        "post_invocations": [],
+        "requires": [
+          "build.status = queued"
+        ],
+        "when": "build: Build.queuedAt + config.queued_timeout <= now"
+      },
+      "guidance": "Every 5 minutes, cancel queued builds that exceeded the queued timeout",
+      "name": "timeoutQueuedBuilds"
+    }
+  ],
+  "transitions": [
+    {
+      "body": {
+        "ensures": [
+          {
+            "kind": "assign",
+            "lhs": "build.status",
+            "rhs": "cancelled"
+          },
+          {
+            "kind": "assign",
+            "lhs": "build.finishedAt",
+            "rhs": "now"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "build",
+            "type_hint": "Build"
+          }
+        ],
+        "requires": [
+          "build.status in {queued, running}"
+        ]
+      },
+      "called_from": [
+        "src/jobs.ts:timeoutQueuedBuilds",
+        "src/routes.ts:POST /builds/:buildId/cancel"
+      ],
+      "entity": "Build",
+      "guidance": "Cancels a queued or running build",
+      "name": "cancelBuild"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "entity": "Build",
+            "fields": {
+              "buildId": "buildId",
+              "commitSha": "commitSha",
+              "failureReason": "null",
+              "finishedAt": "null",
+              "pipelineId": "pipeline",
+              "queuedAt": "now",
+              "startedAt": "null",
+              "status": "queued",
+              "triggeredBy": "triggeredBy"
+            },
+            "kind": "create"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "buildId",
+            "type_hint": "String"
+          },
+          {
+            "name": "commitSha",
+            "type_hint": "String"
+          },
+          {
+            "name": "pipeline",
+            "type_hint": "Pipeline"
+          },
+          {
+            "name": "triggeredBy",
+            "type_hint": "String"
+          }
+        ],
+        "requires": [
+          "pipeline.status = active"
+        ]
+      },
+      "called_from": [
+        "src/routes.ts:POST /builds",
+        "src/webhooks.ts:receiveGithubPushEvent"
+      ],
+      "entity": "Build",
+      "guidance": "Enqueues a new build against an active pipeline",
+      "name": "enqueueBuild"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "kind": "assign",
+            "lhs": "artifact.status",
+            "rhs": "expired"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "artifact",
+            "type_hint": "Artifact"
+          }
+        ],
+        "requires": [
+          "artifact.status = uploaded"
+        ]
+      },
+      "called_from": [
+        "src/jobs.ts:expireOldArtifacts"
+      ],
+      "entity": "Artifact",
+      "guidance": "Marks an uploaded artifact as expired after its TTL",
+      "name": "markArtifactExpired"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "kind": "assign",
+            "lhs": "artifact.status",
+            "rhs": "uploaded"
+          },
+          {
+            "kind": "assign",
+            "lhs": "artifact.uploadedAt",
+            "rhs": "now"
+          },
+          {
+            "kind": "assign",
+            "lhs": "artifact.expiresAt",
+            "rhs": "now + config.artifact_ttl"
+          },
+          {
+            "kind": "assign",
+            "lhs": "artifact.storageKey",
+            "rhs": "storageKey"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "artifact",
+            "type_hint": "Artifact"
+          },
+          {
+            "name": "storageKey",
+            "type_hint": "String"
+          }
+        ],
+        "requires": [
+          "artifact.status = pending"
+        ]
+      },
+      "called_from": [
+        "src/routes.ts:POST /artifacts/:artifactId/uploaded"
+      ],
+      "entity": "Artifact",
+      "guidance": "Records that the artifact blob has been uploaded; sets the expiry timer",
+      "name": "markArtifactUploaded"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "kind": "assign",
+            "lhs": "build.status",
+            "rhs": "failed"
+          },
+          {
+            "kind": "assign",
+            "lhs": "build.failureReason",
+            "rhs": "reason"
+          },
+          {
+            "kind": "assign",
+            "lhs": "build.finishedAt",
+            "rhs": "now"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "build",
+            "type_hint": "Build"
+          },
+          {
+            "name": "reason",
+            "type_hint": "String"
+          }
+        ],
+        "requires": [
+          "build.status = running"
+        ]
+      },
+      "called_from": [
+        "src/jobs.ts:failStuckBuilds",
+        "src/routes.ts:POST /builds/:buildId/failed"
+      ],
+      "entity": "Build",
+      "guidance": "Marks a running build as failed with a reason",
+      "name": "markBuildFailed"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "kind": "assign",
+            "lhs": "build.status",
+            "rhs": "success"
+          },
+          {
+            "kind": "assign",
+            "lhs": "build.finishedAt",
+            "rhs": "now"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "build",
+            "type_hint": "Build"
+          }
+        ],
+        "requires": [
+          "build.status = running"
+        ]
+      },
+      "called_from": [
+        "src/routes.ts:POST /builds/:buildId/success"
+      ],
+      "entity": "Build",
+      "guidance": "Marks a running build as successful",
+      "name": "markBuildSuccess"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "entity": "GithubPushEvent",
+            "fields": {
+              "branch": "branch",
+              "commitSha": "commitSha",
+              "eventId": "eventId",
+              "pushedBy": "pushedBy",
+              "receivedAt": "now",
+              "repoFullName": "repoFullName"
+            },
+            "kind": "create"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "branch",
+            "type_hint": "String"
+          },
+          {
+            "name": "commitSha",
+            "type_hint": "String"
+          },
+          {
+            "name": "eventId",
+            "type_hint": "String"
+          },
+          {
+            "name": "pushedBy",
+            "type_hint": "String"
+          },
+          {
+            "name": "repoFullName",
+            "type_hint": "String"
+          }
+        ],
+        "requires": []
+      },
+      "called_from": [
+        "src/routes.ts:POST /webhooks/github-push"
+      ],
+      "entity": "GithubPushEvent",
+      "guidance": "Stores the inbound push event. For every active pipeline whose repoUrl ends with repoFullName and whose defaultBranch matches branch, also enqueues a build (modelled as separate invocations of enqueueBuild).",
+      "name": "receiveGithubPushEvent"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "entity": "Artifact",
+            "fields": {
+              "artifactId": "artifactId",
+              "buildId": "build",
+              "expiresAt": "null",
+              "name": "name",
+              "sizeBytes": "sizeBytes",
+              "status": "pending",
+              "storageKey": "null",
+              "uploadedAt": "null"
+            },
+            "kind": "create"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "artifactId",
+            "type_hint": "String"
+          },
+          {
+            "name": "build",
+            "type_hint": "Build"
+          },
+          {
+            "name": "name",
+            "type_hint": "String"
+          },
+          {
+            "name": "sizeBytes",
+            "type_hint": "Integer"
+          }
+        ],
+        "requires": [
+          "build.status = success",
+          "sizeBytes > 0"
+        ]
+      },
+      "called_from": [
+        "src/routes.ts:POST /artifacts"
+      ],
+      "entity": "Artifact",
+      "guidance": "Registers a pending artifact tied to a successful build",
+      "name": "registerArtifact"
+    },
+    {
+      "body": {
+        "ensures": [
+          {
+            "kind": "assign",
+            "lhs": "build.status",
+            "rhs": "running"
+          },
+          {
+            "kind": "assign",
+            "lhs": "build.startedAt",
+            "rhs": "now"
+          }
+        ],
+        "lets": [],
+        "params": [
+          {
+            "name": "build",
+            "type_hint": "Build"
+          }
+        ],
+        "requires": [
+          "build.status = queued"
+        ]
+      },
+      "called_from": [
+        "src/routes.ts:POST /builds/:buildId/start"
+      ],
+      "entity": "Build",
+      "guidance": "Moves a queued build into the running state",
+      "name": "startBuild"
+    }
+  ],
+  "value_types": [
+    {
+      "fields": [
+        {
+          "name": "bucket",
+          "type_hint": "String"
+        },
+        {
+          "name": "contentType",
+          "type_hint": "String"
+        },
+        {
+          "name": "key",
+          "type_hint": "String"
+        },
+        {
+          "name": "sizeBytes",
+          "type_hint": "Integer"
+        }
+      ],
+      "name": "UploadRequest",
+      "owned_by": "storage"
+    },
+    {
+      "fields": [
+        {
+          "name": "request",
+          "type_hint": "UploadRequest"
+        },
+        {
+          "name": "storageKey",
+          "type_hint": "String"
+        },
+        {
+          "name": "uploadedAt",
+          "type_hint": "Timestamp"
+        }
+      ],
+      "name": "UploadResponse",
+      "owned_by": "storage"
+    }
+  ],
+  "webhooks": [
+    {
+      "linking_rule": "matches pipelines whose repoUrl ends with repoFullName and whose defaultBranch equals branch; enqueues a build per match",
+      "path": "/webhooks/github-push",
+      "produces_entity": "GithubPushEvent"
+    }
+  ]
+}

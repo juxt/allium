@@ -1,0 +1,16 @@
+Propagation complete.
+
+**Summary**
+- Backend: `pytest+hypothesis`, K=3 subagents (1 inventory rejected during canonicalization — `surface-actor.Routes` had a malformed bridge symbol; merged from 2 survivors, still ≥ ⌈K/2⌉)
+- Obligations: 96 total, 91 passing, 5 stubbed as `bridge-unresolved`
+- Likely real failures: 0; likely wrong bridges: 0
+- Test files: 46 written under `./tests/`
+- Report: `./allium-propagated/propagation-report.md`
+- Coverage: 94.8%
+
+**Bridge-unresolved stubs (need human follow-up)**
+- `rule-failure.AutoApprovalScheduler.{1,2,3}` (3 negative-path obligations)
+- `entity-relationship.Claim.payouts`
+- `entity-relationship.Policy.claims`
+
+Artefacts under `./allium-propagated/` (`plan.json`, `model.json`, `inventories/`, `merged.json`, `propagation-report.md`).

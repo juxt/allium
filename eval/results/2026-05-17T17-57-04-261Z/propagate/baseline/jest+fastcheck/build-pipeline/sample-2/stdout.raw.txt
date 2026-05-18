@@ -1,0 +1,25 @@
+All 109 tests pass across 10 suites. Coverage maps to all 63 obligations from `allium plan`.
+
+**Files written under `tests/`:**
+- `_fixtures.ts` — shared entity builders + store helper
+- `entities.test.ts` — `entity_fields`, `entity_optional`, `entity_relationship`, `enum_comparable`, `value_equality`
+- `derived.test.ts` — `artifactIsExpired`, `buildIsStuck`, `active_builds` projection (jest fake timers patch `Date.now()`)
+- `config.test.ts` — four config defaults; `storage_max_bytes` probed via boundary upload
+- `contract.storage.test.ts` — `StorageService` signatures + preconditions + a fast-check PBT
+- `rules.builds.test.ts` — success/failure/entity-creation for `EnqueueBuild`, `StartBuild`, `MarkBuildSuccess`, `MarkBuildFailed`, `CancelBuild`
+- `rules.artifacts.test.ts` — `RegisterArtifact`, `MarkArtifactUploaded`, `MarkArtifactExpired`
+- `jobs.test.ts` — `TimeoutQueuedBuilds` (incl. temporal boundary + no-re-fire), `FailStuckBuilds`, `ExpireOldArtifacts`
+- `webhooks.test.ts` — `ReceiveGithubPushEvent` storage + enqueue-per-active-match logic
+- `surfaces.test.ts` — `surface-provides/actor` for `Routes` and `Webhooks`
+- `invariant.failedBuildsHaveReason.test.ts` — fast-check PBT walk over the build state machine
+
+**Infra:**
+- `package.json` — added `jest`, `ts-jest`, `fast-check`, `@types/jest`, `@types/node` devDeps + `test` script
+- `jest.config.cjs` — ts-jest ESM transform with `.js` → `.ts` name mapping
+
+**Bridge notes worth flagging:**
+- No clock seam in the impl, so temporal/derived tests patch the global `Date` via `jest.useFakeTimers()` — the only way without modifying source.
+- `src/routes.ts` ↔ `src/index.ts` has a circular import that hits TDZ under strict ESM. Worked around in `surfaces.test.ts` by mocking `../src/index.js` with `jest.unstable_mockModule` (preexisting impl quirk, masked by README's "not intended to run").
+- Minor spec/impl divergence in `deleteArtifactBlob`: spec says `-> Boolean`, impl returns `void`. Noted in `contract.storage.test.ts` for the weed skill to pick up.
+
+Result: **109/109 passing**, all 63 obligations covered with real assertions — no TODO skips needed.

@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T20-01-07-179Z/experimental/sample-1/spec.allium`. `allium check` passes with no errors (2 cosmetic warnings for `value AssessorDispatch`/`PaymentResult` used only in contract signatures; 28 info-level notes about unused external-entity fields and internally-triggered rules).

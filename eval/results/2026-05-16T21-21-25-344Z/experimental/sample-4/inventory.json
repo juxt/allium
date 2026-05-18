@@ -1,0 +1,597 @@
+{
+  "header": {
+    "fixture_name": "InsuranceClaims",
+    "source_package": "app/"
+  },
+  "entities": [
+    {
+      "name": "Assessment",
+      "kind": "internal",
+      "fields": [
+        {"name": "assessor", "type_hint": "Assessor", "nullable": false},
+        {"name": "claim", "type_hint": "Claim", "nullable": false},
+        {"name": "completed_at", "type_hint": "Timestamp?", "nullable": true},
+        {"name": "findings", "type_hint": "String", "nullable": false},
+        {"name": "started_at", "type_hint": "Timestamp?", "nullable": true},
+        {"name": "status", "type_hint": "AssessmentStatus", "nullable": false}
+      ],
+      "status_enum": {"name": "AssessmentStatus", "values": ["pending", "in_progress", "completed"]},
+      "relationships": [],
+      "derived_properties": [],
+      "guidance": null
+    },
+    {
+      "name": "Assessor",
+      "kind": "internal",
+      "fields": [
+        {"name": "name", "type_hint": "String", "nullable": false},
+        {"name": "specialties", "type_hint": "Set<String>", "nullable": false}
+      ],
+      "status_enum": null,
+      "relationships": [],
+      "derived_properties": [],
+      "guidance": null
+    },
+    {
+      "name": "Claim",
+      "kind": "internal",
+      "fields": [
+        {"name": "amount_claimed_pence", "type_hint": "Integer", "nullable": false},
+        {"name": "claim_number", "type_hint": "String", "nullable": false},
+        {"name": "denial_reason", "type_hint": "String?", "nullable": true},
+        {"name": "incident_date", "type_hint": "Timestamp", "nullable": false},
+        {"name": "last_activity_at", "type_hint": "Timestamp", "nullable": false},
+        {"name": "policy", "type_hint": "Policy", "nullable": false},
+        {"name": "status", "type_hint": "ClaimStatus", "nullable": false},
+        {"name": "submitted_at", "type_hint": "Timestamp", "nullable": false}
+      ],
+      "status_enum": {"name": "ClaimStatus", "values": ["submitted", "triaged", "assessing", "approved", "denied", "paid", "closed"]},
+      "relationships": [
+        {"name": "assessments", "target": "Assessment", "with": "claim = this"},
+        {"name": "completed_assessments", "from": "assessments", "where": "status = completed"},
+        {"name": "paid_payouts", "from": "payouts", "where": "status = paid"},
+        {"name": "payouts", "target": "Payout", "with": "claim = this"}
+      ],
+      "derived_properties": [
+        {"name": "age", "expression": "now - submitted_at"},
+        {"name": "has_completed_assessment", "expression": "completed_assessments.count > 0"},
+        {"name": "is_eligible_for_auto_approval", "expression": "status = assessing and amount_claimed_pence < config.auto_approve_max_pence and has_completed_assessment and \"trusted\" in policy.holder_tags"},
+        {"name": "is_stalled", "expression": "status = assessing and (now - last_activity_at) > config.stalled_after"},
+        {"name": "is_within_sla", "expression": "age <= config.assessment_sla"},
+        {"name": "total_paid", "expression": "sum(paid_payouts.amount_pence)"}
+      ],
+      "guidance": "is_stalled is implicit — there is no `stalled` column; callers compute it from (status, last_activity_at)."
+    },
+    {
+      "name": "IncidentReport",
+      "kind": "external",
+      "fields": [
+        {"name": "description", "type_hint": "String", "nullable": false},
+        {"name": "incident_date", "type_hint": "Timestamp", "nullable": false},
+        {"name": "linked_claim", "type_hint": "Claim?", "nullable": true},
+        {"name": "policy", "type_hint": "Policy?", "nullable": true},
+        {"name": "received_at", "type_hint": "Timestamp", "nullable": false},
+        {"name": "report_id", "type_hint": "String", "nullable": false},
+        {"name": "source", "type_hint": "String", "nullable": false}
+      ],
+      "status_enum": null,
+      "relationships": [],
+      "derived_properties": [],
+      "guidance": "Arrives via webhook from external feeds (police, medical); the app does not own its lifecycle."
+    },
+    {
+      "name": "Payout",
+      "kind": "internal",
+      "fields": [
+        {"name": "amount_pence", "type_hint": "Integer", "nullable": false},
+        {"name": "claim", "type_hint": "Claim", "nullable": false},
+        {"name": "failed_attempts", "type_hint": "Integer", "nullable": false},
+        {"name": "last_failure_at", "type_hint": "Timestamp?", "nullable": true},
+        {"name": "paid_at", "type_hint": "Timestamp?", "nullable": true},
+        {"name": "payout_id", "type_hint": "String", "nullable": false},
+        {"name": "scheduled_at", "type_hint": "Timestamp", "nullable": false},
+        {"name": "status", "type_hint": "PayoutStatus", "nullable": false}
+      ],
+      "status_enum": {"name": "PayoutStatus", "values": ["scheduled", "paid", "failed"]},
+      "relationships": [],
+      "derived_properties": [
+        {"name": "retry_due_at", "expression": "coalesce(last_failure_at, scheduled_at) + config.payout_retry_after"}
+      ],
+      "guidance": null
+    },
+    {
+      "name": "Policy",
+      "kind": "internal",
+      "fields": [
+        {"name": "coverage_limit_pence", "type_hint": "Integer", "nullable": false},
+        {"name": "holder", "type_hint": "String", "nullable": false},
+        {"name": "holder_tags", "type_hint": "Set<String>", "nullable": false},
+        {"name": "policy_number", "type_hint": "String", "nullable": false},
+        {"name": "status", "type_hint": "PolicyStatus", "nullable": false}
+      ],
+      "status_enum": {"name": "PolicyStatus", "values": ["active", "lapsed", "cancelled"]},
+      "relationships": [
+        {"name": "claims", "target": "Claim", "with": "policy = this"},
+        {"name": "open_claims", "from": "claims", "where": "status not in {paid, denied, closed}"}
+      ],
+      "derived_properties": [
+        {"name": "has_open_claims", "expression": "open_claims.count > 0"}
+      ],
+      "guidance": null
+    }
+  ],
+  "transitions": [
+    {
+      "name": "approve_claim",
+      "entity": "Claim",
+      "called_from": ["app/jobs.py:auto_approval_scheduler", "app/routes.py:approve_claim_route"],
+      "body": {
+        "params": [
+          {"name": "claim", "type_hint": "Claim"}
+        ],
+        "lets": [],
+        "requires": [
+          "claim.status = assessing",
+          "claim.has_completed_assessment"
+        ],
+        "ensures": [
+          {"kind": "assign", "lhs": "claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "claim.status", "rhs": "approved"}
+        ]
+      },
+      "guidance": "Approval only changes status — the route handler additionally calls SchedulePayout, but auto-approval does not."
+    },
+    {
+      "name": "complete_assessment",
+      "entity": "Assessment",
+      "called_from": [],
+      "body": {
+        "params": [
+          {"name": "assessment", "type_hint": "Assessment"},
+          {"name": "findings", "type_hint": "String"}
+        ],
+        "lets": [],
+        "requires": [
+          "assessment.status = in_progress"
+        ],
+        "ensures": [
+          {"kind": "assign", "lhs": "assessment.claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "assessment.completed_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "assessment.findings", "rhs": "findings"},
+          {"kind": "assign", "lhs": "assessment.status", "rhs": "completed"}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "deny_claim",
+      "entity": "Claim",
+      "called_from": ["app/routes.py:deny_route"],
+      "body": {
+        "params": [
+          {"name": "claim", "type_hint": "Claim"},
+          {"name": "reason", "type_hint": "String"}
+        ],
+        "lets": [],
+        "requires": [
+          "claim.status in {triaged, assessing}"
+        ],
+        "ensures": [
+          {"kind": "assign", "lhs": "claim.denial_reason", "rhs": "reason"},
+          {"kind": "assign", "lhs": "claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "claim.status", "rhs": "denied"}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "mark_payout_failed",
+      "entity": "Payout",
+      "called_from": ["app/jobs.py:payout_retry_job"],
+      "body": {
+        "params": [
+          {"name": "payout", "type_hint": "Payout"}
+        ],
+        "lets": [],
+        "requires": [],
+        "ensures": [
+          {"kind": "assign", "lhs": "payout.failed_attempts", "rhs": "payout.failed_attempts + 1"},
+          {"kind": "assign", "lhs": "payout.last_failure_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "payout.status", "rhs": "failed"}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "mark_payout_paid",
+      "entity": "Payout",
+      "called_from": ["app/jobs.py:payout_retry_job", "app/routes.py:mark_paid_route"],
+      "body": {
+        "params": [
+          {"name": "payout", "type_hint": "Payout"}
+        ],
+        "lets": [],
+        "requires": [],
+        "ensures": [
+          {"kind": "assign", "lhs": "payout.claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "payout.claim.status", "rhs": "paid"},
+          {"kind": "assign", "lhs": "payout.paid_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "payout.status", "rhs": "paid"}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "register_assessor",
+      "entity": "Assessor",
+      "called_from": [],
+      "body": {
+        "params": [
+          {"name": "name", "type_hint": "String"},
+          {"name": "specialties", "type_hint": "Set<String>"}
+        ],
+        "lets": [],
+        "requires": [],
+        "ensures": [
+          {"kind": "create", "entity": "Assessor", "fields": {"name": "name", "specialties": "specialties"}}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "register_policy",
+      "entity": "Policy",
+      "called_from": [],
+      "body": {
+        "params": [
+          {"name": "coverage_limit_pence", "type_hint": "Integer"},
+          {"name": "holder", "type_hint": "String"},
+          {"name": "holder_tags", "type_hint": "Set<String>"},
+          {"name": "policy_number", "type_hint": "String"}
+        ],
+        "lets": [],
+        "requires": [],
+        "ensures": [
+          {"kind": "create", "entity": "Policy", "fields": {"coverage_limit_pence": "coverage_limit_pence", "holder": "holder", "holder_tags": "holder_tags", "policy_number": "policy_number", "status": "active"}}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "schedule_payout",
+      "entity": "Payout",
+      "called_from": ["app/routes.py:approve_claim_route"],
+      "body": {
+        "params": [
+          {"name": "claim", "type_hint": "Claim"}
+        ],
+        "lets": [],
+        "requires": [
+          "claim.status = approved"
+        ],
+        "ensures": [
+          {"kind": "assign", "lhs": "claim.last_activity_at", "rhs": "now"},
+          {"kind": "create", "entity": "Payout", "fields": {"amount_pence": "claim.amount_claimed_pence", "claim": "claim", "failed_attempts": "0", "scheduled_at": "now", "status": "scheduled"}}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "start_assessment",
+      "entity": "Claim",
+      "called_from": ["app/routes.py:start_assessment_route"],
+      "body": {
+        "params": [
+          {"name": "assessor", "type_hint": "Assessor"},
+          {"name": "claim", "type_hint": "Claim"}
+        ],
+        "lets": [],
+        "requires": [
+          "claim.status = triaged"
+        ],
+        "ensures": [
+          {"kind": "assign", "lhs": "claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "claim.status", "rhs": "assessing"},
+          {"kind": "create", "entity": "Assessment", "fields": {"assessor": "assessor", "claim": "claim", "started_at": "now", "status": "in_progress"}}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "submit_claim",
+      "entity": "Claim",
+      "called_from": ["app/routes.py:create_claim_route"],
+      "body": {
+        "params": [
+          {"name": "amount_claimed_pence", "type_hint": "Integer"},
+          {"name": "claim_number", "type_hint": "String"},
+          {"name": "incident_date", "type_hint": "Timestamp"},
+          {"name": "policy", "type_hint": "Policy"}
+        ],
+        "lets": [],
+        "requires": [
+          "policy.status = active",
+          "amount_claimed_pence <= policy.coverage_limit_pence"
+        ],
+        "ensures": [
+          {"kind": "create", "entity": "Claim", "fields": {"amount_claimed_pence": "amount_claimed_pence", "claim_number": "claim_number", "incident_date": "incident_date", "last_activity_at": "now", "policy": "policy", "status": "submitted", "submitted_at": "now"}}
+        ]
+      },
+      "guidance": null
+    },
+    {
+      "name": "triage_claim",
+      "entity": "Claim",
+      "called_from": ["app/jobs.py:auto_acknowledge_job", "app/routes.py:triage_route"],
+      "body": {
+        "params": [
+          {"name": "claim", "type_hint": "Claim"}
+        ],
+        "lets": [],
+        "requires": [
+          "claim.status = submitted"
+        ],
+        "ensures": [
+          {"kind": "assign", "lhs": "claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "claim.status", "rhs": "triaged"}
+        ]
+      },
+      "guidance": null
+    }
+  ],
+  "scheduled_jobs": [
+    {
+      "name": "auto_acknowledge_job",
+      "body": {
+        "when": "claim: Claim.submitted_at + config.auto_ack_after <= now",
+        "requires": ["claim.status = submitted"],
+        "ensures": [
+          {"kind": "invoke", "trigger": "TriageClaim", "args": {"claim": "claim"}}
+        ],
+        "post_invocations": []
+      },
+      "guidance": "Code uses business-day approximation (5 business days); spec models with calendar days."
+    },
+    {
+      "name": "auto_approval_scheduler",
+      "body": {
+        "when": "claim: Claim.is_eligible_for_auto_approval",
+        "requires": ["claim.is_eligible_for_auto_approval"],
+        "ensures": [
+          {"kind": "invoke", "trigger": "ApproveClaim", "args": {"claim": "claim"}}
+        ],
+        "post_invocations": []
+      },
+      "guidance": "Auto-approval invokes ApproveClaim only; unlike the adjuster-driven route, it does not schedule a payout."
+    },
+    {
+      "name": "auto_close_denied_job",
+      "body": {
+        "when": "claim: Claim.last_activity_at + config.auto_close_denied_after <= now",
+        "requires": ["claim.status = denied"],
+        "ensures": [
+          {"kind": "assign", "lhs": "claim.last_activity_at", "rhs": "now"},
+          {"kind": "assign", "lhs": "claim.status", "rhs": "closed"}
+        ],
+        "post_invocations": []
+      },
+      "guidance": null
+    },
+    {
+      "name": "payout_retry_job",
+      "body": {
+        "when": "payout: Payout.retry_due_at <= now",
+        "requires": ["payout.status = failed"],
+        "ensures": [],
+        "post_invocations": []
+      },
+      "guidance": "Calls PaymentService.send_faster_payment; on success invokes MarkPayoutPaid, on PaymentError invokes MarkPayoutFailed."
+    }
+  ],
+  "integrations": [
+    {
+      "name": "assessor",
+      "purpose": "Dispatch an external assessor for a claim",
+      "operations": [
+        {
+          "name": "request_assessor_dispatch",
+          "params": [
+            {"name": "claim_number", "type_hint": "String"},
+            {"name": "specialties", "type_hint": "List<String>"}
+          ],
+          "return_type": "AssessorDispatch",
+          "preconditions": ["len(specialties) >= 1"],
+          "raises": ["AssessorDispatchError"]
+        }
+      ]
+    },
+    {
+      "name": "payment",
+      "purpose": "Submit a Faster Payment to the upstream bank",
+      "operations": [
+        {
+          "name": "send_faster_payment",
+          "params": [
+            {"name": "account_number", "type_hint": "String"},
+            {"name": "amount_pence", "type_hint": "Integer"},
+            {"name": "reference", "type_hint": "String"},
+            {"name": "sort_code", "type_hint": "String"}
+          ],
+          "return_type": "PaymentResult",
+          "preconditions": [
+            "amount_pence > 0",
+            "len(account_number) == 8",
+            "sort_code matches NN-NN-NN format",
+            "amount_pence <= 100_000_000"
+          ],
+          "raises": ["PaymentError"]
+        }
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "name": "AssessorDispatch",
+      "fields": [
+        {"name": "claim_number", "type_hint": "String"},
+        {"name": "dispatch_id", "type_hint": "String"},
+        {"name": "specialties", "type_hint": "List<String>"}
+      ],
+      "owned_by": "assessor"
+    },
+    {
+      "name": "PaymentRequest",
+      "fields": [
+        {"name": "account_number", "type_hint": "String"},
+        {"name": "amount_pence", "type_hint": "Integer"},
+        {"name": "reference", "type_hint": "String"},
+        {"name": "sort_code", "type_hint": "String"}
+      ],
+      "owned_by": "payment"
+    },
+    {
+      "name": "PaymentResult",
+      "fields": [
+        {"name": "request", "type_hint": "PaymentRequest"},
+        {"name": "status", "type_hint": "PaymentResultStatus"},
+        {"name": "submitted_at", "type_hint": "Timestamp"},
+        {"name": "upstream_id", "type_hint": "String"}
+      ],
+      "owned_by": "payment"
+    }
+  ],
+  "auxiliary_enumerations": [
+    {
+      "name": "PaymentResultStatus",
+      "values": ["accepted", "rejected", "pending_review"],
+      "owned_by": "payment"
+    }
+  ],
+  "invariants": [
+    {
+      "name": "ApprovedClaimsHaveCompletedAssessment",
+      "scope": "Claim",
+      "expression": "status in {approved, paid} implies has_completed_assessment",
+      "enforced_by": ["ApproveClaim"]
+    },
+    {
+      "name": "ClaimAmountWithinCoverage",
+      "scope": "Claim",
+      "expression": "amount_claimed_pence <= policy.coverage_limit_pence",
+      "enforced_by": ["SubmitClaim"]
+    },
+    {
+      "name": "DeniedClaimsHaveReason",
+      "scope": "Claim",
+      "expression": "status = denied implies denial_reason != null",
+      "enforced_by": ["DenyClaim"]
+    },
+    {
+      "name": "PayoutAmountMatchesClaim",
+      "scope": "Payout",
+      "expression": "amount_pence = claim.amount_claimed_pence",
+      "enforced_by": ["SchedulePayout"]
+    }
+  ],
+  "config": [
+    {
+      "name": "assessment_sla",
+      "type_hint": "Duration",
+      "value": "14.days",
+      "source": "app/models.py:ASSESSMENT_SLA"
+    },
+    {
+      "name": "auto_ack_after",
+      "type_hint": "Duration",
+      "value": "5.days",
+      "source": "app/jobs.py:AUTO_ACK_AFTER"
+    },
+    {
+      "name": "auto_approve_max_pence",
+      "type_hint": "Integer",
+      "value": "50_000_00",
+      "source": "app/jobs.py:AUTO_APPROVE_MAX_PENCE"
+    },
+    {
+      "name": "auto_close_denied_after",
+      "type_hint": "Duration",
+      "value": "90.days",
+      "source": "app/jobs.py:AUTO_CLOSE_DENIED_AFTER"
+    },
+    {
+      "name": "link_window",
+      "type_hint": "Duration",
+      "value": "2.days",
+      "source": "app/webhooks.py:LINK_WINDOW"
+    },
+    {
+      "name": "payout_retry_after",
+      "type_hint": "Duration",
+      "value": "28.days",
+      "source": "app/jobs.py:PAYOUT_RETRY_AFTER"
+    },
+    {
+      "name": "stalled_after",
+      "type_hint": "Duration",
+      "value": "21.days",
+      "source": "app/models.py:STALLED_AFTER"
+    }
+  ],
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/claims",
+      "handler": "create_claim_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "GET",
+      "path": "/claims/<claim_number>",
+      "handler": "get_claim_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "POST",
+      "path": "/claims/<claim_number>/approve",
+      "handler": "approve_claim_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "POST",
+      "path": "/claims/<claim_number>/assess",
+      "handler": "start_assessment_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "POST",
+      "path": "/claims/<claim_number>/deny",
+      "handler": "deny_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "POST",
+      "path": "/claims/<claim_number>/triage",
+      "handler": "triage_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "POST",
+      "path": "/payouts/<payout_id>/mark-paid",
+      "handler": "mark_paid_route",
+      "module": "app/routes.py"
+    },
+    {
+      "method": "GET",
+      "path": "/policies/<policy_number>/claims",
+      "handler": "list_policy_claims_route",
+      "module": "app/routes.py"
+    }
+  ],
+  "webhooks": [
+    {
+      "path": "/webhooks/incident-reports",
+      "produces_entity": "IncidentReport",
+      "linking_rule": "matches a Claim by policy_number with incident_date within config.link_window"
+    }
+  ]
+}

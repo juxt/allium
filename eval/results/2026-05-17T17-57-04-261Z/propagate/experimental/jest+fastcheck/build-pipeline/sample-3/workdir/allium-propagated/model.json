@@ -1,0 +1,273 @@
+{
+  "config": [
+    {
+      "default_expr": "7.days",
+      "name": "artifact_ttl",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "30.minutes",
+      "name": "queued_timeout",
+      "type_expr": "Duration"
+    },
+    {
+      "default_expr": "5_368_709_120",
+      "name": "storage_max_bytes",
+      "type_expr": "Integer"
+    },
+    {
+      "default_expr": "1.hours",
+      "name": "stuck_after",
+      "type_expr": "Duration"
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "name": "branch",
+          "type_expr": "String"
+        },
+        {
+          "name": "commitSha",
+          "type_expr": "String"
+        },
+        {
+          "name": "eventId",
+          "type_expr": "String"
+        },
+        {
+          "name": "pushedBy",
+          "type_expr": "String"
+        },
+        {
+          "name": "receivedAt",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "repoFullName",
+          "type_expr": "String"
+        }
+      ],
+      "kind": "external",
+      "name": "GithubPushEvent"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "artifactIsExpired"
+        }
+      ],
+      "fields": [
+        {
+          "name": "artifactId",
+          "type_expr": "String"
+        },
+        {
+          "name": "build",
+          "type_expr": "Build"
+        },
+        {
+          "name": "expiresAt",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "name",
+          "type_expr": "String"
+        },
+        {
+          "name": "sizeBytes",
+          "type_expr": "Integer"
+        },
+        {
+          "name": "status",
+          "type_expr": "ArtifactStatus"
+        },
+        {
+          "name": "storageKey",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "uploadedAt",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        }
+      ],
+      "kind": "internal",
+      "name": "Artifact"
+    },
+    {
+      "derived_values": [
+        {
+          "name": "buildIsStuck"
+        }
+      ],
+      "fields": [
+        {
+          "name": "buildId",
+          "type_expr": "String"
+        },
+        {
+          "name": "commitSha",
+          "type_expr": "String"
+        },
+        {
+          "name": "failureReason",
+          "optional": true,
+          "type_expr": "String?"
+        },
+        {
+          "name": "finishedAt",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "pipeline",
+          "type_expr": "Pipeline"
+        },
+        {
+          "name": "queuedAt",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "startedAt",
+          "optional": true,
+          "type_expr": "Timestamp?"
+        },
+        {
+          "name": "status",
+          "type_expr": "BuildStatus"
+        },
+        {
+          "name": "triggeredBy",
+          "type_expr": "String"
+        }
+      ],
+      "kind": "internal",
+      "name": "Build",
+      "relationships": [
+        {
+          "name": "artifacts",
+          "target": "Artifact"
+        }
+      ]
+    },
+    {
+      "fields": [
+        {
+          "name": "createdAt",
+          "type_expr": "Timestamp"
+        },
+        {
+          "name": "defaultBranch",
+          "type_expr": "String"
+        },
+        {
+          "name": "name",
+          "type_expr": "String"
+        },
+        {
+          "name": "pipelineId",
+          "type_expr": "String"
+        },
+        {
+          "name": "repoUrl",
+          "type_expr": "String"
+        },
+        {
+          "name": "status",
+          "type_expr": "PipelineStatus"
+        },
+        {
+          "name": "pipelineActiveBuildCount",
+          "type_expr": "active_builds.count"
+        }
+      ],
+      "kind": "internal",
+      "name": "Pipeline",
+      "projections": [
+        {
+          "name": "active_builds",
+          "source": "builds"
+        }
+      ],
+      "relationships": [
+        {
+          "name": "builds",
+          "target": "Build"
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "ArtifactStatus",
+      "values": [
+        "expired",
+        "pending",
+        "uploaded"
+      ]
+    },
+    {
+      "name": "BuildStatus",
+      "values": [
+        "cancelled",
+        "failed",
+        "queued",
+        "running",
+        "success"
+      ]
+    },
+    {
+      "name": "PipelineStatus",
+      "values": [
+        "active",
+        "archived",
+        "paused"
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "fields": [
+        {
+          "name": "bucket",
+          "type_expr": "String"
+        },
+        {
+          "name": "contentType",
+          "type_expr": "String"
+        },
+        {
+          "name": "key",
+          "type_expr": "String"
+        },
+        {
+          "name": "sizeBytes",
+          "type_expr": "Integer"
+        }
+      ],
+      "name": "UploadRequest"
+    },
+    {
+      "fields": [
+        {
+          "name": "request",
+          "type_expr": "UploadRequest"
+        },
+        {
+          "name": "storageKey",
+          "type_expr": "String"
+        },
+        {
+          "name": "uploadedAt",
+          "type_expr": "Timestamp"
+        }
+      ],
+      "name": "UploadResponse"
+    }
+  ],
+  "version": 3
+}

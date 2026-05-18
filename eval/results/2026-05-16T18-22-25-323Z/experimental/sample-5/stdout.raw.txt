@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-22-25-323Z/experimental/sample-5/spec.allium`: 456 lines, `allium check` reports 0 errors (2 expected warnings on synthesised actor externals plus info-level unused-identifier notices); `allium analyse` returns no findings.

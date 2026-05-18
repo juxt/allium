@@ -1,0 +1,3 @@
+Spec saved at the target path, allium check passes with zero errors (only two info-level "unused value" warnings on `AssessorDispatch`/`PaymentResult`, which are referenced inside contract signatures the checker doesn't trace through).
+
+Saved 430-line distilled spec covering: 5 internal entities (Policy/Claim/Assessor/Assessment/Payout), 1 external (IncidentReport), 5 status enums, 11 transition rules, 5 temporal scheduled-job rules, 1 webhook ingestion rule, 2 third-party contracts (PaymentService/AssessorService) with preconditions as @invariants, 5 top-level invariants, config block, and Routes/Webhooks surfaces.

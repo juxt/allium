@@ -1,0 +1,16 @@
+Generated 8 test modules under `./tests/`. **203 passed, 2 skipped** in 0.31s. The implementation was not modified.
+
+**Coverage map** (against the 96 obligations from `allium plan`):
+
+| File | What it covers |
+|---|---|
+| `test_entities.py` | `entity_fields`, `entity_optional`, `enum_comparable`, `value_equality`, `entity_relationship` |
+| `test_rules.py` | `rule_success`, `rule_failure`, `rule_entity_creation` for all 11 rules in `app/services.py` |
+| `test_temporal_jobs.py` | `temporal` obligations: auto-ack, SLA breach, payout retry, auto-close, auto-approval scheduler (with injected `now=`) |
+| `test_invariants.py` | All 4 spec invariants as Hypothesis property tests |
+| `test_state_machine.py` | Hypothesis `RuleBasedStateMachine` walking valid Claim transitions, checking every invariant after each step |
+| `test_surfaces.py` | `surface_provides` for `Routes` and `Webhooks` (route registration + dispatch) |
+| `test_contracts.py` | `contract_signature` + `@invariant` for `AssessorService` and `PaymentService` |
+| `test_derived.py` | `derived`, `projection`, `config_default` obligations |
+
+**TODO skips (genuine bridge ambiguity)**: `test_surfaces.py` has two `pytest.mark.skip` tests for `surface_actor` obligations — the spec lacks an `actor` block on either surface and the implementation has no authentication seam, so the bridge is undefined.

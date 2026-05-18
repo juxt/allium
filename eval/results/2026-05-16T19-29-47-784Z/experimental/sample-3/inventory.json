@@ -1,0 +1,308 @@
+{
+  "entities": [
+    {
+      "name": "Assessment",
+      "kind": "internal",
+      "fields": [
+        {"name": "assessment_id", "type_hint": "str"},
+        {"name": "assessor_name", "type_hint": "str"},
+        {"name": "claim_number", "type_hint": "str"},
+        {"name": "completed_at", "type_hint": "datetime | None"},
+        {"name": "findings", "type_hint": "str"},
+        {"name": "started_at", "type_hint": "datetime | None"},
+        {"name": "status", "type_hint": "AssessmentStatus"}
+      ],
+      "status_enum": {"name": "AssessmentStatus", "values": ["pending", "in_progress", "completed"]},
+      "derived_properties": []
+    },
+    {
+      "name": "Assessor",
+      "kind": "internal",
+      "fields": [
+        {"name": "name", "type_hint": "str"},
+        {"name": "specialties", "type_hint": "set[str]"}
+      ],
+      "status_enum": null,
+      "derived_properties": []
+    },
+    {
+      "name": "Claim",
+      "kind": "internal",
+      "fields": [
+        {"name": "amount_claimed_pence", "type_hint": "int"},
+        {"name": "claim_number", "type_hint": "str"},
+        {"name": "denial_reason", "type_hint": "str | None"},
+        {"name": "incident_date", "type_hint": "datetime"},
+        {"name": "last_activity_at", "type_hint": "datetime"},
+        {"name": "policy_number", "type_hint": "str"},
+        {"name": "status", "type_hint": "ClaimStatus"},
+        {"name": "submitted_at", "type_hint": "datetime"}
+      ],
+      "status_enum": {"name": "ClaimStatus", "values": ["submitted", "triaged", "assessing", "approved", "denied", "paid", "closed"]},
+      "derived_properties": ["age", "is_stalled", "is_within_sla", "total_paid"]
+    },
+    {
+      "name": "IncidentReport",
+      "kind": "external",
+      "fields": [
+        {"name": "description", "type_hint": "str"},
+        {"name": "incident_date", "type_hint": "datetime"},
+        {"name": "linked_claim_number", "type_hint": "str | None"},
+        {"name": "policy_number", "type_hint": "str | None"},
+        {"name": "received_at", "type_hint": "datetime"},
+        {"name": "report_id", "type_hint": "str"},
+        {"name": "source", "type_hint": "str"}
+      ],
+      "status_enum": null,
+      "derived_properties": []
+    },
+    {
+      "name": "Payout",
+      "kind": "internal",
+      "fields": [
+        {"name": "amount_pence", "type_hint": "int"},
+        {"name": "claim_number", "type_hint": "str"},
+        {"name": "failed_attempts", "type_hint": "int"},
+        {"name": "last_failure_at", "type_hint": "datetime | None"},
+        {"name": "paid_at", "type_hint": "datetime | None"},
+        {"name": "payout_id", "type_hint": "str"},
+        {"name": "scheduled_at", "type_hint": "datetime"},
+        {"name": "status", "type_hint": "PayoutStatus"}
+      ],
+      "status_enum": {"name": "PayoutStatus", "values": ["scheduled", "paid", "failed"]},
+      "derived_properties": []
+    },
+    {
+      "name": "Policy",
+      "kind": "internal",
+      "fields": [
+        {"name": "coverage_limit_pence", "type_hint": "int"},
+        {"name": "holder", "type_hint": "str"},
+        {"name": "holder_tags", "type_hint": "set[str]"},
+        {"name": "policy_number", "type_hint": "str"},
+        {"name": "status", "type_hint": "PolicyStatus"}
+      ],
+      "status_enum": {"name": "PolicyStatus", "values": ["active", "lapsed", "cancelled"]},
+      "derived_properties": ["has_open_claims"]
+    }
+  ],
+  "transitions": [
+    {
+      "name": "approve_claim",
+      "entity": "Claim",
+      "from_status": ["assessing"],
+      "to_status": "approved",
+      "guards": ["claim.status == assessing", "a completed Assessment exists for the claim"],
+      "called_from": ["app/routes.py:approve_claim_route", "app/jobs.py:auto_approval_scheduler"]
+    },
+    {
+      "name": "complete_assessment",
+      "entity": "Assessment",
+      "from_status": ["in_progress"],
+      "to_status": "completed",
+      "guards": ["assessment.status == in_progress"],
+      "called_from": []
+    },
+    {
+      "name": "deny_claim",
+      "entity": "Claim",
+      "from_status": ["triaged", "assessing"],
+      "to_status": "denied",
+      "guards": ["claim.status in {triaged, assessing}"],
+      "called_from": ["app/routes.py:deny_route"]
+    },
+    {
+      "name": "mark_payout_failed",
+      "entity": "Payout",
+      "from_status": null,
+      "to_status": "failed",
+      "guards": [],
+      "called_from": ["app/jobs.py:payout_retry_job"]
+    },
+    {
+      "name": "mark_payout_paid",
+      "entity": "Payout",
+      "from_status": null,
+      "to_status": "paid",
+      "guards": [],
+      "called_from": ["app/routes.py:mark_paid_route", "app/jobs.py:payout_retry_job"]
+    },
+    {
+      "name": "register_assessor",
+      "entity": "Assessor",
+      "from_status": null,
+      "to_status": null,
+      "guards": [],
+      "called_from": []
+    },
+    {
+      "name": "register_policy",
+      "entity": "Policy",
+      "from_status": null,
+      "to_status": null,
+      "guards": [],
+      "called_from": []
+    },
+    {
+      "name": "schedule_payout",
+      "entity": "Payout",
+      "from_status": null,
+      "to_status": "scheduled",
+      "guards": ["claim.status == approved"],
+      "called_from": ["app/routes.py:approve_claim_route"]
+    },
+    {
+      "name": "start_assessment",
+      "entity": "Claim",
+      "from_status": ["triaged"],
+      "to_status": "assessing",
+      "guards": ["claim.status == triaged", "assessor_name is registered"],
+      "called_from": ["app/routes.py:start_assessment_route"]
+    },
+    {
+      "name": "submit_claim",
+      "entity": "Claim",
+      "from_status": null,
+      "to_status": "submitted",
+      "guards": ["policy exists", "policy.status == active", "amount_claimed_pence <= policy.coverage_limit_pence"],
+      "called_from": ["app/routes.py:create_claim_route"]
+    },
+    {
+      "name": "triage_claim",
+      "entity": "Claim",
+      "from_status": ["submitted"],
+      "to_status": "triaged",
+      "guards": ["claim.status == submitted"],
+      "called_from": ["app/routes.py:triage_route", "app/jobs.py:auto_acknowledge_job"]
+    }
+  ],
+  "scheduled_jobs": [
+    {
+      "name": "assessment_sla_job",
+      "schedule": "periodic",
+      "selector": "claims with status in {triaged, assessing}",
+      "guard": "now - claim.submitted_at > 14 days",
+      "action": "surface the claim as SLA-breached (no state mutation)"
+    },
+    {
+      "name": "auto_acknowledge_job",
+      "schedule": "periodic",
+      "selector": "claims with status == submitted",
+      "guard": "business days between submitted_at and now >= 5",
+      "action": "triage the claim"
+    },
+    {
+      "name": "auto_approval_scheduler",
+      "schedule": "periodic",
+      "selector": "claims",
+      "guard": "status == assessing and amount_claimed_pence < 50_000_00 and has_completed_assessment and 'trusted' in policy.holder_tags",
+      "action": "approve the claim"
+    },
+    {
+      "name": "auto_close_denied_job",
+      "schedule": "periodic",
+      "selector": "claims with status == denied",
+      "guard": "now - claim.last_activity_at >= 90 days",
+      "action": "close the claim"
+    },
+    {
+      "name": "payout_retry_job",
+      "schedule": "periodic",
+      "selector": "payouts with status == failed",
+      "guard": "now - (last_failure_at or scheduled_at) >= 28 days",
+      "action": "retry the payment via send_faster_payment; mark paid on success, failed on PaymentError"
+    }
+  ],
+  "integrations": [
+    {
+      "name": "assessor",
+      "purpose": "dispatch assessors from an external assessor network",
+      "operations": [
+        {
+          "name": "request_assessor_dispatch",
+          "params": [
+            {"name": "claim_number", "type_hint": "str"},
+            {"name": "specialties", "type_hint": "list[str]"}
+          ],
+          "return_type": "AssessorDispatch",
+          "preconditions": ["len(specialties) > 0"],
+          "raises": ["AssessorDispatchError"]
+        }
+      ]
+    },
+    {
+      "name": "payment",
+      "purpose": "submit Faster Payments to the upstream bank",
+      "operations": [
+        {
+          "name": "send_faster_payment",
+          "params": [
+            {"name": "account_number", "type_hint": "str"},
+            {"name": "sort_code", "type_hint": "str"},
+            {"name": "amount_pence", "type_hint": "int"},
+            {"name": "reference", "type_hint": "str"}
+          ],
+          "return_type": "PaymentResult",
+          "preconditions": [
+            "amount_pence > 0",
+            "len(account_number) == 8 and account_number.isdigit()",
+            "_valid_sort_code(sort_code)",
+            "amount_pence <= 1_000_000_00"
+          ],
+          "raises": ["PaymentError"]
+        }
+      ]
+    }
+  ],
+  "value_types": [
+    {
+      "name": "AssessorDispatch",
+      "fields": [
+        {"name": "claim_number", "type_hint": "str"},
+        {"name": "dispatch_id", "type_hint": "str"},
+        {"name": "specialties", "type_hint": "list[str]"}
+      ],
+      "owned_by": "assessor"
+    },
+    {
+      "name": "PaymentRequest",
+      "fields": [
+        {"name": "account_number", "type_hint": "str"},
+        {"name": "amount_pence", "type_hint": "int"},
+        {"name": "reference", "type_hint": "str"},
+        {"name": "sort_code", "type_hint": "str"}
+      ],
+      "owned_by": "payment"
+    },
+    {
+      "name": "PaymentResult",
+      "fields": [
+        {"name": "request", "type_hint": "PaymentRequest"},
+        {"name": "status", "type_hint": "PaymentResultStatus"},
+        {"name": "submitted_at", "type_hint": "datetime"},
+        {"name": "upstream_id", "type_hint": "str"}
+      ],
+      "owned_by": "payment"
+    }
+  ],
+  "auxiliary_enumerations": [
+    {
+      "name": "PaymentResultStatus",
+      "values": ["accepted", "rejected", "pending_review"],
+      "owned_by": "payment"
+    }
+  ],
+  "routes": [
+    {"method": "POST", "path": "/claims", "handler": "create_claim_route", "module": "app/routes.py"},
+    {"method": "POST", "path": "/claims/<claim_number>/triage", "handler": "triage_route", "module": "app/routes.py"},
+    {"method": "POST", "path": "/claims/<claim_number>/assess", "handler": "start_assessment_route", "module": "app/routes.py"},
+    {"method": "POST", "path": "/claims/<claim_number>/approve", "handler": "approve_claim_route", "module": "app/routes.py"},
+    {"method": "POST", "path": "/claims/<claim_number>/deny", "handler": "deny_route", "module": "app/routes.py"},
+    {"method": "POST", "path": "/payouts/<payout_id>/mark-paid", "handler": "mark_paid_route", "module": "app/routes.py"},
+    {"method": "GET", "path": "/policies/<policy_number>/claims", "handler": "list_policy_claims_route", "module": "app/routes.py"},
+    {"method": "GET", "path": "/claims/<claim_number>", "handler": "get_claim_route", "module": "app/routes.py"}
+  ],
+  "webhooks": [
+    {"path": "/webhooks/incident-reports", "produces_entity": "IncidentReport", "linking_rule": "match claim by policy_number with |claim.incident_date - report.incident_date| <= 2 days"}
+  ]
+}

@@ -1,0 +1,9 @@
+Inventory written to `inventory.json`. It covers:
+
+- **6 entities** (5 internal + 1 external `IncidentReport`) with status enums, FK→relationship distillation (e.g. `Claim.policy: Policy`), derived properties for the four @property-style accessors plus a `Payout.retry_due_at` needed to keep the retry job's `when:` clause clean
+- **12 transitions** with structured `requires` / `ensures` (`assign` / `create` / `invoke`)
+- **4 scheduled jobs** (auto-ack, auto-approval, auto-close, payout-retry); `assessment_sla_job` is omitted because it makes no state changes
+- **2 contracts** (`payment`, `assessor`) with preconditions verbatim in the skill's canonical form
+- **3 value types** + **1 auxiliary enum** for the payment/assessor module-local types
+- **4 cross-cutting invariants** derived mechanically from the rule set (and not from FK existence or input-validation guards)
+- **7 config** entries, **8 routes**, **1 webhook**

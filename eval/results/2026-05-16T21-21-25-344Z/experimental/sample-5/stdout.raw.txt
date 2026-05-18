@@ -1,0 +1,10 @@
+Inventory written to `eval/results/2026-05-16T21-21-25-344Z/experimental/sample-5/inventory.json`.
+
+Coverage:
+- **6 entities** (Assessment, Assessor, Claim, IncidentReport external, Payout, Policy) with status enums, FK→relationship rewrites, derived properties (`age`, `is_within_sla`, `is_stalled`, `total_paid`, `has_completed_assessment`, `has_open_claims`, `retry_due_at`), and `open_claims` in canonical exclusion form.
+- **12 transitions** including the scattered `approve_claim` (called from both route and auto-approval), with guidance noting the route-only payout side-effect.
+- **5 scheduled jobs** (`assessment_sla_job`, `auto_acknowledge_job`, `auto_approval_scheduler` using on-change form on `has_completed_assessment`, `auto_close_denied_job`, `payout_retry_job` using the derived `retry_due_at`).
+- **2 integrations** (assessor, payment) with verbatim preconditions, 3 value types, 1 auxiliary enum.
+- **4 invariants** derived mechanically (approved → completed assessment; amount within coverage; denied → reason; payout amount matches claim).
+- **7 config** entries, **8 routes** in `app/routes.py`, **1 webhook** for IncidentReport.
+- All arrays alphabetized; all type_hints in Allium form (`String`, `Integer`, `Timestamp`, `Set<String>`, entity names, `?` for nullable).

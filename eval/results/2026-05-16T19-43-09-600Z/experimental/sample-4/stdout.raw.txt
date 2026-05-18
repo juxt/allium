@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-43-09-600Z/experimental/sample-4/spec.allium` (418 lines, header `-- allium: 3`, passes `allium check`/`allium analyse` with 0 errors and 0 findings; 2 unused-value warnings are checker false-positives on contract return types).

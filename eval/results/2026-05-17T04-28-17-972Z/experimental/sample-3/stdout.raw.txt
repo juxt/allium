@@ -1,0 +1,14 @@
+Inventory written and validated. 8 routes + 1 webhook = 9 endpoints, matching the README's expected count.
+
+The inventory captures:
+- **6 entities** (5 internal + IncidentReport external) with FK→relationship conversion (e.g. `Claim.policy: Policy`, `Assessment.claim: Claim`)
+- **4 status enums** (PolicyStatus, ClaimStatus, AssessmentStatus, PayoutStatus) in source-order
+- **Derived properties** from `@property` methods plus `Payout.retry_due_at` (to support the coalesce-based temporal trigger) and `Claim.has_completed_assessment` (used as a guard helper)
+- **Derived-view relationships** for `open_claims`, `completed_assessments`, `paid_payouts` (canonical exclusion form for `open_claims`)
+- **12 transitions** spanning services, jobs, and the webhook handler, with structured `params/lets/requires/ensures`
+- **5 scheduled jobs** with the trigger form `<var>: <Type>.<field-expression> <op> <rhs>` (and a property-change form for `auto_approval_scheduler`); `payout_retry_job` references `Payout.retry_due_at` as instructed
+- **4 cross-cutting invariants** derived mechanically per the four-rule taxonomy (ClaimAmountWithinCoverage, ApprovedClaimsHaveCompletedAssessment, DeniedClaimsHaveReason, PayoutAmountMatchesClaim)
+- **2 integrations** (`payment`, `assessor`) with verbatim preconditions and a `1_000_000_00` literal preserved as-is
+- **3 value types + 1 auxiliary enum** from the integrations
+- **7 config constants** with sources, all referenced via `config.<name>` in expressions
+- **Guidance notes** on subtle points: business-day approximation, auto-approval not scheduling a payout, payment-retry happy-path modeling, IncidentReport linking semantics

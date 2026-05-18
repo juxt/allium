@@ -1,0 +1,313 @@
+-- allium: 3
+-- BuildPipeline: distilled from src/.
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+-- Inbound webhook payload from GitHub when a push occurs
+external entity GithubPushEvent {
+    branch: String
+    commitSha: String
+    eventId: String
+    pushedBy: String
+    receivedAt: Timestamp
+    repoFullName: String
+}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value UploadRequest {
+    bucket: String
+    contentType: String
+    key: String
+    sizeBytes: Integer
+}
+
+value UploadResponse {
+    request: UploadRequest
+    storageKey: String
+    uploadedAt: Timestamp
+}
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+contract StorageService {
+    deleteArtifactBlob: (bucket: String, key: String) -> Boolean
+    uploadArtifactBlob: (req: UploadRequest) -> UploadResponse
+
+    @invariant Precondition
+        -- bucket != null
+
+    @invariant Precondition
+        -- key != null
+
+    @invariant Precondition
+        -- req.bucket != null
+
+    @invariant Precondition
+        -- req.sizeBytes <= config.storage_max_bytes
+
+    @invariant Precondition
+        -- req.sizeBytes > 0
+}
+
+------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+enum ArtifactStatus { expired | pending | uploaded }
+
+enum BuildStatus { cancelled | failed | queued | running | success }
+
+enum PipelineStatus { active | archived | paused }
+
+------------------------------------------------------------
+-- Entities
+------------------------------------------------------------
+
+-- Build output blob; expires a TTL after upload
+entity Artifact {
+    artifactId: String
+    build: Build
+    expiresAt: Timestamp?
+    name: String
+    sizeBytes: Integer
+    status: ArtifactStatus
+    storageKey: String?
+    uploadedAt: Timestamp?
+
+    artifactIsExpired: expiresAt != null and now > expiresAt
+}
+
+-- A run of a pipeline against a specific commit
+entity Build {
+    buildId: String
+    commitSha: String
+    failureReason: String?
+    finishedAt: Timestamp?
+    pipeline: Pipeline
+    queuedAt: Timestamp
+    startedAt: Timestamp?
+    status: BuildStatus
+    triggeredBy: String
+
+    artifacts: Artifact with buildId = this
+
+    buildIsStuck: status = running and startedAt != null and (now - startedAt) > config.stuck_after
+}
+
+-- A configured CI pipeline watching a repo/branch
+entity Pipeline {
+    createdAt: Timestamp
+    defaultBranch: String
+    name: String
+    pipelineId: String
+    repoUrl: String
+    status: PipelineStatus
+
+    active_builds: builds where status in {queued, running}
+    builds: Build with pipeline = this
+
+    pipelineActiveBuildCount: active_builds.count
+}
+
+------------------------------------------------------------
+-- Config
+------------------------------------------------------------
+
+config {
+    artifact_ttl: Duration = 7.days
+    queued_timeout: Duration = 30.minutes
+    storage_max_bytes: Integer = 5_368_709_120
+    stuck_after: Duration = 1.hours
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule CancelBuild {
+    when: CancelBuild(build)
+    requires: build.status in {queued, running}
+    ensures:
+        build.status = cancelled
+        build.finishedAt = now
+    @guidance
+        -- Cancels a queued or running build
+}
+
+rule EnqueueBuild {
+    when: EnqueueBuild(buildId, commitSha, pipeline, triggeredBy)
+    requires: pipeline.status = active
+    ensures:
+        Build.created(
+            buildId: buildId,
+            commitSha: commitSha,
+            failureReason: null,
+            finishedAt: null,
+            pipelineId: pipeline,
+            queuedAt: now,
+            startedAt: null,
+            status: queued,
+            triggeredBy: triggeredBy
+        )
+    @guidance
+        -- Enqueues a new build against an active pipeline
+}
+
+rule ExpireOldArtifacts {
+    when: artifact: Artifact.artifactIsExpired
+    requires: artifact.status = uploaded
+    ensures: markArtifactExpired(artifact: artifact)
+    @guidance
+        -- Daily sweep of uploaded artifacts past their expiry timestamp
+}
+
+rule FailStuckBuilds {
+    when: build: Build.buildIsStuck
+    requires: build.status = running
+    ensures: markBuildFailed(build: build, reason: "build exceeded running window")
+    @guidance
+        -- Every 5 minutes, fail any running build past the stuck threshold
+}
+
+rule MarkArtifactExpired {
+    when: MarkArtifactExpired(artifact)
+    requires: artifact.status = uploaded
+    ensures: artifact.status = expired
+    @guidance
+        -- Marks an uploaded artifact as expired after its TTL
+}
+
+rule MarkArtifactUploaded {
+    when: MarkArtifactUploaded(artifact, storageKey)
+    requires: artifact.status = pending
+    ensures:
+        artifact.status = uploaded
+        artifact.uploadedAt = now
+        artifact.expiresAt = now + config.artifact_ttl
+        artifact.storageKey = storageKey
+    @guidance
+        -- Records that the artifact blob has been uploaded; sets the expiry timer
+}
+
+rule MarkBuildFailed {
+    when: MarkBuildFailed(build, reason)
+    requires: build.status = running
+    ensures:
+        build.status = failed
+        build.failureReason = reason
+        build.finishedAt = now
+    @guidance
+        -- Marks a running build as failed with a reason
+}
+
+rule MarkBuildSuccess {
+    when: MarkBuildSuccess(build)
+    requires: build.status = running
+    ensures:
+        build.status = success
+        build.finishedAt = now
+    @guidance
+        -- Marks a running build as successful
+}
+
+rule ReceiveGithubPushEvent {
+    when: ReceiveGithubPushEvent(branch, commitSha, eventId, pushedBy, repoFullName)
+    ensures:
+        GithubPushEvent.created(
+            branch: branch,
+            commitSha: commitSha,
+            eventId: eventId,
+            pushedBy: pushedBy,
+            receivedAt: now,
+            repoFullName: repoFullName
+        )
+    @guidance
+        -- Stores the inbound push event. For every active pipeline whose repoUrl ends with repoFullName and whose defaultBranch matches branch, also enqueues a build (modelled as separate invocations of enqueueBuild).
+}
+
+rule ReceiveGithubPushEvent {
+    when: ReceiveGithubPushEvent(payload)
+    ensures: GithubPushEvent.created(payload)
+    @guidance
+        -- matches pipelines whose repoUrl ends with repoFullName and whose defaultBranch equals branch; enqueues a build per match
+}
+
+rule RegisterArtifact {
+    when: RegisterArtifact(artifactId, build, name, sizeBytes)
+    requires: build.status = success
+    requires: sizeBytes > 0
+    ensures:
+        Artifact.created(
+            artifactId: artifactId,
+            buildId: build,
+            expiresAt: null,
+            name: name,
+            sizeBytes: sizeBytes,
+            status: pending,
+            storageKey: null,
+            uploadedAt: null
+        )
+    @guidance
+        -- Registers a pending artifact tied to a successful build
+}
+
+rule StartBuild {
+    when: StartBuild(build)
+    requires: build.status = queued
+    ensures:
+        build.status = running
+        build.startedAt = now
+    @guidance
+        -- Moves a queued build into the running state
+}
+
+rule TimeoutQueuedBuilds {
+    when: build: Build.queuedAt + config.queued_timeout <= now
+    requires: build.status = queued
+    ensures: cancelBuild(build: build)
+    @guidance
+        -- Every 5 minutes, cancel queued builds that exceeded the queued timeout
+}
+
+------------------------------------------------------------
+-- Invariants
+------------------------------------------------------------
+
+invariant FailedBuildsHaveReason {
+    for b in Builds:
+        b.status = failed implies b.failureReason != null
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+surface Routes {
+    provides:
+        CancelBuild
+        EnqueueBuild
+        MarkArtifactUploaded
+        MarkBuildFailed
+        MarkBuildSuccess
+        ReceiveGithubPushEvent
+        RegisterArtifact
+        StartBuild
+
+    @guidance
+        -- POST /artifacts -> registerArtifact; POST /artifacts/:artifactId/uploaded -> markArtifactUploaded; POST /builds -> enqueueBuild; POST /builds/:buildId/cancel -> cancelBuild; POST /builds/:buildId/failed -> markBuildFailed; POST /builds/:buildId/start -> startBuild; POST /builds/:buildId/success -> markBuildSuccess; POST /webhooks/github-push -> receiveGithubPushEvent
+}
+
+surface Webhooks {
+    provides:
+        ReceiveGithubPushEvent
+
+    @guidance
+        -- POST /webhooks/github-push -> GithubPushEvent
+}

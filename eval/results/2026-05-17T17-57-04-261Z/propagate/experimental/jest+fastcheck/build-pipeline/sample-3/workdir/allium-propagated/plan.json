@@ -1,0 +1,939 @@
+{
+  "obligations": [
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on GithubPushEvent are present with correct types",
+      "detail": {
+        "fields": [
+          "branch",
+          "commitSha",
+          "eventId",
+          "pushedBy",
+          "receivedAt",
+          "repoFullName"
+        ]
+      },
+      "id": "entity-fields.GithubPushEvent",
+      "source_construct": "GithubPushEvent",
+      "source_span": {
+        "end": 423,
+        "start": 255
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type UploadRequest has structural equality",
+      "id": "value-equality.UploadRequest",
+      "source_construct": "UploadRequest",
+      "source_span": {
+        "end": 668,
+        "start": 563
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on UploadRequest are present with correct types",
+      "detail": {
+        "fields": [
+          "bucket",
+          "contentType",
+          "key",
+          "sizeBytes"
+        ]
+      },
+      "id": "entity-fields.UploadRequest",
+      "source_construct": "UploadRequest",
+      "source_span": {
+        "end": 668,
+        "start": 563
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type UploadResponse has structural equality",
+      "id": "value-equality.UploadResponse",
+      "source_construct": "UploadResponse",
+      "source_span": {
+        "end": 770,
+        "start": 670
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on UploadResponse are present with correct types",
+      "detail": {
+        "fields": [
+          "request",
+          "storageKey",
+          "uploadedAt"
+        ]
+      },
+      "id": "entity-fields.UploadResponse",
+      "source_construct": "UploadResponse",
+      "source_span": {
+        "end": 770,
+        "start": 670
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract StorageService.deleteArtifactBlob",
+      "id": "contract-signature.StorageService.deleteArtifactBlob",
+      "source_construct": "StorageService.deleteArtifactBlob",
+      "source_span": {
+        "end": 998,
+        "start": 938
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract StorageService.uploadArtifactBlob",
+      "id": "contract-signature.StorageService.uploadArtifactBlob",
+      "source_construct": "StorageService.uploadArtifactBlob",
+      "source_span": {
+        "end": 1061,
+        "start": 1003
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ArtifactStatus are comparable",
+      "id": "enum-comparable.ArtifactStatus",
+      "source_construct": "ArtifactStatus",
+      "source_span": {
+        "end": 1562,
+        "start": 1510
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum BuildStatus are comparable",
+      "id": "enum-comparable.BuildStatus",
+      "source_construct": "BuildStatus",
+      "source_span": {
+        "end": 1632,
+        "start": 1564
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum PipelineStatus are comparable",
+      "id": "enum-comparable.PipelineStatus",
+      "source_construct": "PipelineStatus",
+      "source_span": {
+        "end": 1684,
+        "start": 1634
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Artifact are present with correct types",
+      "detail": {
+        "fields": [
+          "artifactId",
+          "build",
+          "expiresAt",
+          "name",
+          "sizeBytes",
+          "status",
+          "storageKey",
+          "uploadedAt",
+          "artifactIsExpired"
+        ]
+      },
+      "id": "entity-fields.Artifact",
+      "source_construct": "Artifact",
+      "source_span": {
+        "end": 2135,
+        "start": 1870
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Artifact.expiresAt accepts null and non-null values",
+      "id": "entity-optional.Artifact.expiresAt",
+      "source_construct": "Artifact.expiresAt",
+      "source_span": {
+        "end": 2135,
+        "start": 1870
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Artifact.storageKey accepts null and non-null values",
+      "id": "entity-optional.Artifact.storageKey",
+      "source_construct": "Artifact.storageKey",
+      "source_span": {
+        "end": 2135,
+        "start": 1870
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Artifact.uploadedAt accepts null and non-null values",
+      "id": "entity-optional.Artifact.uploadedAt",
+      "source_construct": "Artifact.uploadedAt",
+      "source_span": {
+        "end": 2135,
+        "start": 1870
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Artifact.artifactIsExpired computes correctly",
+      "id": "derived.Artifact.artifactIsExpired",
+      "source_construct": "Artifact.artifactIsExpired",
+      "source_span": {
+        "end": 2135,
+        "start": 1870
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Build are present with correct types",
+      "detail": {
+        "fields": [
+          "buildId",
+          "commitSha",
+          "failureReason",
+          "finishedAt",
+          "pipeline",
+          "queuedAt",
+          "startedAt",
+          "status",
+          "triggeredBy",
+          "artifacts",
+          "buildIsStuck"
+        ]
+      },
+      "id": "entity-fields.Build",
+      "source_construct": "Build",
+      "source_span": {
+        "end": 2565,
+        "start": 2186
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Build.failureReason accepts null and non-null values",
+      "id": "entity-optional.Build.failureReason",
+      "source_construct": "Build.failureReason",
+      "source_span": {
+        "end": 2565,
+        "start": 2186
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Build.finishedAt accepts null and non-null values",
+      "id": "entity-optional.Build.finishedAt",
+      "source_construct": "Build.finishedAt",
+      "source_span": {
+        "end": 2565,
+        "start": 2186
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Build.startedAt accepts null and non-null values",
+      "id": "entity-optional.Build.startedAt",
+      "source_construct": "Build.startedAt",
+      "source_span": {
+        "end": 2565,
+        "start": 2186
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Build.artifacts navigates to the correct related entities",
+      "id": "entity-relationship.Build.artifacts",
+      "source_construct": "Build.artifacts",
+      "source_span": {
+        "end": 2565,
+        "start": 2186
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Build.buildIsStuck computes correctly",
+      "id": "derived.Build.buildIsStuck",
+      "source_construct": "Build.buildIsStuck",
+      "source_span": {
+        "end": 2565,
+        "start": 2186
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Pipeline are present with correct types",
+      "detail": {
+        "fields": [
+          "createdAt",
+          "defaultBranch",
+          "name",
+          "pipelineId",
+          "repoUrl",
+          "status",
+          "active_builds",
+          "builds",
+          "pipelineActiveBuildCount"
+        ]
+      },
+      "id": "entity-fields.Pipeline",
+      "source_construct": "Pipeline",
+      "source_span": {
+        "end": 2926,
+        "start": 2618
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Pipeline.builds navigates to the correct related entities",
+      "id": "entity-relationship.Pipeline.builds",
+      "source_construct": "Pipeline.builds",
+      "source_span": {
+        "end": 2926,
+        "start": 2618
+      }
+    },
+    {
+      "category": "projection",
+      "description": "Verify projection Pipeline.active_builds filters correctly",
+      "id": "projection.Pipeline.active_builds",
+      "source_construct": "Pipeline.active_builds",
+      "source_span": {
+        "end": 2926,
+        "start": 2618
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter artifact_ttl has its declared default",
+      "id": "config-default.artifact_ttl",
+      "source_construct": "config.artifact_ttl",
+      "source_span": {
+        "end": 3105,
+        "start": 3074
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter queued_timeout has its declared default",
+      "id": "config-default.queued_timeout",
+      "source_construct": "config.queued_timeout",
+      "source_span": {
+        "end": 3147,
+        "start": 3110
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter storage_max_bytes has its declared default",
+      "id": "config-default.storage_max_bytes",
+      "source_construct": "config.storage_max_bytes",
+      "source_span": {
+        "end": 3194,
+        "start": 3152
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter stuck_after has its declared default",
+      "id": "config-default.stuck_after",
+      "source_construct": "config.stuck_after",
+      "source_span": {
+        "end": 3230,
+        "start": 3199
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CancelBuild succeeds when all preconditions are met",
+      "id": "rule-success.CancelBuild",
+      "source_construct": "CancelBuild",
+      "source_span": {
+        "end": 3599,
+        "start": 3366
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CancelBuild is rejected when requires clause fails",
+      "id": "rule-failure.CancelBuild.1",
+      "source_construct": "CancelBuild",
+      "source_span": {
+        "end": 3461,
+        "start": 3418
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Build"
+        ],
+        "entities_read": [
+          "Pipeline"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule EnqueueBuild succeeds when all preconditions are met",
+      "id": "rule-success.EnqueueBuild",
+      "source_construct": "EnqueueBuild",
+      "source_span": {
+        "end": 4128,
+        "start": 3601
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Build"
+        ],
+        "entities_read": [
+          "Pipeline"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule EnqueueBuild is rejected when requires clause fails",
+      "id": "rule-failure.EnqueueBuild.1",
+      "source_construct": "EnqueueBuild",
+      "source_span": {
+        "end": 3725,
+        "start": 3691
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Build"
+        ],
+        "entities_read": [
+          "Pipeline"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule EnqueueBuild ensures clause produces the specified fields",
+      "id": "rule-entity-creation.EnqueueBuild.1",
+      "source_construct": "EnqueueBuild",
+      "source_span": {
+        "end": 4053,
+        "start": 3730
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Artifact"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExpireOldArtifacts succeeds when all preconditions are met",
+      "id": "rule-success.ExpireOldArtifacts",
+      "source_construct": "ExpireOldArtifacts",
+      "source_span": {
+        "end": 4385,
+        "start": 4130
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Artifact"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ExpireOldArtifacts is rejected when requires clause fails",
+      "id": "rule-failure.ExpireOldArtifacts.1",
+      "source_construct": "ExpireOldArtifacts",
+      "source_span": {
+        "end": 4243,
+        "start": 4207
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule FailStuckBuilds succeeds when all preconditions are met",
+      "id": "rule-success.FailStuckBuilds",
+      "source_construct": "FailStuckBuilds",
+      "source_span": {
+        "end": 4658,
+        "start": 4387
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule FailStuckBuilds is rejected when requires clause fails",
+      "id": "rule-failure.FailStuckBuilds.1",
+      "source_construct": "FailStuckBuilds",
+      "source_span": {
+        "end": 4482,
+        "start": 4450
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Artifact"
+        ],
+        "entities_written": [
+          "Artifact"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkArtifactExpired succeeds when all preconditions are met",
+      "id": "rule-success.MarkArtifactExpired",
+      "source_construct": "MarkArtifactExpired",
+      "source_span": {
+        "end": 4885,
+        "start": 4660
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Artifact"
+        ],
+        "entities_written": [
+          "Artifact"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkArtifactExpired is rejected when requires clause fails",
+      "id": "rule-failure.MarkArtifactExpired.1",
+      "source_construct": "MarkArtifactExpired",
+      "source_span": {
+        "end": 4767,
+        "start": 4731
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Artifact"
+        ],
+        "entities_written": [
+          "Artifact"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkArtifactUploaded succeeds when all preconditions are met",
+      "id": "rule-success.MarkArtifactUploaded",
+      "source_construct": "MarkArtifactUploaded",
+      "source_span": {
+        "end": 5284,
+        "start": 4887
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Artifact"
+        ],
+        "entities_written": [
+          "Artifact"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkArtifactUploaded is rejected when requires clause fails",
+      "id": "rule-failure.MarkArtifactUploaded.1",
+      "source_construct": "MarkArtifactUploaded",
+      "source_span": {
+        "end": 5007,
+        "start": 4972
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkBuildFailed succeeds when all preconditions are met",
+      "id": "rule-success.MarkBuildFailed",
+      "source_construct": "MarkBuildFailed",
+      "source_span": {
+        "end": 5570,
+        "start": 5286
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkBuildFailed is rejected when requires clause fails",
+      "id": "rule-failure.MarkBuildFailed.1",
+      "source_construct": "MarkBuildFailed",
+      "source_span": {
+        "end": 5386,
+        "start": 5354
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkBuildSuccess succeeds when all preconditions are met",
+      "id": "rule-success.MarkBuildSuccess",
+      "source_construct": "MarkBuildSuccess",
+      "source_span": {
+        "end": 5804,
+        "start": 5572
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkBuildSuccess is rejected when requires clause fails",
+      "id": "rule-failure.MarkBuildSuccess.1",
+      "source_construct": "MarkBuildSuccess",
+      "source_span": {
+        "end": 5666,
+        "start": 5634
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "GithubPushEvent"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ReceiveGithubPushEvent succeeds when all preconditions are met",
+      "id": "rule-success.ReceiveGithubPushEvent",
+      "source_construct": "ReceiveGithubPushEvent",
+      "source_span": {
+        "end": 6403,
+        "start": 5806
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "GithubPushEvent"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ReceiveGithubPushEvent ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ReceiveGithubPushEvent.1",
+      "source_construct": "ReceiveGithubPushEvent",
+      "source_span": {
+        "end": 6168,
+        "start": 5925
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "GithubPushEvent"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ReceiveGithubPushEvent succeeds when all preconditions are met",
+      "id": "rule-success.ReceiveGithubPushEvent",
+      "source_construct": "ReceiveGithubPushEvent",
+      "source_span": {
+        "end": 6670,
+        "start": 6405
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "GithubPushEvent"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ReceiveGithubPushEvent ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ReceiveGithubPushEvent.1",
+      "source_construct": "ReceiveGithubPushEvent",
+      "source_span": {
+        "end": 6522,
+        "start": 6481
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Artifact"
+        ],
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RegisterArtifact succeeds when all preconditions are met",
+      "id": "rule-success.RegisterArtifact",
+      "source_construct": "RegisterArtifact",
+      "source_span": {
+        "end": 7194,
+        "start": 6672
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Artifact"
+        ],
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RegisterArtifact is rejected when requires clause fails",
+      "id": "rule-failure.RegisterArtifact.1",
+      "source_construct": "RegisterArtifact",
+      "source_span": {
+        "end": 6795,
+        "start": 6763
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Artifact"
+        ],
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RegisterArtifact is rejected when requires clause fails",
+      "id": "rule-failure.RegisterArtifact.2",
+      "source_construct": "RegisterArtifact",
+      "source_span": {
+        "end": 6823,
+        "start": 6800
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Artifact"
+        ],
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RegisterArtifact ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RegisterArtifact.1",
+      "source_construct": "RegisterArtifact",
+      "source_span": {
+        "end": 7111,
+        "start": 6828
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StartBuild succeeds when all preconditions are met",
+      "id": "rule-success.StartBuild",
+      "source_construct": "StartBuild",
+      "source_span": {
+        "end": 7422,
+        "start": 7196
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "entities_written": [
+          "Build"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StartBuild is rejected when requires clause fails",
+      "id": "rule-failure.StartBuild.1",
+      "source_construct": "StartBuild",
+      "source_span": {
+        "end": 7277,
+        "start": 7246
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule TimeoutQueuedBuilds succeeds when all preconditions are met",
+      "id": "rule-success.TimeoutQueuedBuilds",
+      "source_construct": "TimeoutQueuedBuilds",
+      "source_span": {
+        "end": 7686,
+        "start": 7424
+      }
+    },
+    {
+      "category": "temporal",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify temporal trigger in TimeoutQueuedBuilds fires at deadline, not before, and does not re-fire",
+      "id": "temporal.TimeoutQueuedBuilds",
+      "source_construct": "TimeoutQueuedBuilds",
+      "source_span": {
+        "end": 7513,
+        "start": 7455
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Build"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule TimeoutQueuedBuilds is rejected when requires clause fails",
+      "id": "rule-failure.TimeoutQueuedBuilds.1",
+      "source_construct": "TimeoutQueuedBuilds",
+      "source_span": {
+        "end": 7549,
+        "start": 7518
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant FailedBuildsHaveReason holds after every state-changing rule that touches constrained entities",
+      "expression": "for b in Builds:\n        b.status = failed implies b.failureReason != null",
+      "id": "invariant.FailedBuildsHaveReason",
+      "source_construct": "FailedBuildsHaveReason",
+      "source_span": {
+        "end": 7940,
+        "start": 7825
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface Routes is accessible only to the specified actor",
+      "id": "surface-actor.Routes",
+      "source_construct": "Routes",
+      "source_span": {
+        "end": 8699,
+        "start": 8077
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on Routes appear/hide based on when conditions",
+      "id": "surface-provides.Routes",
+      "source_construct": "Routes",
+      "source_span": {
+        "end": 8301,
+        "start": 8098
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface Webhooks is accessible only to the specified actor",
+      "id": "surface-actor.Webhooks",
+      "source_construct": "Webhooks",
+      "source_span": {
+        "end": 8838,
+        "start": 8701
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on Webhooks appear/hide based on when conditions",
+      "id": "surface-provides.Webhooks",
+      "source_construct": "Webhooks",
+      "source_span": {
+        "end": 8764,
+        "start": 8724
+      }
+    }
+  ],
+  "version": 3
+}

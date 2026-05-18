@@ -1,0 +1,5 @@
+Spec written and validated. `allium check` reports 0 errors (32 info, 2 warning), and the file begins with the required `-- allium: 3` header.
+
+Summary:
+- **Inventory** at `inventory.json` (alphabetised entities, transitions, jobs, integrations, value types, enums, invariants, routes, webhooks)
+- **Spec** at `spec.allium`: 5 internal entities (Assessment, Assessor, Claim, Payout, Policy), 1 external (IncidentReport), 5 enums, 3 value types, 2 contracts (AssessorService, PaymentService), 17 rules (lifecycle transitions + 5 scheduled jobs + webhook), 4 top-level invariants, 2 surfaces (Routes, Webhooks), config block with the 7 temporal/threshold constants.

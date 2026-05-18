@@ -1,0 +1,1 @@
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-45-00-249Z/experimental/sample-5/spec.allium` — 420 lines, `allium check` reports 0 errors and 0 warnings (31 info-level hints only, mostly unused fields on the external `IncidentReport` and on `Claim`/`Policy` projections kept to mirror the codebase's audit pattern table).

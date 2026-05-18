@@ -1,0 +1,13 @@
+Inventory written to `inventory.json`. JSON validates cleanly.
+
+Summary of what's in the inventory:
+
+- **6 entities** — `Assessment`, `Assessor`, `Claim`, `IncidentReport` (external), `Payout`, `Policy`. FK fields distilled to entity refs (`policy: Policy`, `claim: Claim`, etc.).
+- **12 transitions** — all service-layer functions plus `receive_incident_report` (with a `let candidate = first c in Claim where …` binding for the webhook linking logic).
+- **4 scheduled jobs** — `auto_acknowledge_job`, `auto_approval_scheduler` (change-trigger on `Claim.has_completed_assessment`), `auto_close_denied_job`, `payout_retry_job` (uses derived `retry_due_at` on `Payout` to avoid `coalesce(...)` in `when:`).
+- **2 integrations** — `assessor` and `payment`, with preconditions verbatim and the literal `100_000_000` form for the cap.
+- **4 invariants** — derived mechanically from the four rules (coverage, denied-has-reason, approved-has-assessment, payout-amount-matches).
+- **8 routes**, **1 webhook**, **7 config keys** (durations from both `app/models.py` and `app/jobs.py`, plus `link_window` from `app/webhooks.py`, plus `auto_approve_max_pence` with `50_000_00` underscores preserved).
+- **3 value types** + **1 aux enum** for the payment integration shapes.
+
+All arrays sorted alphabetically, all type hints use Allium types (`String`, `Integer`, `Timestamp`, `Set<String>`, `Policy?`, etc.) — no Python types leaked.

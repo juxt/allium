@@ -1,0 +1,3 @@
+Spec validates with 0 errors (37 info, 2 warning diagnostics — all non-blocking). Done.
+
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-29-47-784Z/experimental/sample-5/spec.allium`. Covers all 6 entities (5 internal + 1 external `IncidentReport`), 4 status enums + 1 auxiliary `PaymentResultStatus`, 11 state-machine rules with guards, 5 temporal/derived-condition scheduled-job rules, derived helpers (`has_completed_assessment`, `is_trusted`, `is_auto_approvable`, `is_stalled`, `is_within_sla`, `total_paid`, `has_open_claims`), 2 integration contracts (`Payment`, `AssessorNetwork`) with verbatim preconditions as `@invariant` clauses, and two surfaces (`Routes`, `Webhooks`). `allium check` reports 0 errors.

@@ -1,0 +1,3 @@
+Spec validates structurally (only advisory warnings/infos, no errors) — same diagnostic profile as the reference baseline spec.
+
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-22-25-323Z/experimental/sample-1/spec.allium` covering all 6 entities, 4 status enums with Claim transition graph, 11 rules (5 transitions + 5 temporal jobs + 1 webhook ingest), 4 invariants, and 4 surfaces (adjuster workbench, incident-feed webhook, Faster Payments and assessor-dispatch boundaries).

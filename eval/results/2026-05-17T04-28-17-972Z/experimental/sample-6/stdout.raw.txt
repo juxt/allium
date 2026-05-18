@@ -1,0 +1,11 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T04-28-17-972Z/experimental/sample-6/inventory.json`.
+
+Summary: 6 entities (5 internal + IncidentReport external), 12 transitions covering the claim/assessment/payout lifecycle, 5 scheduled jobs (auto-ack, SLA, retry, auto-close, auto-approval), 8 routes + 1 webhook (9 endpoints — matches the README sanity check), 4 cross-cutting invariants, 2 integrations (assessor + payment) with contract preconditions, 3 value types and 1 auxiliary enum from the payment integration, and 7 config constants (5 durations + 1 integer threshold + 1 link window).
+
+Key modelling decisions worth flagging:
+- FK fields (`policy_number`, `claim_number`, `assessor_name`) distil to entity references (`policy: Policy`, `claim: Claim`, `assessor: Assessor`).
+- `_has_completed_assessment` is **not** added as a derived property (it's a free function, not an `@property` on `Claim`); rules express the guard via the `completed_assessments` derived relationship instead.
+- `coalesce(last_failure_at, scheduled_at) + retry_after` refactored into `Payout.retry_due_at` derived so the `payout_retry_job` `when:` clause stays in the simple `Type.field <= now` grammar.
+- `assessment_sla_job` has empty `ensures` (the code just collects breached claims for adjuster review — no mutation).
+- `auto_approval_scheduler` uses the property-change trigger form `claim: Claim.completed_assessments` since it has no temporal anchor.
+- `payment` preconditions follow the skill's worked examples (literal `amount_pence > 0`, `len(account_number) == 8 …`, paraphrased `sort_code matches NN-NN-NN format`, literal `amount_pence <= 1_000_000_00`).

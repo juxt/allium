@@ -1,0 +1,11 @@
+Inventory written to `inventory.json` (validated as JSON, all arrays alphabetised).
+
+Summary of what's captured:
+- **6 entities**: Assessment, Assessor, Claim, IncidentReport (external), Payout, Policy — with status enums, FK→relationship conversions (policy_number → policy: Policy), Set<String>/Timestamp Allium types, and derived properties (`is_stalled`, `is_within_sla`, `has_completed_assessment`, `total_paid`, `has_open_claims`).
+- **12 transitions**: full lifecycle plus `receive_incident_report` and `complete_assessment`. Each has structured `params`/`requires`/`ensures` with `kind: assign/create/invoke`.
+- **5 scheduled jobs** including the auto-ack (business-day → calendar-day guidance) and payout retry with success-path invocations.
+- **2 integrations** (`payment`, `assessor`) with verbatim preconditions like `amount_pence <= 1_000_000_00` and `len(account_number) == 8 and account_number.isdigit()`.
+- **3 value types** + **PaymentResultStatus** auxiliary enum, all owned by their integration module.
+- **8 cross-cutting invariants** derived mechanically from the four rules.
+- **7 config constants** including the implicit `link_window` from `webhooks.py`.
+- **8 routes** (`app/routes.py`) and **1 webhook** (`/webhooks/incident-reports` → IncidentReport).

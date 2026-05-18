@@ -1,0 +1,3 @@
+Both `allium check` and `allium analyse` report zero errors and zero process-level findings — only warnings about external entities without source hints and info notes about observable fields not yet consumed by rules. The spec is structurally valid.
+
+Spec saved to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T10-49-07-771Z/experimental/sample-1/spec.allium` — covers 6 entities (Policy, Claim, Assessment, Assessor, Payout, IncidentReport) plus 4 external actors, 4 status enums with transition graphs, 13 rules across submission/triage/assessment/approval/denial/payout/retry/auto-close/webhook flows, 6 invariants, and 6 surfaces (adjuster API, two read views, incident webhook, Faster Payments integration, assessor dispatch).

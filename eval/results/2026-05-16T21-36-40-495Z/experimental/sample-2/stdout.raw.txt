@@ -1,0 +1,8 @@
+Inventory written to `inventory.json` (parses cleanly). Summary of what it captures:
+
+- **6 entities**: Assessment, Assessor, Claim, IncidentReport (external), Payout, Policy — with FK fields (e.g. `Claim.policy_number`) distilled to relationships (`Claim.policy: Policy`); status enums in source-code order; derived relationships (`open_claims`, `completed_assessments`, `paid_payouts`); and derived properties from `@property` and helper-equivalent methods (`age`, `is_stalled`, `is_within_sla`, `has_completed_assessment`, `total_paid`, `has_open_claims`, `retry_due_at`).
+- **11 transitions** from `services.py` with structured `requires`/`ensures` (assign/create/invoke), each with `called_from` traces. Guidance flags the auto-approval / payout-scheduling asymmetry on `approve_claim`.
+- **4 scheduled jobs** (SLA-reporting job omitted — captured via `is_within_sla` derived). `payout_retry_job` references the new `Payout.retry_due_at` derived; `auto_approval_scheduler` fires on `Claim.has_completed_assessment` change; `auto_acknowledge_job` carries a guidance note about business-day vs calendar-day modelling.
+- **2 integrations** (`assessor`, `payment`) with operations, params, return types, and verbatim preconditions; 3 value types (`PaymentRequest`, `PaymentResult`, `AssessorDispatch`); 1 auxiliary enum (`PaymentResultStatus`).
+- **4 invariants** derived from the four-rule taxonomy (coverage, denial-reason, approved-has-assessment, payout-amount-matches).
+- **7 config keys** (durations + the auto-approve pence cap, preserving `50_000_00` digit-grouping) and **8 routes** + **1 webhook**.

@@ -1,0 +1,3 @@
+The spec is structurally valid — all diagnostics from both `allium check` and `allium analyse` are informational (only two warnings are about unused value types that are actually referenced in contract signatures).
+
+Spec written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-43-09-600Z/experimental/sample-3/spec.allium` — 402 lines, passes `allium check` with no errors.

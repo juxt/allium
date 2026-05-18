@@ -1,0 +1,1409 @@
+{
+  "obligations": [
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on IncidentReport are present with correct types",
+      "detail": {
+        "fields": [
+          "description",
+          "incident_date",
+          "linked_claim",
+          "policy_number",
+          "received_at",
+          "report_id",
+          "source"
+        ]
+      },
+      "id": "entity-fields.IncidentReport",
+      "source_construct": "IncidentReport",
+      "source_span": {
+        "end": 563,
+        "start": 356
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field IncidentReport.linked_claim accepts null and non-null values",
+      "id": "entity-optional.IncidentReport.linked_claim",
+      "source_construct": "IncidentReport.linked_claim",
+      "source_span": {
+        "end": 563,
+        "start": 356
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field IncidentReport.policy_number accepts null and non-null values",
+      "id": "entity-optional.IncidentReport.policy_number",
+      "source_construct": "IncidentReport.policy_number",
+      "source_span": {
+        "end": 563,
+        "start": 356
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type AssessorDispatch has structural equality",
+      "id": "value-equality.AssessorDispatch",
+      "source_construct": "AssessorDispatch",
+      "source_span": {
+        "end": 808,
+        "start": 703
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on AssessorDispatch are present with correct types",
+      "detail": {
+        "fields": [
+          "claim_number",
+          "dispatch_id",
+          "specialties"
+        ]
+      },
+      "id": "entity-fields.AssessorDispatch",
+      "source_construct": "AssessorDispatch",
+      "source_span": {
+        "end": 808,
+        "start": 703
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type PaymentRequest has structural equality",
+      "id": "value-equality.PaymentRequest",
+      "source_construct": "PaymentRequest",
+      "source_span": {
+        "end": 931,
+        "start": 810
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on PaymentRequest are present with correct types",
+      "detail": {
+        "fields": [
+          "account_number",
+          "amount_pence",
+          "reference",
+          "sort_code"
+        ]
+      },
+      "id": "entity-fields.PaymentRequest",
+      "source_construct": "PaymentRequest",
+      "source_span": {
+        "end": 931,
+        "start": 810
+      }
+    },
+    {
+      "category": "value_equality",
+      "description": "Verify value type PaymentResult has structural equality",
+      "id": "value-equality.PaymentResult",
+      "source_construct": "PaymentResult",
+      "source_span": {
+        "end": 1068,
+        "start": 933
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on PaymentResult are present with correct types",
+      "detail": {
+        "fields": [
+          "request",
+          "status",
+          "submitted_at",
+          "upstream_id"
+        ]
+      },
+      "id": "entity-fields.PaymentResult",
+      "source_construct": "PaymentResult",
+      "source_span": {
+        "end": 1068,
+        "start": 933
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract AssessorService.request_assessor_dispatch",
+      "id": "contract-signature.AssessorService.request_assessor_dispatch",
+      "source_construct": "AssessorService.request_assessor_dispatch",
+      "source_span": {
+        "end": 1333,
+        "start": 1237
+      }
+    },
+    {
+      "category": "contract_signature",
+      "description": "Verify implementation satisfies contract PaymentService.send_faster_payment",
+      "id": "contract-signature.PaymentService.send_faster_payment",
+      "source_construct": "PaymentService.send_faster_payment",
+      "source_span": {
+        "end": 1553,
+        "start": 1430
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum AssessmentStatus are comparable",
+      "id": "enum-comparable.AssessmentStatus",
+      "source_construct": "AssessmentStatus",
+      "source_span": {
+        "end": 1898,
+        "start": 1839
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum ClaimStatus are comparable",
+      "id": "enum-comparable.ClaimStatus",
+      "source_construct": "ClaimStatus",
+      "source_span": {
+        "end": 1988,
+        "start": 1900
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum PaymentResultStatus are comparable",
+      "id": "enum-comparable.PaymentResultStatus",
+      "source_construct": "PaymentResultStatus",
+      "source_span": {
+        "end": 2055,
+        "start": 1990
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum PayoutStatus are comparable",
+      "id": "enum-comparable.PayoutStatus",
+      "source_construct": "PayoutStatus",
+      "source_span": {
+        "end": 2104,
+        "start": 2057
+      }
+    },
+    {
+      "category": "enum_comparable",
+      "description": "Verify fields typed with enum PolicyStatus are comparable",
+      "id": "enum-comparable.PolicyStatus",
+      "source_construct": "PolicyStatus",
+      "source_span": {
+        "end": 2155,
+        "start": 2106
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Assessment are present with correct types",
+      "detail": {
+        "fields": [
+          "assessment_id",
+          "assessor",
+          "claim",
+          "completed_at",
+          "findings",
+          "started_at",
+          "status"
+        ]
+      },
+      "id": "entity-fields.Assessment",
+      "source_construct": "Assessment",
+      "source_span": {
+        "end": 2485,
+        "start": 2292
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Assessment.completed_at accepts null and non-null values",
+      "id": "entity-optional.Assessment.completed_at",
+      "source_construct": "Assessment.completed_at",
+      "source_span": {
+        "end": 2485,
+        "start": 2292
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Assessment.started_at accepts null and non-null values",
+      "id": "entity-optional.Assessment.started_at",
+      "source_construct": "Assessment.started_at",
+      "source_span": {
+        "end": 2485,
+        "start": 2292
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Assessor are present with correct types",
+      "detail": {
+        "fields": [
+          "name",
+          "specialties"
+        ]
+      },
+      "id": "entity-fields.Assessor",
+      "source_construct": "Assessor",
+      "source_span": {
+        "end": 2552,
+        "start": 2487
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Claim are present with correct types",
+      "detail": {
+        "fields": [
+          "amount_claimed_pence",
+          "claim_number",
+          "denial_reason",
+          "incident_date",
+          "last_activity_at",
+          "policy",
+          "status",
+          "submitted_at",
+          "assessments",
+          "completed_assessments",
+          "paid_payouts",
+          "payouts",
+          "age",
+          "has_completed_assessment",
+          "is_stalled",
+          "is_within_sla",
+          "total_paid"
+        ]
+      },
+      "id": "entity-fields.Claim",
+      "source_construct": "Claim",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Claim.denial_reason accepts null and non-null values",
+      "id": "entity-optional.Claim.denial_reason",
+      "source_construct": "Claim.denial_reason",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Claim.assessments navigates to the correct related entities",
+      "id": "entity-relationship.Claim.assessments",
+      "source_construct": "Claim.assessments",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Claim.payouts navigates to the correct related entities",
+      "id": "entity-relationship.Claim.payouts",
+      "source_construct": "Claim.payouts",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "projection",
+      "description": "Verify projection Claim.completed_assessments filters correctly",
+      "id": "projection.Claim.completed_assessments",
+      "source_construct": "Claim.completed_assessments",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "projection",
+      "description": "Verify projection Claim.paid_payouts filters correctly",
+      "id": "projection.Claim.paid_payouts",
+      "source_construct": "Claim.paid_payouts",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Claim.age computes correctly",
+      "id": "derived.Claim.age",
+      "source_construct": "Claim.age",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Claim.has_completed_assessment computes correctly",
+      "id": "derived.Claim.has_completed_assessment",
+      "source_construct": "Claim.has_completed_assessment",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Claim.is_stalled computes correctly",
+      "id": "derived.Claim.is_stalled",
+      "source_construct": "Claim.is_stalled",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Claim.is_within_sla computes correctly",
+      "id": "derived.Claim.is_within_sla",
+      "source_construct": "Claim.is_within_sla",
+      "source_span": {
+        "end": 3341,
+        "start": 2639
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Payout are present with correct types",
+      "detail": {
+        "fields": [
+          "amount_pence",
+          "claim",
+          "failed_attempts",
+          "last_failure_at",
+          "paid_at",
+          "payout_id",
+          "scheduled_at",
+          "status",
+          "retry_anchor",
+          "retry_due_at"
+        ]
+      },
+      "id": "entity-fields.Payout",
+      "source_construct": "Payout",
+      "source_span": {
+        "end": 3708,
+        "start": 3343
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Payout.last_failure_at accepts null and non-null values",
+      "id": "entity-optional.Payout.last_failure_at",
+      "source_construct": "Payout.last_failure_at",
+      "source_span": {
+        "end": 3708,
+        "start": 3343
+      }
+    },
+    {
+      "category": "entity_optional",
+      "description": "Verify optional field Payout.paid_at accepts null and non-null values",
+      "id": "entity-optional.Payout.paid_at",
+      "source_construct": "Payout.paid_at",
+      "source_span": {
+        "end": 3708,
+        "start": 3343
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Payout.retry_due_at computes correctly",
+      "id": "derived.Payout.retry_due_at",
+      "source_construct": "Payout.retry_due_at",
+      "source_span": {
+        "end": 3708,
+        "start": 3343
+      }
+    },
+    {
+      "category": "entity_fields",
+      "description": "Verify all declared fields on Policy are present with correct types",
+      "detail": {
+        "fields": [
+          "coverage_limit_pence",
+          "holder",
+          "holder_tags",
+          "policy_number",
+          "status",
+          "claims",
+          "open_claims",
+          "has_open_claims"
+        ]
+      },
+      "id": "entity-fields.Policy",
+      "source_construct": "Policy",
+      "source_span": {
+        "end": 4009,
+        "start": 3710
+      }
+    },
+    {
+      "category": "entity_relationship",
+      "description": "Verify relationship Policy.claims navigates to the correct related entities",
+      "id": "entity-relationship.Policy.claims",
+      "source_construct": "Policy.claims",
+      "source_span": {
+        "end": 4009,
+        "start": 3710
+      }
+    },
+    {
+      "category": "projection",
+      "description": "Verify projection Policy.open_claims filters correctly",
+      "id": "projection.Policy.open_claims",
+      "source_construct": "Policy.open_claims",
+      "source_span": {
+        "end": 4009,
+        "start": 3710
+      }
+    },
+    {
+      "category": "derived",
+      "description": "Verify derived value Policy.has_open_claims computes correctly",
+      "id": "derived.Policy.has_open_claims",
+      "source_construct": "Policy.has_open_claims",
+      "source_span": {
+        "end": 4009,
+        "start": 3710
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter assessment_sla has its declared default",
+      "id": "config-default.assessment_sla",
+      "source_construct": "config.assessment_sla",
+      "source_span": {
+        "end": 4191,
+        "start": 4157
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter auto_ack_after has its declared default",
+      "id": "config-default.auto_ack_after",
+      "source_construct": "config.auto_ack_after",
+      "source_span": {
+        "end": 4229,
+        "start": 4196
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter auto_approve_max_pence has its declared default",
+      "id": "config-default.auto_approve_max_pence",
+      "source_construct": "config.auto_approve_max_pence",
+      "source_span": {
+        "end": 4277,
+        "start": 4234
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter auto_close_denied_after has its declared default",
+      "id": "config-default.auto_close_denied_after",
+      "source_construct": "config.auto_close_denied_after",
+      "source_span": {
+        "end": 4325,
+        "start": 4282
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter link_window has its declared default",
+      "id": "config-default.link_window",
+      "source_construct": "config.link_window",
+      "source_span": {
+        "end": 4360,
+        "start": 4330
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter payout_retry_after has its declared default",
+      "id": "config-default.payout_retry_after",
+      "source_construct": "config.payout_retry_after",
+      "source_span": {
+        "end": 4403,
+        "start": 4365
+      }
+    },
+    {
+      "category": "config_default",
+      "description": "Verify config parameter stalled_after has its declared default",
+      "id": "config-default.stalled_after",
+      "source_construct": "config.stalled_after",
+      "source_span": {
+        "end": 4441,
+        "start": 4408
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ApproveClaim succeeds when all preconditions are met",
+      "id": "rule-success.ApproveClaim",
+      "source_construct": "ApproveClaim",
+      "source_span": {
+        "end": 4901,
+        "start": 4577
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ApproveClaim is rejected when requires clause fails",
+      "id": "rule-failure.ApproveClaim.1",
+      "source_construct": "ApproveClaim",
+      "source_span": {
+        "end": 4671,
+        "start": 4631
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ApproveClaim is rejected when requires clause fails",
+      "id": "rule-failure.ApproveClaim.2",
+      "source_construct": "ApproveClaim",
+      "source_span": {
+        "end": 4710,
+        "start": 4676
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule AssessmentSlaJob succeeds when all preconditions are met",
+      "id": "rule-success.AssessmentSlaJob",
+      "source_construct": "AssessmentSlaJob",
+      "source_span": {
+        "end": 5174,
+        "start": 4903
+      }
+    },
+    {
+      "category": "temporal",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify temporal trigger in AssessmentSlaJob fires at deadline, not before, and does not re-fire",
+      "id": "temporal.AssessmentSlaJob",
+      "source_construct": "AssessmentSlaJob",
+      "source_span": {
+        "end": 4993,
+        "start": 4931
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule AssessmentSlaJob is rejected when requires clause fails",
+      "id": "rule-failure.AssessmentSlaJob.1",
+      "source_construct": "AssessmentSlaJob",
+      "source_span": {
+        "end": 5044,
+        "start": 4998
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule AutoAcknowledgeJob succeeds when all preconditions are met",
+      "id": "rule-success.AutoAcknowledgeJob",
+      "source_construct": "AutoAcknowledgeJob",
+      "source_span": {
+        "end": 5446,
+        "start": 5176
+      }
+    },
+    {
+      "category": "temporal",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify temporal trigger in AutoAcknowledgeJob fires at deadline, not before, and does not re-fire",
+      "id": "temporal.AutoAcknowledgeJob",
+      "source_construct": "AutoAcknowledgeJob",
+      "source_span": {
+        "end": 5268,
+        "start": 5206
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule AutoAcknowledgeJob is rejected when requires clause fails",
+      "id": "rule-failure.AutoAcknowledgeJob.1",
+      "source_construct": "AutoAcknowledgeJob",
+      "source_span": {
+        "end": 5307,
+        "start": 5273
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule AutoApprovalScheduler succeeds when all preconditions are met",
+      "id": "rule-success.AutoApprovalScheduler",
+      "source_construct": "AutoApprovalScheduler",
+      "source_span": {
+        "end": 5798,
+        "start": 5448
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule AutoApprovalScheduler is rejected when requires clause fails",
+      "id": "rule-failure.AutoApprovalScheduler.1",
+      "source_construct": "AutoApprovalScheduler",
+      "source_span": {
+        "end": 5576,
+        "start": 5529
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule AutoApprovalScheduler is rejected when requires clause fails",
+      "id": "rule-failure.AutoApprovalScheduler.2",
+      "source_construct": "AutoApprovalScheduler",
+      "source_span": {
+        "end": 5649,
+        "start": 5581
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule AutoApprovalScheduler is rejected when requires clause fails",
+      "id": "rule-failure.AutoApprovalScheduler.3",
+      "source_construct": "AutoApprovalScheduler",
+      "source_span": {
+        "end": 5688,
+        "start": 5654
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule AutoCloseDeniedJob succeeds when all preconditions are met",
+      "id": "rule-success.AutoCloseDeniedJob",
+      "source_construct": "AutoCloseDeniedJob",
+      "source_span": {
+        "end": 6023,
+        "start": 5800
+      }
+    },
+    {
+      "category": "temporal",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify temporal trigger in AutoCloseDeniedJob fires at deadline, not before, and does not re-fire",
+      "id": "temporal.AutoCloseDeniedJob",
+      "source_construct": "AutoCloseDeniedJob",
+      "source_span": {
+        "end": 5905,
+        "start": 5830
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule AutoCloseDeniedJob is rejected when requires clause fails",
+      "id": "rule-failure.AutoCloseDeniedJob.1",
+      "source_construct": "AutoCloseDeniedJob",
+      "source_span": {
+        "end": 5941,
+        "start": 5910
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Assessment"
+        ],
+        "entities_written": [
+          "Assessment"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CompleteAssessment succeeds when all preconditions are met",
+      "id": "rule-success.CompleteAssessment",
+      "source_construct": "CompleteAssessment",
+      "source_span": {
+        "end": 6325,
+        "start": 6025
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Assessment"
+        ],
+        "entities_written": [
+          "Assessment"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule CompleteAssessment is rejected when requires clause fails",
+      "id": "rule-failure.CompleteAssessment.1",
+      "source_construct": "CompleteAssessment",
+      "source_span": {
+        "end": 6147,
+        "start": 6106
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DenyClaim succeeds when all preconditions are met",
+      "id": "rule-success.DenyClaim",
+      "source_construct": "DenyClaim",
+      "source_span": {
+        "end": 6548,
+        "start": 6327
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule DenyClaim is rejected when requires clause fails",
+      "id": "rule-failure.DenyClaim.1",
+      "source_construct": "DenyClaim",
+      "source_span": {
+        "end": 6429,
+        "start": 6383
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_written": [
+          "Payout"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkPayoutFailed succeeds when all preconditions are met",
+      "id": "rule-success.MarkPayoutFailed",
+      "source_construct": "MarkPayoutFailed",
+      "source_span": {
+        "end": 6751,
+        "start": 6550
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_written": [
+          "Payout"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule MarkPayoutPaid succeeds when all preconditions are met",
+      "id": "rule-success.MarkPayoutPaid",
+      "source_construct": "MarkPayoutPaid",
+      "source_span": {
+        "end": 6959,
+        "start": 6753
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Payout"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule PayoutRetryJob succeeds when all preconditions are met",
+      "id": "rule-success.PayoutRetryJob",
+      "source_construct": "PayoutRetryJob",
+      "source_span": {
+        "end": 7207,
+        "start": 6961
+      }
+    },
+    {
+      "category": "temporal",
+      "dependencies": {
+        "entities_read": [
+          "Payout"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify temporal trigger in PayoutRetryJob fires at deadline, not before, and does not re-fire",
+      "id": "temporal.PayoutRetryJob",
+      "source_construct": "PayoutRetryJob",
+      "source_span": {
+        "end": 7027,
+        "start": 6987
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Payout"
+        ],
+        "trigger_source": "temporal"
+      },
+      "description": "Verify rule PayoutRetryJob is rejected when requires clause fails",
+      "id": "rule-failure.PayoutRetryJob.1",
+      "source_construct": "PayoutRetryJob",
+      "source_span": {
+        "end": 7064,
+        "start": 7032
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "IncidentReport"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule ReceiveIncidentReport succeeds when all preconditions are met",
+      "id": "rule-success.ReceiveIncidentReport",
+      "source_construct": "ReceiveIncidentReport",
+      "source_span": {
+        "end": 7417,
+        "start": 7209
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "IncidentReport"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule ReceiveIncidentReport ensures clause produces the specified fields",
+      "id": "rule-entity-creation.ReceiveIncidentReport.1",
+      "source_construct": "ReceiveIncidentReport",
+      "source_span": {
+        "end": 7323,
+        "start": 7283
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Assessor"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RegisterAssessor succeeds when all preconditions are met",
+      "id": "rule-success.RegisterAssessor",
+      "source_construct": "RegisterAssessor",
+      "source_span": {
+        "end": 7600,
+        "start": 7419
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Assessor"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RegisterAssessor ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RegisterAssessor.1",
+      "source_construct": "RegisterAssessor",
+      "source_span": {
+        "end": 7598,
+        "start": 7493
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Policy"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule RegisterPolicy succeeds when all preconditions are met",
+      "id": "rule-success.RegisterPolicy",
+      "source_construct": "RegisterPolicy",
+      "source_span": {
+        "end": 7946,
+        "start": 7602
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Policy"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule RegisterPolicy ensures clause produces the specified fields",
+      "id": "rule-entity-creation.RegisterPolicy.1",
+      "source_construct": "RegisterPolicy",
+      "source_span": {
+        "end": 7944,
+        "start": 7711
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Payout"
+        ],
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SchedulePayout succeeds when all preconditions are met",
+      "id": "rule-success.SchedulePayout",
+      "source_construct": "SchedulePayout",
+      "source_span": {
+        "end": 8298,
+        "start": 7948
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Payout"
+        ],
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SchedulePayout is rejected when requires clause fails",
+      "id": "rule-failure.SchedulePayout.1",
+      "source_construct": "SchedulePayout",
+      "source_span": {
+        "end": 8039,
+        "start": 8006
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Payout"
+        ],
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule SchedulePayout ensures clause produces the specified fields",
+      "id": "rule-entity-creation.SchedulePayout.1",
+      "source_construct": "SchedulePayout",
+      "source_span": {
+        "end": 8296,
+        "start": 8044
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Assessment"
+        ],
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StartAssessment succeeds when all preconditions are met",
+      "id": "rule-success.StartAssessment",
+      "source_construct": "StartAssessment",
+      "source_span": {
+        "end": 8670,
+        "start": 8300
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Assessment"
+        ],
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule StartAssessment is rejected when requires clause fails",
+      "id": "rule-failure.StartAssessment.1",
+      "source_construct": "StartAssessment",
+      "source_span": {
+        "end": 8402,
+        "start": 8370
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Assessment"
+        ],
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule StartAssessment ensures clause produces the specified fields",
+      "id": "rule-entity-creation.StartAssessment.1",
+      "source_construct": "StartAssessment",
+      "source_span": {
+        "end": 8668,
+        "start": 8407
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_created": [
+          "Claim"
+        ],
+        "entities_read": [
+          "Policy"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SubmitClaim succeeds when all preconditions are met",
+      "id": "rule-success.SubmitClaim",
+      "source_construct": "SubmitClaim",
+      "source_span": {
+        "end": 9184,
+        "start": 8672
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Claim"
+        ],
+        "entities_read": [
+          "Policy"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SubmitClaim is rejected when requires clause fails",
+      "id": "rule-failure.SubmitClaim.1",
+      "source_construct": "SubmitClaim",
+      "source_span": {
+        "end": 8837,
+        "start": 8776
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_created": [
+          "Claim"
+        ],
+        "entities_read": [
+          "Policy"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule SubmitClaim is rejected when requires clause fails",
+      "id": "rule-failure.SubmitClaim.2",
+      "source_construct": "SubmitClaim",
+      "source_span": {
+        "end": 8874,
+        "start": 8842
+      }
+    },
+    {
+      "category": "rule_entity_creation",
+      "dependencies": {
+        "entities_created": [
+          "Claim"
+        ],
+        "entities_read": [
+          "Policy"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify entity creation in rule SubmitClaim ensures clause produces the specified fields",
+      "id": "rule-entity-creation.SubmitClaim.1",
+      "source_construct": "SubmitClaim",
+      "source_span": {
+        "end": 9182,
+        "start": 8879
+      }
+    },
+    {
+      "category": "rule_success",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule TriageClaim succeeds when all preconditions are met",
+      "id": "rule-success.TriageClaim",
+      "source_construct": "TriageClaim",
+      "source_span": {
+        "end": 9355,
+        "start": 9186
+      }
+    },
+    {
+      "category": "rule_failure",
+      "dependencies": {
+        "entities_read": [
+          "Claim"
+        ],
+        "entities_written": [
+          "Claim"
+        ],
+        "trigger_source": "external"
+      },
+      "description": "Verify rule TriageClaim is rejected when requires clause fails",
+      "id": "rule-failure.TriageClaim.1",
+      "source_construct": "TriageClaim",
+      "source_span": {
+        "end": 9272,
+        "start": 9238
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant ApprovedClaimsHaveCompletedAssessment holds after every state-changing rule that touches constrained entities",
+      "expression": "for c in Claims:\n        c.status in {approved, paid} implies c.has_completed_assessment",
+      "id": "invariant.ApprovedClaimsHaveCompletedAssessment",
+      "source_construct": "ApprovedClaimsHaveCompletedAssessment",
+      "source_span": {
+        "end": 9638,
+        "start": 9494
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant ClaimAmountWithinCoverage holds after every state-changing rule that touches constrained entities",
+      "expression": "for c in Claims:\n        c.amount_claimed_pence <= c.policy.coverage_limit_pence",
+      "id": "invariant.ClaimAmountWithinCoverage",
+      "source_construct": "ClaimAmountWithinCoverage",
+      "source_span": {
+        "end": 9764,
+        "start": 9640
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant DeniedClaimsHaveReason holds after every state-changing rule that touches constrained entities",
+      "expression": "for c in Claims:\n        c.status = denied implies c.denial_reason != null",
+      "id": "invariant.DeniedClaimsHaveReason",
+      "source_construct": "DeniedClaimsHaveReason",
+      "source_span": {
+        "end": 9881,
+        "start": 9766
+      }
+    },
+    {
+      "category": "invariant",
+      "description": "Verify invariant PayoutAmountMatchesClaim holds after every state-changing rule that touches constrained entities",
+      "expression": "for p in Payouts:\n        p.amount_pence = p.claim.amount_claimed_pence",
+      "id": "invariant.PayoutAmountMatchesClaim",
+      "source_construct": "PayoutAmountMatchesClaim",
+      "source_span": {
+        "end": 9997,
+        "start": 9883
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface Routes is accessible only to the specified actor",
+      "id": "surface-actor.Routes",
+      "source_construct": "Routes",
+      "source_span": {
+        "end": 10747,
+        "start": 10134
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on Routes appear/hide based on when conditions",
+      "id": "surface-provides.Routes",
+      "source_construct": "Routes",
+      "source_span": {
+        "end": 10293,
+        "start": 10155
+      }
+    },
+    {
+      "category": "surface_actor",
+      "description": "Verify surface Webhooks is accessible only to the specified actor",
+      "id": "surface-actor.Webhooks",
+      "source_construct": "Webhooks",
+      "source_span": {
+        "end": 10889,
+        "start": 10749
+      }
+    },
+    {
+      "category": "surface_provides",
+      "description": "Verify provided operations on Webhooks appear/hide based on when conditions",
+      "id": "surface-provides.Webhooks",
+      "source_construct": "Webhooks",
+      "source_span": {
+        "end": 10811,
+        "start": 10772
+      }
+    }
+  ],
+  "version": 3
+}

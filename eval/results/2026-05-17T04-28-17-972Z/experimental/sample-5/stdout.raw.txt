@@ -1,0 +1,15 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T04-28-17-972Z/experimental/sample-5/inventory.json` and verified against the translator — produces a complete, well-formed `.allium` spec.
+
+Coverage:
+- **6 entities** (5 internal + IncidentReport external), with FK→relationship translation (`policy_number` → `policy: Policy`)
+- **4 status enums** + 1 auxiliary enum (`PaymentResultStatus`)
+- **11 transitions** with structured `params`/`requires`/`ensures` bodies
+- **4 scheduled jobs** using temporal `when:` triggers; `payout_retry_job` uses the `retry_due_at` derived as the SKILL.md prescribes
+- **2 integrations** (`assessor`, `payment`) with verbatim preconditions matching the translator's name-derivation regexes
+- **3 value types** (`AssessorDispatch`, `PaymentRequest`, `PaymentResult`)
+- **8 invariants** derived mechanically from the 4 rules in SKILL.md
+- **7 config keys** with Allium types (`Duration`, `Integer`) and code-faithful values (e.g. `50_000_00`, `14.days`)
+- **8 routes** + **1 webhook**
+- Derived properties (`age`, `is_within_sla`, `is_stalled`, `total_paid`, `has_completed_assessment`, `retry_due_at`, `has_open_claims`, `open_claims`) reference `config.<name>` rather than literals.
+
+Note: `assessment_sla_job` is intentionally omitted — in code it is purely diagnostic (returns a list, mutates nothing). The 14-day SLA is captured via the `is_within_sla` derived property on `Claim`.

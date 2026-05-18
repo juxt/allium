@@ -1,0 +1,1 @@
+Spec saved at `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-29-47-784Z/experimental/sample-1/spec.allium`. `allium check` passes — no errors; 2 info-severity warnings (unused value types referenced only in contract return types) and assorted info hints (unused fields, unreachable triggers for service-layer rules not surfaced as routes).

@@ -1,0 +1,3 @@
+The spec validates cleanly: 0 errors, 2 warnings (both info-level about value-type usage; the value types are referenced through contract return-type signatures).
+
+Spec written to /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T19-43-09-600Z/experimental/sample-2/spec.allium; allium check returns 0 errors.

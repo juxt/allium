@@ -1,0 +1,11 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T04-28-17-972Z/experimental/sample-4/inventory.json`.
+
+Coverage:
+- **6 entities**: Assessment, Assessor, Claim, IncidentReport (external), Payout, Policy — with 4 status enums, alphabetized fields, relationships, and derived properties (including the synthesized `retry_due_at` on Payout to keep the temporal trigger simple).
+- **12 transitions**: every service-layer function plus `receive_incident_report`, with structured bodies (params/lets/requires/ensures).
+- **4 scheduled jobs**: `auto_acknowledge_job`, `auto_approval_scheduler`, `auto_close_denied_job`, `payout_retry_job`. The read-only `assessment_sla_job` is intentionally excluded — it mutates nothing and the `is_within_sla` derived on Claim already captures the SLA concept.
+- **2 integrations** with preconditions (`payment`, `assessor`), **3 value types**, **1 auxiliary enum**.
+- **4 invariants** derived mechanically from the four-rule table.
+- **7 config keys**, **8 routes**, **1 webhook**.
+
+All `type_hint` values use Allium types (`String`, `Integer`, `Timestamp`, `Set<String>`, `Claim?`, etc.) and FK fields are abstracted to entity references (e.g. `policy: Policy`, `claim: Claim`, `linked_claim: Claim?`).

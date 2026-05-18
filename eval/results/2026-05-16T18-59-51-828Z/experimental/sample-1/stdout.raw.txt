@@ -1,0 +1,3 @@
+Spec written and validated. `allium check` returns 0 errors / 0 warnings — only 32 info-level notes (unused IncidentReport fields, service-level triggers without route surfaces). First line is `-- allium: 3`, the file is a pure spec with no markdown wrappers.
+
+Spec at `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T18-59-51-828Z/experimental/sample-1/spec.allium` (329 lines). Inventory at `inventory.json` in the same directory. Covers 5 internal entities + 1 external (IncidentReport), 4 status enums with Claim's full transition graph, 11 transition rules, 5 temporal/derived scheduled-job rules, 2 contracts (Payment, Assessor), 2 surfaces (Routes, Webhooks), and the proximity-link logic for incoming incident reports.

@@ -1,0 +1,4 @@
+# file: /Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-17T17-39-02-497Z/propagate/baseline/pytest+hypothesis/insurance-claims/sample-3/workdir/app/__init__.py
+# hypothesis_version: 6.141.1
+
+['Assessment', 'Assessor', 'Claim', 'GET', 'IncidentReport', 'POST', 'PUT', 'Payout', 'Policy']

@@ -1,0 +1,1 @@
+Wrote 543-line spec to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T17-36-01-344Z/baseline/sample-3/spec.allium`; `allium check` and `allium analyse` are clean apart from two expected `missingSourceHint` warnings on the external actors.

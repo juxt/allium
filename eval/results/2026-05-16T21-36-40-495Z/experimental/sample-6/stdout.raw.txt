@@ -1,0 +1,12 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T21-36-40-495Z/experimental/sample-6/inventory.json`. Valid JSON, all arrays alphabetised.
+
+Summary of what's captured:
+- **6 entities**: Assessment, Assessor, Claim (with FK `policy: Policy`, 5 derived properties, status lifecycle), IncidentReport (external), Payout (with `retry_due_at` synthetic derived), Policy.
+- **12 transitions**: full claim lifecycle plus `receive_incident_report` (webhook handler with linking `let`), `register_*` setup transitions.
+- **5 scheduled jobs**: covers auto-ack, SLA breach, payout retry (via `Payout.retry_due_at`), auto-close, and auto-approval scheduler (uses `Claim.has_completed_assessment` as a change trigger per the skill guidance).
+- **2 integrations**: `payment` (4 preconditions including amount/format/cap), `assessor` (1 precondition).
+- **3 value types** + **1 aux enum** scoped to the payment/assessor integrations.
+- **4 invariants** derived mechanically (claim/coverage, denied/reason, approved/assessment, payout/amount).
+- **7 config keys**, **8 routes**, **1 webhook**.
+
+All `type_hint` fields use Allium types (`String`, `Integer`, `Timestamp`, `Set<String>`, `Policy?`, `Claim?` etc.). Nullability uses `?` suffix throughout.

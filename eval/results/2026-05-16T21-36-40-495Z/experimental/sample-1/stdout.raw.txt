@@ -1,0 +1,13 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T21-36-40-495Z/experimental/sample-1/inventory.json` and parses cleanly.
+
+Coverage:
+- **6 entities** — `Assessment`, `Assessor`, `Claim`, `IncidentReport` (external), `Payout`, `Policy` with their status enums, relationships, and derived properties (`is_stalled`, `is_within_sla`, `age`, `total_paid`, `has_completed_assessment`, `has_open_claims`, `retry_due_at`).
+- **12 transitions** including the webhook-driven `receive_incident_report` with a `let` for candidate-claim linking.
+- **5 scheduled jobs** — `auto_acknowledge`, `assessment_sla`, `payout_retry`, `auto_close_denied`, `auto_approval_scheduler`. Auto-approval uses the change-form trigger on `has_completed_assessment`; retry uses the `retry_due_at` derived property to keep `when:` free of function calls.
+- **4 invariants** derived mechanically (`ClaimAmountWithinCoverage`, `ApprovedClaimsHaveCompletedAssessment`, `DeniedClaimsHaveReason`, `PayoutAmountMatchesClaim`).
+- **2 integrations** (`payment`, `assessor`) with preconditions verbatim from the code.
+- **3 value types** + **1 aux enum** (`PaymentRequest`/`PaymentResult`/`AssessorDispatch`, `PaymentResultStatus`).
+- **7 config keys** in days/pence form (e.g. `21.days`, `50_000_00`) with source pointers.
+- **8 routes** + **1 webhook** = 9 endpoints, matching the README's sanity check.
+
+All type hints use Allium types (`String`, `Integer`, `Timestamp`, `Set<String>`, `Claim?`, etc.), FKs distilled to entity references, and arrays sorted alphabetically by name (or path for webhooks).

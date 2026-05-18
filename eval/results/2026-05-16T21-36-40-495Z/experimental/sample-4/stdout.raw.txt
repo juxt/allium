@@ -1,0 +1,13 @@
+Inventory written to `/Users/yavorpanayotov/IdeaProjects/allium-4.0/eval/results/2026-05-16T21-36-40-495Z/experimental/sample-4/inventory.json` and JSON validates.
+
+Contents:
+- 6 entities (Assessment, Assessor, Claim, IncidentReport [external], Payout, Policy) with status enums, relationships, derived properties (Claim has age, has_completed_assessment, is_stalled, is_within_sla, total_paid; Policy has has_open_claims; Payout has retry_due_at for the retry job's `when:`)
+- 12 transitions covering all service functions plus the webhook handler
+- 5 scheduled jobs with structured `when:`/`requires`/`ensures` bodies (using calendar-day approximation guidance for auto-ack, and the retry_due_at derived for the payout retry rule's `when:`)
+- 2 integrations (assessor, payment) with preconditions for `@invariant` derivation
+- 3 value types and 1 auxiliary enum (PaymentResultStatus) tied to the payment integration
+- 5 cross-cutting invariants derived mechanically from the four rules
+- 7 config entries (Allium Duration / Integer values)
+- 8 routes + 1 webhook (totalling the 9 endpoints the README expects)
+
+All `type_hint` fields use Allium types (`String`, `Integer`, `Timestamp`, `Set<String>`, entity names with `?` for nullable). Arrays and field lists are alphabetised; numeric literals preserve code formatting (`50_000_00`, `1_000_000_00`).
