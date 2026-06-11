@@ -10,9 +10,9 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, portability, links, routing, generation, discovery, crosstalk
+ * Groups: structure, codex, portability, links, routing, generation, discovery, crosstalk
  *
- * The first five groups are offline (free, fast). The last two require --live
+ * The first six groups are offline (free, fast). The last two require --live
  * and make Claude API calls.
  */
 
@@ -136,6 +136,7 @@ const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
 const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
 const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
+const codexPluginPath = path.join(ROOT, ".codex-plugin", "plugin.json");
 const portableSkillNames = ["tend", "weed"];
 
 // Patterns that should not appear in portable artifacts
@@ -149,6 +150,19 @@ const CLAUDE_CODE_LEAKS = [
 
 function checkLeaks(body) {
   return CLAUDE_CODE_LEAKS.filter(([re]) => re.test(body)).map(([, name]) => name);
+}
+
+function readJson(filePath) {
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8"));
+  } catch (e) {
+    fail(rel(filePath), `invalid JSON: ${e.message}`);
+    return null;
+  }
+}
+
+function isObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +220,98 @@ if (shouldRun("structure")) {
       fail(`${label} naming`, "must end with .agent.md");
     } else {
       pass(`${label} naming`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Codex — plugin manifest stays installable by Codex
+// ---------------------------------------------------------------------------
+
+if (shouldRun("codex")) {
+  console.log("\n── codex: plugin manifest validation ──\n");
+
+  if (!existsSync(codexPluginPath)) {
+    fail(".codex-plugin/plugin.json", "file not found");
+  } else {
+    const manifest = readJson(codexPluginPath);
+
+    if (manifest) {
+      const requiredTopLevel = ["name", "version", "description", "author", "skills", "interface"];
+      const missing = requiredTopLevel.filter((key) => !manifest[key]);
+      if (missing.length > 0) {
+        fail(".codex-plugin/plugin.json", `missing: ${missing.join(", ")}`);
+      } else {
+        pass(".codex-plugin/plugin.json required fields");
+      }
+
+      if (manifest.name === "allium") pass("codex plugin name");
+      else fail("codex plugin name", `expected allium, got ${manifest.name}`);
+
+      if (/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(manifest.version || "")) {
+        pass("codex plugin version");
+      } else {
+        fail("codex plugin version", "must be strict semver");
+      }
+
+      if (manifest.skills === "./skills/") {
+        pass("codex skills path");
+      } else {
+        fail("codex skills path", "must be ./skills/");
+      }
+
+      const skillsDir = path.join(ROOT, "skills");
+      if (existsSync(skillsDir)) {
+        pass("codex skills directory exists");
+      } else {
+        fail("codex skills directory", "skills/ not found");
+      }
+
+      const unsupported = ["agents", "hooks", "lspServers"].filter((key) => key in manifest);
+      if (unsupported.length > 0) {
+        fail(".codex-plugin/plugin.json", `unsupported fields: ${unsupported.join(", ")}`);
+      } else {
+        pass("codex manifest has no Claude-only fields");
+      }
+
+      if (isObject(manifest.interface)) {
+        const requiredInterface = [
+          "displayName",
+          "shortDescription",
+          "longDescription",
+          "developerName",
+          "category",
+          "capabilities",
+        ];
+        const missingInterface = requiredInterface.filter((key) => !manifest.interface[key]);
+        if (missingInterface.length > 0) {
+          fail("codex interface", `missing: ${missingInterface.join(", ")}`);
+        } else {
+          pass("codex interface required fields");
+        }
+
+        if (
+          !manifest.interface.websiteURL ||
+          /^https:\/\//.test(manifest.interface.websiteURL)
+        ) {
+          pass("codex interface websiteURL");
+        } else {
+          fail("codex interface websiteURL", "must be an https URL");
+        }
+
+        const prompts = manifest.interface.defaultPrompt || [];
+        if (
+          Array.isArray(prompts) &&
+          prompts.length <= 3 &&
+          prompts.every((p) => typeof p === "string" && p.length <= 128)
+        ) {
+          pass("codex default prompts");
+        } else {
+          fail("codex default prompts", "must be at most 3 strings of 128 chars");
+        }
+      } else {
+        fail("codex interface", "must be an object");
+      }
     }
   }
 }
