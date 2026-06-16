@@ -344,7 +344,7 @@ Primitive types have no properties or methods. For domain-specific string types 
 
 **Compound types:**
 - `Set<T>` — unordered collection of unique items
-- `List<T>` — ordered collection (use when order matters). A compound field type declared explicitly on entities
+- `List<T>` — ordered collection (use when order matters). A compound field type declared explicitly on entities. Populate it with a list literal (`[ ... ]`); see [Literals](#literals)
 - `Sequence<T>` — ordered collection produced by ordered relationships and their projections. `Sequence` is a subtype of `Set`: an ordered collection is assignable where an unordered one is expected, but not the reverse. `List<T>` is a field type you declare explicitly; `Sequence` is the collection type the checker infers when a relationship is ordered. Both carry ordering semantics, but they occupy different positions in the grammar
 - `T?` — optional (may be absent). Reserved for genuinely optional fields: a user's nickname, a note that may or may not exist. For fields whose presence depends on lifecycle state, use a `when` clause instead (see below).
 
@@ -1202,11 +1202,20 @@ ensures: not exists document
 permissions: { "documents.read", "documents.write" }
 features: { basic_editing, api_access }
 
+-- List literals
+priorities: [ high, medium, low ]
+retry_delays: [ 1.minute, 5.minutes, 30.minutes ]
+empty_queue: []
+
 -- Object literals (anonymous records, used in creation parameters and trigger emissions)
 data: { candidate: candidate, time: time }
 data: { slots: remaining_slots }
 data: { unlocks_at: user.locked_until }
 ```
+
+Set literals use braces (`{ ... }`); list literals use square brackets (`[ ... ]`). Both are valid in any expression position — default declarations, `ensures` clauses, object literal field values and nested within other literals.
+
+A list literal `[expr1, expr2, ...]` produces `List<T>`, the explicitly-declared ordered collection field type. It does not produce `Set` (use a set literal for that) or `Sequence` (which the checker infers from ordered relationships and their projections, and is never written as a literal). The element type `T` is inferred from the elements; all elements must share a type. Heterogeneous elements such as `[1, "a"]` are a type error. An empty list literal `[]` takes its element type from the target field's declared type. Unlike set literals, which collapse duplicates, list literals retain them: `[low, low]` is a two-element list. List literals are the only way to populate a `List<T>` field from the spec layer.
 
 Object literals are anonymous record types. They carry named fields but have no declared type. Use them for ad-hoc data in entity creation parameters and trigger emission payloads where defining a named type would add ceremony without clarity. Object literals always require explicit `key: value` pairs; `{ x }` is a set literal containing `x`, not an object with shorthand.
 
@@ -1550,6 +1559,20 @@ default Role editor = {
     inherits_from: viewer
 }
 ```
+
+The type name may be qualified with an import alias, the same as type references in rules and `ensures` clauses:
+
+```
+use "./gradient-policies.allium" as gp
+
+default gp/Policy my_policy = {
+    name: "default",
+    max_gradient: 0.5,
+    decay: [ 1.0, 0.5, 0.25 ]
+}
+```
+
+The field set and types are resolved against the imported module's entity declaration, so the checker validates the literal against the canonical schema and catches drift at check time. Previously `default` was the only site that required an unqualified type name even though qualified names work elsewhere.
 
 ---
 
@@ -1908,6 +1931,9 @@ A valid Allium specification must satisfy:
 13. All lambdas are explicit (use `i => i.field` not `field`)
 14. Inline enum fields cannot be compared with each other (whether on the same entity or across entities); use a named enum to share values across fields
 14a. Dot-method calls on collections must use a recognised built-in name (`.count`, `.any()`, `.all()`, `.first`, `.last`, `.unique`, `.add()`, `.remove()`). Unrecognised dot-methods are errors. Domain-specific collection operations use free-standing black box function syntax
+14b. A list literal (`[ ... ]`) produces `List<T>`; its elements must all share a type (heterogeneous elements are a type error)
+14c. An empty list literal (`[]`) takes its element type from the target field's declared type; an empty list literal with no inferable target type is an error
+14d. List literals retain duplicate elements; set literals (`{ ... }`) collapse them
 
 **Sum type validity:**
 15. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
@@ -1922,6 +1948,7 @@ A valid Allium specification must satisfy:
 22. `given` bindings must reference entity types declared in the module or imported via `use`
 23. Each binding name must be unique within the `given` block
 24. Unqualified instance references in rules must resolve to a `given` binding, a `let` binding, a trigger parameter or a default entity instance
+24a. A qualified type name in a `default` declaration (`default alias/Type name = { ... }`) must resolve against the imported module's entity declaration; the literal's field set and types are validated against that canonical schema
 
 **Config validity:**
 25. Config parameters must have explicit types. Parameters with default values must declare them explicitly (literal, qualified reference or expression). Parameters without defaults are mandatory: consuming modules must supply a value
