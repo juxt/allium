@@ -1949,6 +1949,7 @@ A valid Allium specification must satisfy:
 23. Each binding name must be unique within the `given` block
 24. Unqualified instance references in rules must resolve to a `given` binding, a `let` binding, a trigger parameter or a default entity instance
 24a. A qualified type name in a `default` declaration (`default alias/Type name = { ... }`) must resolve against the imported module's entity declaration; the literal's field set and types are validated against that canonical schema
+24b. Every field set by a `default` object literal must be a field declared on the named entity or value type; a field the type does not declare is an error. This applies recursively to nested object literals (validated against the nested field's type), so renaming or removing a field surfaces as a drift error at check time
 
 **Config validity:**
 25. Config parameters must have explicit types. Parameters with default values must declare them explicitly (literal, qualified reference or expression). Parameters without defaults are mandatory: consuming modules must supply a value
