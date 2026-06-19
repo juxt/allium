@@ -1,0 +1,41 @@
+{
+  "name": "allium",
+  "version": "3.3.0",
+  "description": "Velocity through clarity.",
+  "author": {
+    "name": "JUXT",
+    "url": "https://juxt.pro"
+  },
+  "homepage": "https://juxt.github.io/allium/",
+  "repository": "https://github.com/juxt/allium",
+  "license": "MIT",
+  "keywords": [
+    "specification",
+    "behaviour",
+    "behavior",
+    "domain-modelling",
+    "BDD",
+    "property-based-testing",
+    "generative-tests"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Allium",
+    "shortDescription": "Behavioural specifications for agentic engineering",
+    "longDescription": "Write, maintain, review and propagate Allium behavioural specifications alongside implementation work.",
+    "developerName": "JUXT",
+    "category": "Coding",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ],
+    "websiteURL": "https://juxt.github.io/allium/",
+    "defaultPrompt": [
+      "Draft an Allium spec for this feature.",
+      "Review this .allium spec for gaps.",
+      "Generate test obligations from this spec."
+    ],
+    "screenshots": []
+  }
+}

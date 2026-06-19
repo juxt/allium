@@ -31,13 +31,20 @@ Two forces feed the spec, and one loop keeps it honest against the code:
 
 ## Get started
 
-Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
+Allium works with Claude Code, Codex, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
 
 **Claude Code** via the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
 
 ```
 /plugin marketplace add juxt/claude-plugins
 /plugin install allium
+```
+
+**Codex** via the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
+
+```
+codex plugin marketplace add juxt/claude-plugins
+codex plugin add allium@juxt-plugins
 ```
 
 **Cursor, Windsurf, Aider, Continue and other skills-compatible tools:**
