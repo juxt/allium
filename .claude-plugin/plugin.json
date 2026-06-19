@@ -21,5 +21,13 @@
   "agents": [
     "./agents/tend.md",
     "./agents/weed.md"
-  ]
+  ],
+  "lspServers": {
+    "allium": {
+      "command": "allium-lsp",
+      "extensionToLanguage": {
+        ".allium": "allium"
+      }
+    }
+  }
 }

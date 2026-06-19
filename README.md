@@ -230,6 +230,14 @@ The developer never mentioned invoicing or payment method capture. The Allium di
 
 When the CLI is installed, `.allium` files are validated automatically after every write or edit. Diagnostics appear inline and the model fixes issues in the same turn.
 
+**Live diagnostics in Claude Code.** The Claude Code plugin also wires the `allium-lsp` language server, so Claude receives checker errors, go-to-definition and hover for `.allium` files immediately after each edit, without a separate `allium check` invocation. The language server is **not bundled** with the plugin — install it separately and make sure `allium-lsp` is on your `PATH`:
+
+```
+npm install -g allium-lsp
+```
+
+See the [allium-tools repo](https://github.com/juxt/allium-tools) for other install paths.
+
 ## Language governance
 
 Every change to Allium is debated by a [nine-member review panel](https://github.com/juxt/allium/blob/proposals/TEAM.md) before adoption. Each panellist represents a distinct design priority: simplicity, machine reasoning, composability, readability, formal rigour, domain modelling, developer experience, creative ambition and backward compatibility. The panel exists to surface tensions that any single perspective would miss.
