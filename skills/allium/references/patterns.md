@@ -14,7 +14,7 @@ Patterns elide common cross-cutting entities (`Email`, `Notification`, `AuditLog
 | Usage Limits & Quotas | Limit checks in `requires`, metered resources, plan tiers, surfaces |
 | Comments with Mentions | Nested entities, parsing triggers, cross-entity notifications, surfaces |
 | Integrating Library Specs | External spec references, configuration, config parameter references, responding to external triggers |
-| Framework Integration Contract | Contract declarations, expression-bearing invariants, contract references, programmatic surfaces |
+| Framework Integration Contract | Contract declarations, expression-bearing invariants, contract references, programmatic surfaces, external-API client (`demands`) |
 
 ---
 
@@ -1800,6 +1800,8 @@ surface APIAccess {
 - Feature flags (`can_use_feature(f)`)
 - Interaction surface for usage dashboard and API surface with rate limit guarantee
 
+> **Exposing an API vs. calling one.** The `APIAccess` surface here models *exposing* a rate-limited API to consumers — the surface owner is the API, and the consumer is the `facing` party. To model the opposite case, where your spec is a *client* calling out to a third-party API, SDK, or MCP server, do not reach for `provides:`; use a module-level `contract` referenced with `demands` from the caller's side. See Pattern 9, *Example: Calling an external API (the `demands` side)*.
+
 ---
 
 ## Pattern 7: Comments with Mentions
@@ -2861,6 +2863,138 @@ Do not use contracts for user-facing surfaces. If the external party is a person
 - `fulfils EventSubmitter` — a typed operation set the surface makes available, defined in a `contract` declaration; the implementation is the surface owner's responsibility
 
 Both describe things the surface supplies, but `provides` connects to the rule system while `fulfils` references a programmatic contract with typed signatures and invariants.
+
+### Example: Calling an external API (the `demands` side)
+
+The main example above is the surface owner *supplying* services to its counterpart (`fulfils EventSubmitter`). The mirror-image case is just as common, and easy to model wrongly: your spec is the **client** that calls out to an external typed API — a third-party REST service, a vendor SDK, or an MCP server. Reaching for `provides:` here is the wrong turn, because `provides` is for a user triggering a domain rule, not for one body of code calling another. The right construct is a module-level `contract` referenced with `demands` from the caller's surface: the spec requires the counterpart to implement the operations, and calls them.
+
+This example models an address book that resolves postal addresses to coordinates through an external geocoding service. Our spec is purely the caller — it declares the typed boundary and records results, but never implements `geocode` itself.
+
+```
+-- allium: 3
+-- geocoding-client.allium
+
+------------------------------------------------------------
+-- External Entities
+------------------------------------------------------------
+
+-- The third-party service we call. Its lifecycle is governed
+-- elsewhere; we only model that it sits on the other side of the
+-- boundary as the party that implements the API we demand.
+external entity GeocodingService {}
+
+------------------------------------------------------------
+-- Value Types
+------------------------------------------------------------
+
+value Address {
+    line1: String
+    city: String
+    postcode: String
+    country: String
+}
+
+value LatLng {
+    latitude: Decimal
+    longitude: Decimal
+}
+
+value GeocodeResult {
+    location: LatLng
+    formatted_address: String
+    confidence: Decimal       -- 0.0 (no match) to 1.0 (exact match)
+}
+
+------------------------------------------------------------
+-- Contracts
+------------------------------------------------------------
+
+-- The typed boundary of the external geocoding API. Our spec is
+-- the client: it calls these operations, it does not implement them.
+contract GeocodingApi {
+    geocode: (address: Address) -> GeocodeResult?
+    reverse_geocode: (location: LatLng) -> GeocodeResult?
+
+    @invariant ReadOnly
+        -- geocode and reverse_geocode never mutate remote state.
+        -- A call with identical arguments is safe to retry and
+        -- yields an equivalent result.
+
+    @invariant NullOnNoMatch
+        -- When the provider finds no location for the input, the
+        -- operation returns null rather than a zero-confidence
+        -- result or an error.
+
+    @guidance
+        -- The provider rate-limits per API key. Callers should
+        -- debounce lookups triggered by partial address entry.
+}
+
+------------------------------------------------------------
+-- Entities
+------------------------------------------------------------
+
+entity Place {
+    label: String
+    address: Address
+    status: unresolved | resolved | unlocatable
+
+    -- Populated from a successful GeocodingApi.geocode result
+    location: LatLng?
+    resolved_at: Timestamp?
+}
+
+------------------------------------------------------------
+-- Rules
+------------------------------------------------------------
+
+rule RecordGeocodeResult {
+    when: GeocodeResolved(place, result)
+
+    requires: place.status = unresolved
+
+    ensures: place.location = result.location
+    ensures: place.status = resolved
+    ensures: place.resolved_at = now
+}
+
+rule RecordGeocodeMiss {
+    when: GeocodeNotFound(place)
+
+    requires: place.status = unresolved
+
+    ensures: place.status = unlocatable
+}
+
+------------------------------------------------------------
+-- Surfaces
+------------------------------------------------------------
+
+-- Programmatic surface: our spec is the CALLER of the external API.
+-- `demands` declares that we require the counterpart (the geocoding
+-- service we face) to implement GeocodingApi; we do not supply it.
+surface GeocodingClient {
+    facing provider: GeocodingService
+
+    contracts:
+        demands GeocodingApi
+
+    @guarantee NoUnresolvedWrites
+        -- A Place only stores a location obtained from a successful
+        -- GeocodingApi.geocode call; an unlocatable address never
+        -- receives coordinates.
+}
+```
+
+Like the framework example, the rules handle domain state (recording a result) rather than spelling out the call itself — the `contract` declares the typed boundary, and `demands` on the surface records who must implement it.
+
+**Reading the direction markers.** The choice between `demands`, `fulfils` and `provides` is about who implements what, and for whom:
+
+- `demands GeocodingApi` — *I call out to the counterpart.* The facing party implements these operations; my spec invokes them. Use for "my spec is a client of an external API/SDK/MCP server".
+- `fulfils EventSubmitter` — *I supply this API to the counterpart.* My spec implements these operations; the facing party invokes them. Use for "my spec is the service others integrate against" (as in the framework example above).
+- `provides UserResetsPassword(...)` — *a user triggers an action and a domain rule fires.* Not a code-to-code contract at all; the action maps to a rule's external stimulus trigger. Use for human-facing surfaces.
+
+A single surface can mix `demands` and `fulfils` (the framework demands evaluation logic while fulfilling submission and snapshot services). It should not use a `contracts:` clause and `provides:` to describe the *same* boundary: `provides` is for people, `demands`/`fulfils` for code.
 
 ### Invariant vs guarantee
 
