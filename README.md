@@ -230,13 +230,7 @@ The developer never mentioned invoicing or payment method capture. The Allium di
 
 When the CLI is installed, `.allium` files are validated automatically after every write or edit. Diagnostics appear inline and the model fixes issues in the same turn.
 
-**Live diagnostics in Claude Code.** The Claude Code plugin also wires the `allium-lsp` language server, so Claude receives checker errors, go-to-definition and hover for `.allium` files immediately after each edit, without a separate `allium check` invocation. The language server is **not bundled** with the plugin — install it separately and make sure `allium-lsp` is on your `PATH`:
-
-```
-npm install -g allium-lsp
-```
-
-See the [allium-tools repo](https://github.com/juxt/allium-tools) for other install paths.
+**Live diagnostics in Claude Code.** The Claude Code plugin also wires the `allium-lsp` language server, so Claude receives checker errors, go-to-definition and hover for `.allium` files immediately after each edit, without a separate `allium check` invocation. The language server is **not bundled** with the plugin — install the `allium-lsp` server from the [allium-tools repo](https://github.com/juxt/allium-tools) and make sure the `allium-lsp` binary is on your `PATH`. If it isn't found, Claude Code reports `Executable not found in $PATH` in the `/plugin` Errors tab and falls back to CLI checking.
 
 ## Language governance
 

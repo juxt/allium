@@ -25,6 +25,7 @@
   "lspServers": {
     "allium": {
       "command": "allium-lsp",
+      "args": ["--stdio"],
       "extensionToLanguage": {
         ".allium": "allium"
       }
