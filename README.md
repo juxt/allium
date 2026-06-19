@@ -10,6 +10,25 @@ Feed your AI something healthier than Markdown. [juxt.github.io/allium](https://
 
 Allium is a skill for clarifying intent during agentic engineering. The LLM builds and maintains a behavioural specification alongside your code, capturing what the system should do in a form that persists across sessions. Paired with a CLI that validates syntax and draws semantic inferences, it catches design gaps, surfaces implications you missed and generates tests from the formal behaviours of your system.
 
+## How it works
+
+You keep a `.allium` file alongside your code describing what the system should do — entities and their shapes, and rules in the form *when* an event happens, *requires* these preconditions hold, *ensures* these outcomes follow — while deliberately leaving out how it's done. The spec is the primary artefact; the code that implements it is secondary. Because the structure is explicit rather than prose, contradictions surface on their own: two rules with incompatible preconditions expose the conflict without anyone needing to be clever enough to spot it.
+
+Two forces feed the spec, and one loop keeps it honest against the code:
+
+```
+        intent ──/elicit──►  ┌──────────────┐  ◄──/distill── existing code
+       (forward)             │ .allium spec │              (backward)
+                             └──────┬───┬────┘
+                          /tend     │   │   /weed
+                      (edit spec)   │   │  (reconcile with code)
+                                    ▼   ▼
+                                /propagate
+                             (generate tests)
+```
+
+`/elicit` works forward from intent through conversation; `/distill` works backward from existing code, filtering out implementation detail. `/tend` makes targeted edits as requirements change; `/weed` finds where spec and code have diverged and reconciles them in either direction; `/propagate` generates tests from the spec so the implementation is checked against specified behaviour. `/allium` is the entry point — point it at your project and it routes you to the right one. The [skills table](#skills-and-agents) below covers each in detail.
+
 ## Get started
 
 Allium works with Claude Code, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
