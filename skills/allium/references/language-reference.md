@@ -150,6 +150,17 @@ contract Codec {
 
 Contract bodies contain typed signatures and annotations (`@invariant`, `@guidance`). Entity, value, enum and variant declarations are prohibited inside contracts. Types referenced in signatures must be declared at module level or imported via `use`.
 
+A zero-argument operation uses an empty parameter list:
+
+```
+contract Registry {
+    list_things: () -> Set<Foo>
+    health: () -> Status
+}
+```
+
+`name: () -> ReturnType` is the only form for parameterless operations; a bare arrow (`name: -> ReturnType`) is not valid.
+
 ### Referencing contracts in surfaces
 
 Surfaces reference contracts in a `contracts:` clause. Each entry uses `demands` or `fulfils` to indicate the direction of the obligation:
