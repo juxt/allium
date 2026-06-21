@@ -1,0 +1,31 @@
+{
+  "manifest_version": 1,
+  "id": "pytest+hypothesis",
+  "language": "python",
+  "file_extension": ".py",
+  "test_file_prefix": "test_",
+  "runner": {
+    "command": ["python3", "-m", "pytest", "--junit-xml={report_path}"],
+    "report_format": "pytest-junitxml",
+    "scope_args": ["{test_root}"]
+  },
+  "imports_style": "python",
+  "imports": {
+    "base": ["import pytest"],
+    "pbt": ["from hypothesis import HealthCheck, assume, given, settings, strategies as st"],
+    "state_machine": [
+      "from hypothesis import strategies as st",
+      "from hypothesis.stateful import RuleBasedStateMachine, rule"
+    ],
+    "temporal": ["from hypothesis import HealthCheck, assume, given, settings, strategies as st"]
+  },
+  "bridge_import": {
+    "transform": "python_module"
+  },
+  "fixture_style": "conftest",
+  "stub_idiom": "pytest.skip",
+  "skip_marker": "bridge-unresolved",
+  "clock_injection": "monkeypatch",
+  "random_injection": "monkeypatch",
+  "network_injection": "monkeypatch"
+}

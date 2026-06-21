@@ -3,214 +3,293 @@ name: propagate
 description: "Generate tests from Allium specifications. Use when the user wants to propagate tests, generate test files from a spec, write tests for a specification, create property-based tests, produce state machine tests, check test coverage against spec obligations, or understand what tests a specification requires."
 ---
 
-# Propagation
+# Propagation (consensus pipeline)
 
-This skill generates tests from Allium specifications. Propagation is how plants reproduce from cuttings of the parent: the spec is the parent, the tests are the offspring.
+This skill generates **byte-deterministic** test files from an Allium spec
+and a target codebase. It does so by orchestrating K independent
+inventory-extraction passes in parallel, canonicalising each, merging into
+a single consensus inventory, and translating that to test files through
+a per-language **backend**.
 
-Deterministic tools guarantee completeness (every spec construct maps to a test obligation). You handle the implementation bridge: correlating spec constructs with code, generating tests in the project's conventions.
+When invoked, you are the **orchestrator**. You do not write the tests
+yourself — that's the translator's job. You drive the procedure below.
 
-## Prerequisites
+## Pipeline
 
-Before propagating tests, you need:
-
-1. **An Allium spec** — the `.allium` file describing the system's behaviour
-2. **A target codebase** — the implementation to test
-3. **Test obligations** — from `allium plan <spec>` (JSON listing every required test)
-4. **Domain model** — from `allium model <spec>` (JSON describing entity shapes, constraints, state machines)
-
-If the CLI tools are not available, derive test obligations manually from the spec using the test-generation taxonomy in [`references/test-generation.md`](../allium/references/test-generation.md).
-
-## Modes
-
-### Surface mode
-
-Generates boundary tests from surface declarations. Use when the user wants to test an API, UI contract or integration boundary.
-
-For each surface in the spec:
-
-1. **Exposure tests** — verify each item in `exposes` is accessible to the specified actor, including `for` iteration over collections
-2. **Provides tests** — verify operations appear when their `when` conditions are true and are hidden otherwise, including when the corresponding rule's `requires` clauses are not met
-3. **Actor restriction tests** — verify the surface is not accessible to other actor types
-4. **Actor identification tests** — verify only entities matching the actor's `identified_by` predicate can interact; for actors with `within`, verify interaction is scoped to the declared context
-5. **Context scoping tests** — verify the surface instance is absent when no entity matches the `context` predicate
-6. **Contract obligation tests** — verify `demands` are satisfied by the counterpart, `fulfils` are supplied by this surface, including all typed signatures
-7. **Guarantee tests** — verify `@guarantee` annotations hold across the boundary
-8. **Timeout tests** — verify referenced temporal rules fire within the surface's context
-9. **Related navigation tests** — verify navigation to related surfaces resolves to the correct context entity
-
-### Spec mode
-
-Walks the full test obligations document. Use when the user wants comprehensive test coverage for the entire specification.
-
-Categories from the test-generation taxonomy:
-
-- **Entity and value type tests** — fields, types, optional (`?`) null handling, `when`-clause state-dependent presence, relationships, join lookups, equality
-- **Enum tests** — comparability across named enums, membership tests, inline enum isolation
-- **Sum type tests** — variant fields, type guards, exhaustiveness, creation via variant name, base `.created` trigger narrowing
-- **Derived value and projection tests** — computation, filtering, `-> field` extraction, parameterised derived values, `now` volatility, collection operations
-- **Default instance tests** — unconditional existence, field values, cross-references between defaults
-- **Config tests** — defaults, overrides, mandatory parameters, expression-form defaults, qualified references, config chains
-- **Invariant tests** — post-rule verification, edge cases, implication logic, entity-level invariants
-- **Rule tests** — success/failure/edge cases, conditionals (ensuring `if` guards read resulting state), entity creation, removal, bulk updates, rule-level `for` iteration, `let` bindings, chained triggers
-- **State transition tests** — valid/invalid transitions, terminal states, `transitions_to` vs `becomes` semantics
-- **Temporal tests** — deadline boundaries, re-firing prevention, optional field null behaviour
-- **Surface tests** — exposure, availability, actor identification with `within` scoping, context scoping, related navigation
-- **Contract tests** — signature satisfaction, `@invariant` honouring, `demands`/`fulfils` direction
-- **Cross-module tests** — qualified entity references, external trigger responses, type placeholder substitution
-- **Cross-rule interaction tests** — duplicate creation guards, provides availability
-- **Transition graph tests** — every declared edge is reachable via its witnessing rule, undeclared transitions are rejected, terminal states have no outbound rules, non-terminal states have at least one exit, exact correspondence between enum values and graph edges
-- **State-dependent field tests** — presence when in qualifying state, absence when outside, presence obligations on entering the `when` set, absence obligations on leaving, no obligation when moving within or outside, convergent transitions all set the field, guard required to access `when`-qualified fields, derived value `when` inference via input intersection
-- **Scenario tests** — happy path, edge cases, order independence
-- **Data flow chain tests** — exercise full chains from surface capture through rules to downstream rule preconditions. For each chain (surface provides trigger → rule ensures field → downstream rule requires field), generate an integration test that submits data through the surface and verifies it reaches the downstream precondition.
-- **Reachability tests** — walk from each initial state (via `.created()`) to each terminal state, following a valid path through the transition graph. Each test exercises a complete lifecycle.
-- **Deadlock scenario tests** — for states where `allium analyse` identifies potential deadlocks, generate tests that put the entity in the stuck state and verify whether it can progress.
-- **Cross-entity process tests** — for processes spanning multiple entities, generate integration tests that exercise the full process from start to terminal state across all participating entities.
-
-If `allium analyse` is available, use its findings to prioritise test generation. A `missing_producer` or `dead_transition` finding indicates a gap worth exercising with a test. A `deadlock` finding should generate a test documenting that the entity cannot escape the stuck state. Consult [actioning findings](../allium/references/actioning-findings.md) for the finding type taxonomy.
-
-## Test output kinds
-
-### 1. Assertion-based tests
-
-For deterministic obligations: field presence, enum membership, transition validity, surface exposure, state-dependent field presence and absence. These are standard unit/integration tests.
-
-### 2. Property-based tests
-
-For invariants and rule properties. Each expression-bearing invariant becomes a PBT property:
-- Generate a valid entity state using the generator spec
-- Apply a sequence of rules (following the transition graph when declared, or deriving valid sequences from rules alone)
-- Check the invariant holds at every step
-
-Use the project's PBT framework:
-
-| Language | Framework | Discovery |
-|----------|-----------|-----------|
-| TypeScript | fast-check | `package.json` |
-| Python | Hypothesis | `pyproject.toml` |
-| Rust | proptest | `Cargo.toml` |
-| Go | rapid | `go.mod` |
-| Elixir | StreamData | `mix.exs` |
-
-Fall back to assertion-based tests if no PBT framework is present.
-
-### 3. State machine tests
-
-For entities with status enums. When a transition graph is declared, walk every path through the graph. When no graph is declared, derive valid transitions from rules.
-- Verify transitions succeed via witnessing rules
-- Verify rejected transitions fail
-- Verify state-dependent fields are present or absent at each state per their `when` clauses
-- Verify invariants hold at each state
-
-State machine tests require an **action map**: a function per transition edge that takes the entity in the source state and produces it in the target state by calling the actual implementation code. Without this map, the test framework can describe valid paths through the graph but cannot execute them.
-
-To build the action map:
-1. For each edge in the transition graph, find the witnessing rule in the spec
-2. Find the code implementing that rule (the implementation bridge)
-3. Write a test action that sets up the preconditions (`requires` clauses), invokes the code, and returns the entity in the target state
-4. Register the action under the `(from_state, to_state)` key
-
-Once the map is built, the PBT framework can walk random valid paths: start at any non-terminal state, pick a random outbound edge, apply its action, check all entity-level invariants, repeat. The path length and starting state are generated randomly. This is the fullest expression of the spec's transition graph as a test.
-
-## The implementation bridge
-
-You correlate spec constructs with implementation code, the same way the weed skill correlates for divergence checking.
-
-### For surface tests
-
-Map surfaces to their implementation:
-- API surfaces map to endpoints (REST routes, GraphQL resolvers, gRPC services)
-- UI surfaces map to components or pages
-- Integration surfaces map to message handlers or SDK methods
-
-Discover the mapping by reading the codebase. Look for naming patterns, route definitions and handler registrations.
-
-### For internal tests
-
-For each rule in the spec:
-1. Find the code implementing the rule (service method, event handler, state machine transition)
-2. Determine how to instantiate the entities involved (factories, builders, fixtures)
-3. Determine how to invoke the rule (API call, method call, event dispatch)
-4. Determine how to assert postconditions (database queries, return values, event assertions)
-
-### For temporal tests
-
-Temporal triggers (deadline-based rules) need a controllable time source in the test. If the implementation uses wall-clock time (`Instant.now()`, `System.currentTimeMillis()`), the test cannot reliably position itself before, at or after a deadline.
-
-Before attempting temporal tests, check whether the component accepts an injected clock or time parameter. Common patterns: a `Clock` parameter on the constructor, an epoch-millisecond argument on the method, a `TimeProvider` interface. If the seam exists, inject a controllable time source. If it does not, flag this as a test infrastructure gap: the temporal tests cannot be generated until the component supports time injection. Do not attempt to test temporal behaviour by sleeping or racing against wall-clock time.
-
-### For cross-module trigger chains
-
-When a rule emits a trigger that another spec's rule receives (e.g. the Arbiter emits `ClerkReceivesEvent`, the Clerk handles it), testing the chain requires multiple components wired together.
-
-Before generating cross-module tests:
-1. Trace the trigger emission graph from the plan output: which rules emit triggers, and which rules in other specs receive them
-2. Check whether the codebase has an existing integration test fixture that wires the participating components (a pipeline test, an end-to-end test helper, a test harness class)
-3. If a fixture exists, reuse it. Cross-module tests should compose existing wiring, not rebuild it
-4. If no fixture exists but the codebase structure is clear enough to understand the wiring (service constructors, dependency injection, event bus configuration), generate the fixture and the test
-5. If the wiring is too complex or opaque to generate confidently, generate a test skeleton with TODOs marking where component wiring is needed
-
-Cross-module tests are integration tests by nature. They verify that the spec's trigger chains are faithfully implemented across component boundaries. Prioritise them after single-component tests are passing.
-
-### Reusing existing tests
-
-When exploring the codebase, note which spec obligations are already covered by existing tests. An existing integration test that exercises the happy path from event submission through to acknowledged output already covers multiple `rule_success` obligations and the end-to-end scenario.
-
-When an existing test covers a spec obligation, reference it rather than generating a duplicate. The propagate skill's value at the integration level is verifying that coverage is complete against the spec's obligation list, identifying gaps, and generating tests to fill them. Replacing working hand-written tests with generated equivalents adds no value.
-
-### For deferred specs
-
-Deferred specifications are fully specified in separate files. When the target codebase doesn't include the deferred spec's module, generate a test stub with a placeholder:
-
-```typescript
-// TODO: deferred spec — InterviewerMatching.suggest
-// This behaviour is specified as deferred. Provide a mock or skip.
+```
+allium plan / allium model              (deterministic external inputs)
+   ↓
+K subagents (Agent tool)
+   ↓  each produces obligation-bridge-i.json
+scripts/canonicalize-obligations.mjs    (per inventory)
+   ↓
+scripts/merge-obligations.mjs           (one-shot K-vote consensus)
+   ↓
+scripts/obligations-to-tests.mjs        (translator core + backend dispatch)
+   ↓ N test files
+scripts/run-suite.mjs                   (Stage C: runner + report)
+   ↓
+propagation-report.md
 ```
 
-## Process
+Scripts live at `${CLAUDE_PLUGIN_ROOT}/scripts/`. References, backends, and
+the schema subagents follow live at
+`${CLAUDE_PLUGIN_ROOT}/skills/propagate/{references,backends}`.
 
-1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults. Read [assessing specs](../allium/references/assessing-specs.md) to gauge the spec's maturity. A coarse spec (entities and transition graphs but no rules) will produce limited test obligations — mostly structural tests. If the spec is too coarse for meaningful test generation, suggest using the `elicit` or `distill` skill to develop it further before propagating tests. A spec with rules and surfaces enables the full test taxonomy including data flow chain tests and reachability tests.
-2. **Read test obligations** — from `allium plan` output or manual derivation
-3. **Read domain model** — from `allium model` output or manual derivation
-4. **Explore the codebase** — find existing tests, test framework, entity implementations, rule implementations
-5. **Map constructs to code** — correlate spec entities/rules/surfaces with implementation classes/functions/endpoints
-6. **Generate tests** — produce test files following the project's conventions
-7. **Verify tests compile/run** — ensure generated tests are syntactically valid
+## Procedure (mandatory, in order)
 
-### Discovery checklist
+### Step 1 — Decide K, backend, and output paths
 
-Before generating tests, establish:
+- **K**: default 3. Use 5 if the user wants higher determinism confidence
+  at higher cost; use 2 only if cost is the primary constraint.
+- **Backend**: pick from `backends/` based on the target codebase. If the
+  user does not specify, infer from project files:
+  - `pyproject.toml` or `setup.py` → `pytest+hypothesis`
+  - `package.json` with `jest` in devDependencies → `jest+fastcheck`
+    (v2 — not yet shipped in this plugin version; abort if requested)
+  - Otherwise, ask the user.
+- **Spec path** and **code root**: pick these MECHANICALLY, not by LLM
+  judgement, so two runs on the same project produce byte-identical
+  inventories.
+  - **`code_root`**: always `"."` (the current working directory). Do not
+    pick `"./app"` or any subdirectory even if the implementation lives
+    there — the convention is "the project root is the code root", and
+    paths in bridges (`<path>::<symbol>`) carry the `app/` prefix when
+    needed. The whole pipeline is designed around this; varying
+    `code_root` breaks byte-determinism across orchestrations.
+  - **`spec_path`**: the path the user named, made relative to `code_root`.
+    If they did not name one, look for `./allium-distilled/spec.allium`
+    first, then `./spec.allium`, then ask. Always express it with a
+    leading `./` (so `"./allium-distilled/spec.allium"`, never
+    `"allium-distilled/spec.allium"` and never an absolute path).
+  - Pass these EXACT strings to every subagent's prompt and use them
+    verbatim in the inventory's top-level fields. Subagents must not
+    reinterpret them.
+- **Output directory**: `./allium-propagated/` by default, relative to the
+  current working directory. Test files are written into `<code_root>/tests/`
+  (or whatever the backend's `name-policy.json` directs); intermediate
+  artefacts (inventories, plan, model, merged) land in `./allium-propagated/`.
 
-- [ ] Test framework and runner (Jest, pytest, cargo test, etc.)
-- [ ] PBT framework if present (fast-check, Hypothesis, proptest, etc.)
-- [ ] Test file location conventions (co-located, `__tests__/`, `tests/`, etc.)
-- [ ] Entity/model location and patterns (classes, interfaces, structs)
-- [ ] Factory/fixture patterns for test data
-- [ ] How state transitions are implemented (methods, events, state machines)
-- [ ] How surfaces are implemented (routes, controllers, resolvers)
-- [ ] Existing test helpers or utilities
-- [ ] Whether components accept injected time sources for temporal tests
-- [ ] Whether an integration test fixture exists for cross-module trigger chains
-- [ ] Which spec obligations are already covered by existing tests
+Create the layout:
 
-### Generator awareness
+```
+./allium-propagated/
+├── inventories/                # subagent outputs land here
+├── plan.json                   # cached `allium plan` output
+├── model.json                  # cached `allium model` output
+├── merged.json                 # consensus inventory (after Stage B)
+└── propagation-report.md       # Stage C output
+```
 
-When generator specs are available, use them to produce valid test data:
+### Step 2 — Pre-compute deterministic external inputs
 
-- Respect field types and constraints
-- For entities with transition graphs, generate entities at specific lifecycle states with correct field presence per `when` clauses (e.g. a `shipped` Order has `tracking_number` and `shipped_at` populated; a `pending` Order does not)
-- For invariants, generate states that exercise boundary conditions
-- For config parameters, use declared defaults unless testing overrides
+Run via Bash, capturing output to disk:
 
-## Interaction with other tools
+```
+allium plan <spec_path>  > ./allium-propagated/plan.json
+allium model <spec_path> > ./allium-propagated/model.json
+```
 
-- **distill** produces specs from code. Those specs feed propagate.
-- **weed** checks alignment. After propagating tests, weed verifies spec-code match.
-- **tend** evolves specs. After spec changes, run propagate again to update tests.
-- **elicit** builds specs through conversation. Once a spec is ready, propagate generates tests.
+If either command fails, abort and tell the user — propagation requires
+both files. The plan output is used by `canonicalize-obligations.mjs` to
+validate that every subagent inventory has exactly the right obligation
+set.
 
-## Limitations
+### Step 3 — Spawn K subagents in parallel
 
-- Generated tests are a starting point. They may need adjustment for project-specific patterns.
-- The implementation bridge is LLM-mediated. Complex or unusual codebases may need manual guidance on the mapping.
-- Cross-module tests require understanding component wiring across service boundaries. When the codebase structure is clear, full tests can be generated. When wiring is opaque, tests are generated as skeletons with TODOs for manual setup.
-- Runtime trace validation and model checking are separate workstreams.
+Use the **Agent tool** with `subagent_type: "general-purpose"`. Send all
+K Agent tool calls **in a single message** so they execute concurrently.
+Each subagent receives the prompt template from Step 4 with placeholders
+substituted. The i-th subagent's output path is
+`./allium-propagated/inventories/inventory-<i>.json` (1-indexed).
+
+### Step 4 — Subagent prompt template
+
+Use this prompt verbatim per subagent, with placeholders replaced:
+
+```
+You are producing one obligation-bridge inventory of a codebase as part
+of a consensus pipeline. Other subagents are doing the same job in
+parallel; your output will be merged with theirs.
+
+Step 1: Read these inputs:
+  - The Allium spec:              <SPEC_PATH>
+  - The test plan (obligations):  ./allium-propagated/plan.json
+  - The domain model:             ./allium-propagated/model.json
+  - The target codebase under:    <CODE_ROOT>
+
+Skip generated / vendored / dependency directories.
+
+Step 2: Read the obligation-bridge schema and the chosen backend's
+conventions:
+  - ${CLAUDE_PLUGIN_ROOT}/skills/propagate/references/obligation-bridge-schema.md
+  - ${CLAUDE_PLUGIN_ROOT}/skills/propagate/backends/<FRAMEWORK>/conventions.md
+
+The schema defines the JSON shape, the bridge symbol notation
+(<path>::<symbol>), test_kind values, bridge confidence semantics, and
+the self-check list to run before emitting.
+
+Step 3: For every obligation in plan.json, produce one entry in your
+inventory. The set of obligation_ids in your output MUST equal the set
+in plan.json — no additions, no omissions. The canonicaliser rejects
+deviations.
+
+Step 4: Write the inventory to:
+    <OUTPUT_PATH>
+
+Use these top-level field values verbatim (do not invent your own):
+    "spec_path":  "<SPEC_PATH>"
+    "code_root":  "<CODE_ROOT>"
+    "framework":  "<FRAMEWORK>"
+
+Step 5: Stop. Do NOT:
+  - write a test file (the orchestrator's translator handles that)
+  - run `allium plan` / `allium model` yourself (the orchestrator did)
+  - write any other file
+  - invoke any other skill (in particular, do not invoke `propagate` —
+    that would recurse)
+  - read or follow the orchestrator's SKILL.md
+  - print anything other than a one-line confirmation that the file was written
+
+The inventory is your only deliverable.
+```
+
+### Step 5 — Canonicalize each inventory
+
+For each inventory the subagents produced, run via Bash:
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/canonicalize-obligations.mjs \
+    ./allium-propagated/inventories/inventory-<i>.json \
+    ./allium-propagated/inventories/inventory-<i>.canonical.json \
+    --plan ./allium-propagated/plan.json
+```
+
+If a subagent failed to write its inventory, or the canonicaliser rejects
+it (obligation set mismatch, malformed bridge, unknown framework), skip
+it and continue with the survivors. Note any failures in the final
+report. If fewer than ⌈K/2⌉ survive, abort and ask the user to re-run.
+
+### Step 6 — Merge into a consensus inventory
+
+Run via Bash, passing every canonical inventory:
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/merge-obligations.mjs \
+    ./allium-propagated/merged.json \
+    ./allium-propagated/inventories/inventory-1.canonical.json \
+    ./allium-propagated/inventories/inventory-2.canonical.json \
+    ...
+```
+
+The merger does modal voting on `test_kind` and `bridge.primary_symbol`,
+set-style majority on `preconditions`, `fixtures_required`, and
+`injection_points`. Obligations where K subagents cannot converge on a
+single primary symbol are demoted to `bridge.confidence: "low"` with
+the candidates preserved — the translator will emit those as
+backend-idiomatic skipped stubs.
+
+Same K canonical inventories always produce byte-identical merged bytes.
+
+### Step 7 — Translate to test files
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/obligations-to-tests.mjs \
+    ./allium-propagated/merged.json \
+    --out <CODE_ROOT>
+```
+
+The translator dispatches on the inventory's `framework` field, loads
+that backend's manifest, name-policy, and templates, and writes test
+files under `<CODE_ROOT>/<backend's directory_layout>/`. Same merged
+inventory always produces byte-identical files.
+
+### Step 8 — Verify with Stage C runner
+
+```
+node ${CLAUDE_PLUGIN_ROOT}/scripts/run-suite.mjs \
+    ./allium-propagated/merged.json \
+    --tests-root <CODE_ROOT> \
+    --report ./allium-propagated/propagation-report.md
+```
+
+Stage C runs the backend's runner command (e.g. `python3 -m pytest
+--junit-xml=…`), parses the runner's JSON/XML report via a per-format
+adapter, categorises outcomes into pass / fail / error / skipped
+(bridge-unresolved) / skipped (other), and emits a Markdown report.
+
+Stage C is intentionally read-only against the inventory pipeline: it
+does not feed back into Stage B.
+
+### Step 9 — Report
+
+State to the user:
+
+- Backend used and number of subagents (K)
+- Total obligations vs obligations covered
+- Number of `bridge-unresolved` stubs (these need human follow-up)
+- Number of likely real failures and likely wrong bridges
+- Path to the generated test files and to `propagation-report.md`
+- Any subagent failures and survivor count
+
+Do not embed test file contents in your reply — point the user at the
+files.
+
+## Defaults
+
+- K = 3
+- Backend = inferred from project files (`pytest+hypothesis` for Python,
+  `jest+fastcheck` for TypeScript/JavaScript projects with Jest)
+- Output directory = `./allium-propagated/`
+- Subagents run in parallel (always)
+- One propagation per invocation
+
+## What this skill does NOT do
+
+- It does not invoke `allium analyse` beyond reading `allium plan` and
+  `allium model`. If the user wants completeness checks against analyse
+  findings, they run those tools manually against the spec first.
+- It does not modify implementation source code — only the test tree under
+  `<CODE_ROOT>/<directory_layout>/`.
+- It does not delete pre-existing tests. The generated tree may overlap
+  with hand-written tests; the user is responsible for reconciling.
+- It does not implement new test bodies — it emits *stubs* with a wired
+  bridge (import + skeleton + TODO). Engineers fill in the assertion body.
+  Stubs are still useful: they prove the obligation is structurally
+  covered and the bridge is importable.
+- It does not invoke other skills (no recursion through the subagent path).
+
+## How backends are dispatched
+
+The backend is selected from the inventory's `framework` field, set by
+the orchestrator and propagated through canonicalize / merge / translate
+unchanged. To add a new language (Rust + proptest, Go + rapid, …),
+contribute a new backend under `backends/<id>/`:
+
+- `manifest.json`           — runner, file extension, imports style,
+                              injection idioms (see
+                              [`references/backend-authoring-guide.md`](./references/backend-authoring-guide.md))
+- `name-policy.json`        — casing, directory layout, file pattern
+- `conventions.md`          — symbol form for Stage A subagents
+- `templates/`              — six templates (test-file, assertion,
+                              pbt-property, state-machine,
+                              stub-unresolved, fixture)
+
+The translator does not need changes when a backend is added.
+Stage C's runner-output adapter (in `run-suite.mjs`) may need a new
+entry if the backend's runner emits a JSON/XML format not yet supported.
+
+## What subagents extract — guidance
+
+The `references/obligation-bridge-schema.md` document carries the full
+contract. Subagents read that. The orchestrator (you) does not need to
+know what to extract — only how to drive the pipeline.
+
+If subagents produce visibly poor inventories (most bridges low-confidence
+when the implementation is obvious; bogus `<symbol>` shapes; obligation
+IDs that don't match the plan), the right interventions are:
+
+1. Extend `references/obligation-bridge-schema.md` (covers all backends).
+2. Extend the specific backend's `conventions.md` (per-language).
+
+Keep this SKILL.md focused on orchestration.

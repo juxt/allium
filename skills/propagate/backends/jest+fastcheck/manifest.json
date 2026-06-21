@@ -1,0 +1,28 @@
+{
+  "manifest_version": 1,
+  "id": "jest+fastcheck",
+  "language": "typescript",
+  "file_extension": ".test.ts",
+  "test_file_prefix": "",
+  "runner": {
+    "command": ["npx", "jest", "--json", "--outputFile={report_path}"],
+    "report_format": "jest-json",
+    "scope_args": ["{test_root}"]
+  },
+  "imports_style": "typescript",
+  "imports": {
+    "base": ["import fc from \"fast-check\";"],
+    "pbt": [],
+    "state_machine": [],
+    "temporal": []
+  },
+  "bridge_import": {
+    "transform": "typescript_relative"
+  },
+  "fixture_style": "in-file",
+  "stub_idiom": "test.skip",
+  "skip_marker": "bridge-unresolved",
+  "clock_injection": "jest.useFakeTimers()",
+  "random_injection": "jest.spyOn(Math, \"random\")",
+  "network_injection": "jest.spyOn"
+}
