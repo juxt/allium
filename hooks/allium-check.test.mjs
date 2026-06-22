@@ -1,5 +1,5 @@
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, existsSync, chmodSync } from "fs";
 import path from "path";
 import { tmpdir } from "os";
 
@@ -651,7 +651,146 @@ assert(
   0,
 );
 
+// --- CLI missing: one-time install notice ---
+// Force the "binary not found" path by running with a PATH that contains no
+// allium, and an isolated XDG_CACHE_HOME so the per-machine marker is hermetic.
+// process.execPath is used so node itself resolves without relying on PATH.
+
+console.log("\nCLI missing — one-time install notice:");
+
+const emptyPathDir = mkdtempSync(path.join(tmpdir(), "allium-hook-nopath-"));
+
+function runNoCli(input, extraEnv = {}) {
+  try {
+    execFileSync(process.execPath, [hook], {
+      input: JSON.stringify(input),
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, PATH: emptyPathDir, ...extraEnv },
+    });
+    return { status: 0, stderr: "" };
+  } catch (e) {
+    return { status: e.status, stderr: e.stderr || "" };
+  }
+}
+
+const noticeCache = mkdtempSync(path.join(tmpdir(), "allium-hook-cache-"));
+const noticeEnv = { CLAUDE_PROJECT_ROOT: projectRoot, XDG_CACHE_HOME: noticeCache };
+
+const firstNotice = runNoCli({ tool_input: { file_path: validFile } }, noticeEnv);
+assert("first edit with no CLI surfaces notice (exit 1)", firstNotice.status, 1);
+assert("notice tells the model to install the CLI", /install/i.test(firstNotice.stderr), true);
+assert(
+  "notice carries a concrete install command",
+  /cargo install allium-cli/.test(firstNotice.stderr),
+  true,
+);
+assert(
+  "persisted notice promises it fires only once",
+  /only once per machine/.test(firstNotice.stderr),
+  true,
+);
+
+const secondNotice = runNoCli({ tool_input: { file_path: validFile } }, noticeEnv);
+assert("notice fires only once (subsequent edits exit 0)", secondNotice.status, 0);
+assert("subsequent edit emits nothing", secondNotice.stderr, "");
+
+// A fresh cache (e.g. another machine) shows the notice again.
+const freshCache = mkdtempSync(path.join(tmpdir(), "allium-hook-cache-"));
+const freshNotice = runNoCli(
+  { tool_input: { file_path: validFile } },
+  { CLAUDE_PROJECT_ROOT: projectRoot, XDG_CACHE_HOME: freshCache },
+);
+assert("notice shows again under a fresh cache (exit 1)", freshNotice.status, 1);
+
+// Scope: the notice must NOT leak onto non-spec edits even when the CLI is
+// absent — those exit early, before the checker is ever invoked.
+const scopeCache = mkdtempSync(path.join(tmpdir(), "allium-hook-cache-"));
+
+const mdEdit = runNoCli(
+  { tool_input: { file_path: path.join(projectRoot, "notes.md") } },
+  { CLAUDE_PROJECT_ROOT: projectRoot, XDG_CACHE_HOME: scopeCache },
+);
+assert("no notice on non-.allium edit when CLI absent (exit 0)", mdEdit.status, 0);
+assert("non-.allium edit emits nothing", mdEdit.stderr, "");
+
+const outOfRootEdit = runNoCli(
+  { tool_input: { file_path: outsideFile } },
+  { CLAUDE_PROJECT_ROOT: projectRoot, XDG_CACHE_HOME: scopeCache },
+);
+assert("no notice on out-of-root .allium edit when CLI absent (exit 0)", outOfRootEdit.status, 0);
+assert("out-of-root edit emits nothing", outOfRootEdit.stderr, "");
+
+// A blocked cache: XDG_CACHE_HOME points at a file, so the per-machine marker
+// can't be written. Shared by the fallback and both-unwritable scenarios.
+const blockedRoot = mkdtempSync(path.join(tmpdir(), "allium-hook-blocked-"));
+const blockedCache = path.join(blockedRoot, "not-a-dir");
+writeFileSync(blockedCache, "x\n");
+
+// Fallback: cache unwritable but project root writable → the marker falls back
+// to .allium-cli-notice-shown in the project root, so the notice still fires
+// only once (per project) and doesn't crash.
+const fallbackProject = mkdtempSync(path.join(tmpdir(), "allium-hook-fallback-"));
+const fallbackFile = path.join(fallbackProject, "spec.allium");
+writeFileSync(fallbackFile, "-- allium: 3\n");
+const fallbackEnv = { CLAUDE_PROJECT_ROOT: fallbackProject, XDG_CACHE_HOME: blockedCache };
+
+const fb1 = runNoCli({ tool_input: { file_path: fallbackFile } }, fallbackEnv);
+assert("notice shown when cache unwritable, via project fallback (exit 1)", fb1.status, 1);
+assert(
+  "fallback notice names the project marker file",
+  /\.allium-cli-notice-shown/.test(fb1.stderr),
+  true,
+);
+assert(
+  "fallback notice does not claim per-machine once-only",
+  /only once per machine/.test(fb1.stderr),
+  false,
+);
+assert(
+  "project fallback marker file is actually created",
+  existsSync(path.join(fallbackProject, ".allium-cli-notice-shown")),
+  true,
+);
+const fb2 = runNoCli({ tool_input: { file_path: fallbackFile } }, fallbackEnv);
+assert("project fallback marker suppresses re-firing (exit 0)", fb2.status, 0);
+assert("suppressed fallback edit emits nothing", fb2.stderr, "");
+
+// Both unwritable: cache blocked AND project root read-only → no marker can be
+// persisted, so the hook hands off to manual install and keeps re-firing.
+// (Skipped under root, which bypasses directory permissions.)
+const roProject = mkdtempSync(path.join(tmpdir(), "allium-hook-roproj-"));
+const roFile = path.join(roProject, "spec.allium");
+writeFileSync(roFile, "-- allium: 3\n");
+chmodSync(roProject, 0o500);
+const runningAsRoot = typeof process.getuid === "function" && process.getuid() === 0;
+if (!runningAsRoot) {
+  const roEnv = { CLAUDE_PROJECT_ROOT: roProject, XDG_CACHE_HOME: blockedCache };
+  const ro1 = runNoCli({ tool_input: { file_path: roFile } }, roEnv);
+  assert("notice shown when neither marker can be saved (exit 1)", ro1.status, 1);
+  assert(
+    "both-unwritable notice tells the user it couldn't be saved",
+    /could NOT be saved/.test(ro1.stderr),
+    true,
+  );
+  assert(
+    "both-unwritable notice asks the user to confirm self-install",
+    /confirm they're happy/.test(ro1.stderr),
+    true,
+  );
+  const ro2 = runNoCli({ tool_input: { file_path: roFile } }, roEnv);
+  assert("both-unwritable notice re-fires (exit 1)", ro2.status, 1);
+}
+chmodSync(roProject, 0o700);
+
 // Clean up
+rmSync(emptyPathDir, { recursive: true });
+rmSync(noticeCache, { recursive: true });
+rmSync(freshCache, { recursive: true });
+rmSync(scopeCache, { recursive: true });
+rmSync(blockedRoot, { recursive: true });
+rmSync(fallbackProject, { recursive: true });
+rmSync(roProject, { recursive: true });
 rmSync(projectRoot, { recursive: true });
 rmSync(outsideDir, { recursive: true });
 rmSync(secondRoot, { recursive: true });
