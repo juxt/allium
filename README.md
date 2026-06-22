@@ -237,6 +237,8 @@ The developer never mentioned invoicing or payment method capture. The Allium di
 
 When the CLI is installed, `.allium` files are validated automatically after every write or edit. Diagnostics appear inline and the model fixes issues in the same turn.
 
+**If the CLI is missing**, the first time you edit a `.allium` file the post-write hook surfaces a one-time notice explaining what the CLI adds and prompting the model to offer to install it for you — with the right command for your platform, and a single confirmation. The notice fires only once per machine (and never once the `allium` binary is on your `PATH`), so editing without the CLI stays quiet after that. The "shown once" marker normally lives in your cache directory; if that isn't writable it falls back to a `.allium-cli-notice-shown` file in the project root (worth adding to `.gitignore`). Only if neither location is writable does the notice recur — in which case it tells you so and hands off to manual installation.
+
 **Live diagnostics in Claude Code.** The Claude Code plugin also wires the `allium-lsp` language server, so Claude receives checker errors, go-to-definition and hover for `.allium` files immediately after each edit, without a separate `allium check` invocation. The language server is **not bundled** with the plugin — install the `allium-lsp` server from the [allium-tools repo](https://github.com/juxt/allium-tools) and make sure the `allium-lsp` binary is on your `PATH`. If it isn't found, Claude Code reports `Executable not found in $PATH` in the `/plugin` Errors tab and falls back to CLI checking.
 
 ## Language governance
