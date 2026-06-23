@@ -1,6 +1,7 @@
 # Loop mode (`/allium:loop`) — design note
 
 > **Status: Proposed, not implemented.** Living document — update as the design evolves.
+> **Lifecycle:** internal design note, not user-facing. To be retired when `/allium:loop` ships — its content graduates into the skill itself and the recommended-loops reference. Keep it out of the user-facing vendored plugin until then (split onto its own branch, or exclude `design/` from the marketplace sync, before any release that would otherwise ship it).
 > Companion to the shipped [recommended loops](../skills/allium/references/recommended-loops.md) reference, which documents the loop *pattern*. This note designs a skill that *drives* it.
 
 ## 1. Purpose
