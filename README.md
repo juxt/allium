@@ -84,7 +84,7 @@ npx skills add juxt/allium
 
 **Other editors:** If your editor doesn't read from `.agents/skills/`, symlink the installed skills into wherever it does look (e.g. `ln -s .agents/skills/allium .continue/rules/allium`, or `mklink /J` on Windows). Use a symlink rather than copying; the skill files contain relative links to reference material that a copy would break.
 
-Once installed, type `/allium` to get started. Allium examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
+Once installed, type `/allium` to get started. Allium examines your project and points you at the best next move — usually driving the whole loop end to end (`/allium:loop`), or a single skill like distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
@@ -112,7 +112,7 @@ Allium provides six skills, an entry point and two autonomous agents.
 
 | Skill | Purpose |
 |---|---|
-| `/allium <prompt>` | Entry point. Examines your project or the prompt and routes you to the right skill. |
+| `/allium <prompt>` | Entry point. Examines your project and either drives the whole loop (`/allium:loop`) or routes you to the right single skill. |
 | `/elicit <feature idea>` (or `/allium:elicit`) | Build a spec through structured conversation. |
 | `/distill <codebase area>` (or `/allium:distill`) | Extract a spec from existing code. |
 | `/propagate <optional constraints>` (or `/allium:propagate`) | Generate tests from a spec. |
