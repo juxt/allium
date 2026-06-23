@@ -84,20 +84,22 @@ The ledger (§10) records which inner loop is active so an unattended resume (§
 
 - The **loop ledger lives in a dotfile** (e.g. `.allium-loop/<goal-slug>.json`): goal, mode, tick count, active inner loop, last verdicts, and parked (non-blocking) open questions. Blocking questions are escalated, not parked.
 - The ledger is what makes the same skill resumable unattended (§2, Layer 2): a fresh context reads it and continues idempotently.
-- Open follow-on: should the dotfile be `.gitignore`-d by default? (See §12.1 — mirrors the install-notice marker debate.)
+- The ledger dir `.allium-loop/` is **git-ignored** — loop mode appends it to `.gitignore` on first use. It is transient, per-developer, per-run state (like a build artefact), not shared source; same reasoning as the install-notice marker.
 
 ## 11. Output / reporting
 
 - Per-tick one-line state summary.
 - Final report: what converged, what was escalated, residual parked questions, test/weed status.
 
-## 12. Open design questions
+## 12. Decisions
 
-1. **Ledger dotfile + `.gitignore`** — decided it lives in a dotfile (§10); still to settle whether loop mode offers to gitignore it.
-2. **Auto-commit per converged tick**, or leave the working tree to the user?
-3. **Relationship to the `tend`/`weed` agents** — does `loop` *call* them, or inline their procedures?
-4. **Auto-decompose** large goals vs. surface a plan and ask.
-5. **Configurable caps** — flags, a `config` block, or fixed defaults?
+- **Ledger** — dotfile `.allium-loop/<goal-slug>.json`, git-ignored (§10).
+- **No auto-commit** — loop mode never commits on its own; it leaves the working tree for the user (who can always instruct the agent to commit). Committing is a user prerogative with too many valid styles to default.
+- **Orchestration: delegate, don't inline** — loop *delegates* each phase to the existing skills/agents rather than re-implementing them. This is DRY (phase logic stays in one place), more agentic (an orchestrator over sub-agents — the trees-of-agents pattern), and — because `tend`/`weed` already run in their own context — delegation provides **context isolation**: the orchestrator holds only the ledger + convergence state while each phase runs in a clean context, which is what lets a long loop stay within budget. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger. *Implication:* every phase should be spawnable as an isolated sub-agent — today only `tend`/`weed` are agents, so `elicit`/`distill`/`propagate` would need to be agent-invocable (or loop spawns a generic sub-agent that loads the relevant skill).
+- **Auto-decompose, summarise at the end** — a goal too big for one tick is decomposed into sub-goals and run autonomously (no blocking to confirm a plan), with a single consolidated summary at the very end. Blocking open questions still escalate mid-run per §7.
+- **Caps: defaults, overridable** — sensible fixed defaults (hard cap 6, no-progress 2; §9), overridable per-invocation (flags) and via a `config` block.
+
+**Still open:** decomposition heuristics (how to split a large goal and roll sub-goal results into the final summary); whether phases pass anything beyond the on-disk artefacts + ledger; `.gitignore` mechanics for repos that have none or unusual setups.
 
 ## 13. Out of scope / risks
 
