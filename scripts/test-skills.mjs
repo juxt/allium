@@ -10,9 +10,9 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, discovery, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, discovery, crosstalk
  *
- * The first seven groups are offline (free, fast). The last two require --live
+ * All groups except discovery and crosstalk are offline (free, fast); those two require --live
  * and make Claude API calls.
  */
 
@@ -503,6 +503,104 @@ if (shouldRun("generation")) {
     pass("generated files up to date");
   } catch {
     fail("generated files out of date", "run: node scripts/generate-multi-editor.mjs");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Loopdocs — the loop constants (caps + phase phrase) stay consistent across
+// the docs that restate them. Canonical values live here in the test.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("loopdocs")) {
+  console.log("\n── loopdocs: loop constant drift ──\n");
+
+  const HARD_CAP = 6;
+  const NO_PROGRESS = 2;
+  const PHASE_PHRASE = "gather context → take action → verify → repeat";
+
+  // Files that state the numeric caps.
+  const capFiles = [
+    "skills/loop/SKILL.md",
+    "skills/allium/references/recommended-loops.md",
+    "design/loop-mode.md",
+  ];
+  for (const rp of capFiles) {
+    const fp = path.join(ROOT, rp);
+    if (!existsSync(fp)) continue; // design note may be absent post-release
+    const src = readFileSync(fp, "utf-8");
+    const hard = src.match(/hard cap[^\n.]*?\b(\d+)\b/i);
+    const noProg = src.match(/no-progress[^\n.]*?\b(\d+)\b/i);
+    if (hard && Number(hard[1]) === HARD_CAP) pass(`${rp} hard cap = ${HARD_CAP}`);
+    else fail(`${rp} hard cap`, `expected ${HARD_CAP}, found ${hard ? hard[1] : "none"}`);
+    if (noProg && Number(noProg[1]) === NO_PROGRESS) pass(`${rp} no-progress cap = ${NO_PROGRESS}`);
+    else fail(`${rp} no-progress cap`, `expected ${NO_PROGRESS}, found ${noProg ? noProg[1] : "none"}`);
+  }
+
+  // Files that state the phase phrase in arrow form.
+  const phaseFiles = [
+    "skills/loop/SKILL.md",
+    "skills/allium/references/recommended-loops.md",
+    "skills/allium/SKILL.md",
+    "design/loop-mode.md",
+  ];
+  for (const rp of phaseFiles) {
+    const fp = path.join(ROOT, rp);
+    if (!existsSync(fp)) continue;
+    if (readFileSync(fp, "utf-8").includes(PHASE_PHRASE)) pass(`${rp} phase phrase`);
+    else fail(`${rp} phase phrase`, `missing "${PHASE_PHRASE}"`);
+  }
+
+  // README states the phases in verb form — check the four appear in order.
+  const readmePath = path.join(ROOT, "README.md");
+  if (existsSync(readmePath)) {
+    const src = readFileSync(readmePath, "utf-8");
+    const stems = [/gather/i, /take[s]? action/i, /verif/i, /repeat/i];
+    const idx = stems.map((s) => src.search(s));
+    if (idx.every((i) => i >= 0) && idx.every((v, i) => i === 0 || v > idx[i - 1])) {
+      pass("README.md phases in order");
+    } else {
+      fail("README.md phases", `not all present and in order: ${idx}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hooks — the PostToolUse hook config is valid and points at a real script.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("hooks")) {
+  console.log("\n── hooks: hook config integrity ──\n");
+
+  const hooksPath = path.join(ROOT, "hooks", "hooks.json");
+  if (!existsSync(hooksPath)) {
+    fail("hooks/hooks.json", "not found");
+  } else {
+    const cfg = readJson(hooksPath);
+    if (!cfg) {
+      fail("hooks/hooks.json", "invalid JSON");
+    } else {
+      pass("hooks/hooks.json valid JSON");
+      const post = cfg.hooks?.PostToolUse;
+      if (!Array.isArray(post) || post.length === 0) {
+        fail("hooks PostToolUse", "missing or empty");
+      } else {
+        pass("hooks PostToolUse present");
+        let matchersOk = true;
+        let scriptsOk = true;
+        for (const entry of post) {
+          if (!entry || !entry.matcher) matchersOk = false;
+          const cmds = Array.isArray(entry?.hooks) ? entry.hooks : [];
+          for (const h of cmds) {
+            const m =
+              typeof h.command === "string" &&
+              h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/);
+            if (m && !existsSync(path.join(ROOT, m[1]))) scriptsOk = false;
+          }
+        }
+        matchersOk ? pass("hooks have matchers") : fail("hooks matcher", "an entry is missing a matcher");
+        scriptsOk ? pass("hook command scripts exist") : fail("hook command", "referenced script not found");
+      }
+    }
   }
 }
 
