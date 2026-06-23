@@ -29,6 +29,33 @@ Two forces feed the spec, and one loop keeps it honest against the code:
 
 `/elicit` works forward from intent through conversation; `/distill` works backward from existing code, filtering out implementation detail. `/tend` makes targeted edits as requirements change; `/weed` finds where spec and code have diverged and reconciles them in either direction; `/propagate` generates tests from the spec so the implementation is checked against specified behaviour. `/allium` is the entry point — point it at your project and it routes you to the right one. The [skills table](#skills-and-agents) below covers each in detail.
 
+## The Allium loop
+
+Agentic coding is a loop: the agent **gathers context**, **takes action**, **verifies** the result, and **repeats** until the goal is met. The phase that decides quality is verification — a signal the loop can trust to tell *green* from *done*. Allium is built for that loop, and it owns the hard parts: a *behavioural* verification signal, and context that doesn't drift between sessions.
+
+```
+   gather context ───▶ take action ──────▶ verify ─────────▶ repeat
+   /elicit · /distill   /propagate → tests   run tests          until
+   → the spec           then implement       → /weed            converged
+   (durable context)                         → CLI checks
+          ▲                                        │
+          └──────────────── revise intent ◀────────┘
+              /tend, when verify shows the SPEC
+              (not the code) was wrong
+```
+
+- **Gather context** — `/elicit` (from intent) or `/distill` (from code) produces the spec. Unlike re-reading code each session, the spec *persists*, so meaning doesn't drift.
+- **Take action** — `/propagate` turns the spec into tests (the contract), then you implement against them. For new behaviour, confirm the tests *fail* first — a generated test that's already green is already covered or vacuous.
+- **Verify** — run the tests, then `/weed` for spec↔code alignment, then the CLI's structural checks. A behaviour-level pass/fail, not merely "unit tests are green."
+- **Repeat** — until spec, tests and code agree and no open questions remain. The loop can re-enter at *any* phase: when verification shows the **spec** was wrong, you revise intent (`/tend`), not just the code — the way real development discovers requirements by building, rather than assuming them fixed up front.
+
+Two entry points run the same loop:
+
+- **Spec-first** (new features): `/elicit → /propagate → implement → /weed`, looping `/tend → /propagate` as requirements change.
+- **Code-first** (existing code): `/distill → review → /propagate → run against the code → /weed`, repeated per area until a pass finds nothing new.
+
+See [recommended loops](skills/allium/references/recommended-loops.md) for the full walkthrough, both diagrams, exit conditions and the implementation prompt. *(This is the "agentic loop" framing now common in AI engineering; for background see [How Claude Code works](https://code.claude.com/docs/en/how-claude-code-works) and [Loop Engineering](https://thenewstack.io/loop-engineering/).)*
+
 ## Get started
 
 Allium works with Claude Code, Codex, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
