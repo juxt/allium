@@ -79,30 +79,41 @@ The ledger (§10) records which inner loop is active so an unattended resume (§
 - **No-progress cap** — default **2** ticks with no measurable change (test pass count, weed verdict, open-question count). Catches thrashing against a test it can't satisfy.
 - **Escalate on blocking open question** (§7).
 - **Anti-cheat (non-negotiable)** — never edit a generated test to pass; a wrong-looking test means tend the spec + re-propagate, logged.
-- Honour `config` (no magic numbers); decompose a too-big goal into sub-goals rather than blowing the context budget.
+- Honour `config` (no magic numbers); decompose a too-big goal into sub-goals rather than blowing the context budget (§12).
 
 ## 10. State & resumability (ledger)
 
 - The **loop ledger lives in a dotfile** (e.g. `.allium-loop/<goal-slug>.json`): goal, mode, tick count, active inner loop, last verdicts, and parked (non-blocking) open questions. Blocking questions are escalated, not parked.
 - The ledger is what makes the same skill resumable unattended (§2, Layer 2): a fresh context reads it and continues idempotently.
-- The ledger dir `.allium-loop/` is **git-ignored** — loop mode appends it to `.gitignore` on first use. It is transient, per-developer, per-run state (like a build artefact), not shared source; same reasoning as the install-notice marker.
+- The ledger dir `.allium-loop/` is **git-ignored** — transient, per-developer, per-run state (like a build artefact), not shared source; same reasoning as the install-notice marker. Mechanics: resolve the repo root with `git rev-parse --show-toplevel` (**not a git repo → skip**, don't create a `.gitignore`); ensure `.allium-loop/` is ignored at that root — create `.gitignore` if absent, append if missing, **no-op if already ignored** (check `git check-ignore` first so global excludes or existing entries aren't duplicated); in a monorepo or worktree use the nearest enclosing project root. **Best-effort**: if `.gitignore` can't be written, continue (the ledger still works locally) and say so. Mention the change once; don't prompt.
 
 ## 11. Output / reporting
 
 - Per-tick one-line state summary.
 - Final report: what converged, what was escalated, residual parked questions, test/weed status.
 
-## 12. Decisions
+## 12. Decomposition & roll-up
+
+A goal too big for one tick is split into sub-goals, each run as its own loop (with its own delegated, context-isolated phases per §13). Decomposition follows Allium's own structural seams rather than arbitrary task slicing:
+
+- **Unit** — one sub-goal per **entity lifecycle**, **surface**, or **independent rule / data-flow chain**. The spec defines the seams; `allium plan`/`analyse` enumerate obligations per construct.
+- **Ordering** — topological by the spec's **data-flow / trigger graph**: producers before consumers (the same graph `propagate` uses for data-flow and cross-module tests).
+- **When to split** — when the goal spans more than one independent behavioural slice. Judgment guided by the seams, not a magic obligation count.
+- **Integration pass** — per-slice convergence is not enough: decomposing by entity splits cross-entity processes and data-flow chains. After the slices converge, run a **whole-spec integration pass** — the cross-entity / data-flow / reachability tests plus a full `weed` — so the seams *between* slices converge too.
+- **Roll-up** — each sub-goal loop returns a structured mini-report (converged? tests, escalations, residual parked questions). The orchestrator aggregates into one final summary: per-slice status, totals, consolidated and deduped parked questions, overall convergence. The ledger records which sub-goals are done, so an unattended resume skips completed ones.
+
+## 13. Decisions
 
 - **Ledger** — dotfile `.allium-loop/<goal-slug>.json`, git-ignored (§10).
 - **No auto-commit** — loop mode never commits on its own; it leaves the working tree for the user (who can always instruct the agent to commit). Committing is a user prerogative with too many valid styles to default.
 - **Orchestration: delegate, don't inline** — loop *delegates* each phase to the existing skills/agents rather than re-implementing them. This is DRY (phase logic stays in one place), more agentic (an orchestrator over sub-agents — the trees-of-agents pattern), and — because `tend`/`weed` already run in their own context — delegation provides **context isolation**: the orchestrator holds only the ledger + convergence state while each phase runs in a clean context, which is what lets a long loop stay within budget. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger. *Implication:* every phase should be spawnable as an isolated sub-agent — today only `tend`/`weed` are agents, so `elicit`/`distill`/`propagate` would need to be agent-invocable (or loop spawns a generic sub-agent that loads the relevant skill).
 - **Auto-decompose, summarise at the end** — a goal too big for one tick is decomposed into sub-goals and run autonomously (no blocking to confirm a plan), with a single consolidated summary at the very end. Blocking open questions still escalate mid-run per §7.
 - **Caps: defaults, overridable** — sensible fixed defaults (hard cap 6, no-progress 2; §9), overridable per-invocation (flags) and via a `config` block.
+- **Interface: artefacts + ledger only** — phases share state *exclusively* through on-disk artefacts (spec, tests, code) and the ledger; nothing essential passes only in memory. This is what guarantees context isolation and Layer-2 resumability — anything not reconstructable from disk would break an unattended restart. Derived data (`allium plan`/`model` JSON) is regenerable from the spec, so it is at most *cached* in `.allium-loop/`, never a separate source of truth. A sub-agent may *return* a structured result for immediate orchestration, but it must also be written to the ledger — the return value is a convenience, never the source of truth.
 
-**Still open:** decomposition heuristics (how to split a large goal and roll sub-goal results into the final summary); whether phases pass anything beyond the on-disk artefacts + ledger; `.gitignore` mechanics for repos that have none or unusual setups.
+**Still open:** none outstanding from review. Revisit when building the skill — likely the ledger JSON schema and exact decomposition thresholds.
 
-## 13. Out of scope / risks
+## 14. Out of scope / risks
 
 - **Out of scope (for the MVP):** building an Allium-owned scheduler/runner for Layer 2 — lean on the harness.
 - **Risks:** verification not runnable (degrade loudly); context limits on large goals (decompose); cheating toward green (anti-cheat rule); runaway cost (caps); throwaway from deferred structural questions (classification, §7).
