@@ -132,7 +132,7 @@ function claudeQuery(prompt, { cwd } = {}) {
 }
 
 // Known paths
-const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
+const skillNames = ["allium", "distill", "elicit", "loop", "propagate", "tend", "weed"];
 const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
 const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));

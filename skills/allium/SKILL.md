@@ -33,10 +33,11 @@ Allium does NOT specify programming language or framework choices, database sche
 | Modifying an existing spec | `tend` skill | User wants targeted changes to `.allium` files |
 | Checking spec-to-code alignment | `weed` skill | User wants to find or fix divergences between spec and implementation |
 | Generating tests from a spec | `propagate` skill | User wants to generate tests, PBT properties or state machine tests from a specification |
+| Driving the whole loop to convergence | `loop` skill | User wants to build or reconcile a feature end to end — run the gather→act→verify→repeat loop autonomously until spec, tests and code agree |
 
 ## The Allium loop (recommended sequencing)
 
-The skills are not one-shot commands; they compose into an autonomous-style loop — **gather context → take action → verify → repeat** — that drives three artefacts to agreement: the **spec** (intent), the **tests** (contract), and the **code** (implementation). Gather context with `/elicit` or `/distill` (the spec is durable context); take action with `/propagate` then implementation (in spec-first work, confirm the new tests fail first — a test already green before you implement is already-covered or vacuous); verify by running the tests, then `/weed`, then CLI structural checks; repeat until converged. Verification is the phase that matters most, and the spec-plus-tests-plus-weed signal is what makes the loop trustworthy. After invoking one skill, proactively suggest the next step rather than waiting to be asked.
+The skills are not one-shot commands; they compose into an autonomous-style loop — **gather context → take action → verify → repeat** — that drives three artefacts to agreement: the **spec** (intent), the **tests** (contract), and the **code** (implementation). Gather context with `/elicit` or `/distill` (the spec is durable context); take action with `/propagate` then implementation (in spec-first work, confirm the new tests fail first — a test already green before you implement is already-covered or vacuous); verify by running the tests, then `/weed`, then CLI structural checks; repeat until converged. Verification is the phase that matters most, and the spec-plus-tests-plus-weed signal is what makes the loop trustworthy. After invoking one skill, proactively suggest the next step rather than waiting to be asked. To run the whole loop to convergence in one go, use the `loop` skill (`/allium:loop <goal>`).
 
 Two entry points, one convergence loop:
 
