@@ -10,13 +10,13 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, portability, links, routing, generation, discovery, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, discovery, crosstalk
  *
- * The first six groups are offline (free, fast). The last two require --live
+ * The first seven groups are offline (free, fast). The last two require --live
  * and make Claude API calls.
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { execFileSync, execSync } from "child_process";
 import path from "path";
 
@@ -100,6 +100,22 @@ function resolveRelativeLinks(body, fileDir) {
     target: path.resolve(fileDir, link.replace(/#.*$/, "")),
     exists: existsSync(path.resolve(fileDir, link.replace(/#.*$/, ""))),
   }));
+}
+
+// Broader link check for prose docs (README, references, design notes):
+// any markdown link to a local path, skipping external URLs and pure anchors.
+function resolveDocLinks(body, fileDir) {
+  const linkPattern = /\[[^\]]*\]\(([^)]+)\)/g;
+  const out = [];
+  let m;
+  while ((m = linkPattern.exec(body)) !== null) {
+    const raw = m[1].trim().split(/\s+/)[0]; // drop any "title" suffix
+    if (/^(https?:|mailto:|#)/.test(raw)) continue; // external or pure anchor
+    const noAnchor = raw.replace(/#.*$/, "");
+    if (!noAnchor) continue;
+    out.push({ link: raw, exists: existsSync(path.resolve(fileDir, noAnchor)) });
+  }
+  return out;
 }
 
 function claudeQuery(prompt, { cwd } = {}) {
@@ -361,6 +377,38 @@ if (shouldRun("portability")) {
 // Links — all relative markdown links resolve to real files
 // ---------------------------------------------------------------------------
 
+if (shouldRun("consistency")) {
+  console.log("\n── consistency: manifests & registration ──\n");
+
+  const claudePluginPath = path.join(ROOT, ".claude-plugin", "plugin.json");
+  const claude = readJson(claudePluginPath);
+  const codex = readJson(codexPluginPath);
+
+  // Version parity across the two plugin manifests.
+  if (claude && codex && claude.version && claude.version === codex.version) {
+    pass(`version parity (${claude.version})`);
+  } else {
+    fail("version parity", `claude=${claude?.version} codex=${codex?.version}`);
+  }
+
+  // Registration: skills/ dirs == test skillNames == .claude-plugin skills[].
+  const skillsRoot = path.join(ROOT, "skills");
+  const actualDirs = existsSync(skillsRoot)
+    ? readdirSync(skillsRoot).filter((d) => existsSync(path.join(skillsRoot, d, "SKILL.md")))
+    : [];
+  const claudeArray = Array.isArray(claude?.skills) ? claude.skills.map((s) => path.basename(s)) : [];
+  const sortUniq = (a) => [...new Set(a)].sort();
+  const dirs = sortUniq(actualDirs);
+  const named = sortUniq(skillNames);
+  const registered = sortUniq(claudeArray);
+  const eq = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+  if (eq(dirs, named) && eq(dirs, registered)) {
+    pass(`skill registration consistent (${dirs.length} skills)`);
+  } else {
+    fail("skill registration", `dirs=[${dirs}] skillNames=[${named}] claude-plugin=[${registered}]`);
+  }
+}
+
 if (shouldRun("links")) {
   console.log("\n── links: relative link resolution ──\n");
 
@@ -370,6 +418,35 @@ if (shouldRun("links")) {
     const parsed = parseFrontmatter(readFileSync(filePath, "utf-8"));
     if (!parsed) continue;
     const links = resolveRelativeLinks(parsed.body, path.dirname(filePath));
+    const broken = links.filter((l) => !l.exists);
+    for (const { link } of broken) {
+      fail(`${rel(filePath)}`, `broken link: ${link}`);
+    }
+    if (broken.length === 0) {
+      pass(`${rel(filePath)} (${links.length} link${links.length !== 1 ? "s" : ""})`);
+    }
+  }
+
+  // Prose docs (README + reference docs + design notes) — broader link check
+  // that also covers bare relative paths, not just ./ and ../ links.
+  const proseDocs = [path.join(ROOT, "README.md")];
+  for (const n of skillNames) {
+    const refDir = path.join(ROOT, "skills", n, "references");
+    if (existsSync(refDir)) {
+      for (const f of readdirSync(refDir)) {
+        if (f.endsWith(".md")) proseDocs.push(path.join(refDir, f));
+      }
+    }
+  }
+  const designDir = path.join(ROOT, "design");
+  if (existsSync(designDir)) {
+    for (const f of readdirSync(designDir)) {
+      if (f.endsWith(".md")) proseDocs.push(path.join(designDir, f));
+    }
+  }
+  for (const filePath of proseDocs) {
+    if (!existsSync(filePath)) continue;
+    const links = resolveDocLinks(readFileSync(filePath, "utf-8"), path.dirname(filePath));
     const broken = links.filter((l) => !l.exists);
     for (const { link } of broken) {
       fail(`${rel(filePath)}`, `broken link: ${link}`);
