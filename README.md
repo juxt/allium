@@ -260,6 +260,28 @@ A developer starts a new session days later, working on a different feature.
 
 The developer never mentioned invoicing or payment method capture. The Allium did, from a session that ended days ago. Without it, the LLM would have implemented the trial with no awareness of these constraints, and the gaps would have surfaced in production.
 
+### The loop in motion
+
+A developer asks for a feature and lets the loop run to convergence.
+
+---
+
+> ***> Add gift cards to checkout.***
+>
+> ✻ I'll capture this as a spec first (`/elicit`). One thing to pin down before building: can a gift card be combined with a promo code, or are they mutually exclusive?
+>
+> ***> Mutually exclusive.***
+>
+> ✻ Spec updated. Generated tests with `/propagate` and ran them — 4 new tests, all failing as expected (red). Implementing against them now.
+>
+> ✻ Tests green. `/weed` flagged a divergence: the code lets a gift card pay for shipping, but the spec scopes it to goods only. Fixing the code to match the spec.
+>
+> ✻ Re-ran: tests pass, `/weed` clean, no open questions. Spec, tests and code agree — converged.
+
+---
+
+The loop did the work: elicitation forced the promo-code decision up front, the red step proved the tests were real, and verification (`/weed`) caught a drift the passing tests didn't. The agent stops when the three artefacts agree, not when the code merely runs.
+
 ## Verification
 
 When the CLI is installed, `.allium` files are validated automatically after every write or edit. Diagnostics appear inline and the model fixes issues in the same turn.

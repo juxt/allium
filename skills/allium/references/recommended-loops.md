@@ -132,6 +132,30 @@ Both loops can be driven autonomously — `/tend` and `/weed` already ship as st
 
 **State worth tracking across ticks:** tests status (pass/fail counts), `/weed` verdict, count of open questions, and — for code-first — whether the last `/distill` pass found anything new. Convergence is all four trending to zero/clean.
 
+## Driving the loop with one prompt
+
+You don't have to invoke the skills one at a time. Hand a single agentic session the goal, the entry point and the stop conditions, and let it run the phases itself. There is no separate "loop mode" to enable — this is a well-structured prompt; Allium supplies the spec, the tests and the verification signal the loop iterates against.
+
+**Spec-first:**
+
+> Goal: `<feature>`. Run the Allium spec-first loop (see this reference).
+> 1. `/elicit` to capture the behaviour as a spec. Surface open questions to me before proceeding — don't guess.
+> 2. `/propagate` tests, then confirm they fail before implementing; flag any that pass as already-covered or vacuous.
+> 3. Implement against the spec + tests. Do not edit tests to make them pass.
+> 4. Run tests → `/weed` → `allium` checks.
+> 5. Repeat until tests pass, `/weed` is clean, and no open questions remain.
+> Stop and ask me if a decision is needed, after **6 iterations**, or after **2 iterations with no progress**. Print a one-line state summary each iteration (tests, weed verdict, open questions).
+
+**Code-first:** replace step 1 with `/distill <area>` followed by a review separating intended from accidental behaviour, and add "a fresh `/distill` finds nothing new" to the exit condition in step 5.
+
+**Stop conditions matter as much as the steps.** Three keep an autonomous run timely and honest:
+
+- **Hard cap** — stop after **6 iterations**.
+- **No-progress cap** — stop after **2 iterations** with no measurable change (test pass count, weed verdict, open-question count). This catches thrashing against a test the agent can't satisfy.
+- **Escalate on open question** — a decision goes to the human, never a silent guess.
+
+The loop can also be driven by the autonomous `tend` and `weed` agents, or by a harness loop primitive (for example a self-paced `/loop` in Claude Code). Those supply the "keep going" mechanism; the procedure and the exit conditions above are unchanged.
+
 ## The "produce the code" prompt
 
 There is no skill for implementation. Point the model at the spec and the propagated tests:
