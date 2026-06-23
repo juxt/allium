@@ -34,6 +34,19 @@ Allium does NOT specify programming language or framework choices, database sche
 | Checking spec-to-code alignment | `weed` skill | User wants to find or fix divergences between spec and implementation |
 | Generating tests from a spec | `propagate` skill | User wants to generate tests, PBT properties or state machine tests from a specification |
 
+## The Allium loop (recommended sequencing)
+
+The skills are not one-shot commands; they compose into an autonomous-style loop — **gather context → take action → verify → repeat** — that drives three artefacts to agreement: the **spec** (intent), the **tests** (contract), and the **code** (implementation). Gather context with `/elicit` or `/distill` (the spec is durable context); take action with `/propagate` then implementation (in spec-first work, confirm the new tests fail first — a test already green before you implement is already-covered or vacuous); verify by running the tests, then `/weed`, then CLI structural checks; repeat until converged. Verification is the phase that matters most, and the spec-plus-tests-plus-weed signal is what makes the loop trustworthy. After invoking one skill, proactively suggest the next step rather than waiting to be asked.
+
+Two entry points, one convergence loop:
+
+- **Spec-first (forward, from intent):** `/elicit` → `/propagate` → implement → `/weed`; use `/tend` then re-`/propagate` when requirements change.
+- **Code-first (backward, from existing code):** `/distill` → review intended vs accidental behaviour → `/propagate` → run tests against the code → `/weed` to reconcile → repeat per area.
+
+The work is "done" when tests pass, `/weed` reports no divergence, and no open questions remain (plus, for code-first, a fresh `/distill` finds nothing new). Two standing rules while looping: never weaken a generated test to make it pass (fix the spec and re-propagate instead), and escalate genuine ambiguity to the human rather than guessing.
+
+Implementation itself is ordinary coding — Allium produces the spec and tests, not the application code. See the [recommended loops](./references/recommended-loops.md) reference for the full walkthrough, diagrams, exit conditions and the implementation prompt.
+
 ## Quick syntax summary
 
 ### Entity
@@ -308,4 +321,5 @@ When the `allium` CLI is installed, a hook validates `.allium` files automatical
 
 - [Language reference](./references/language-reference.md) — full syntax for entities, rules, expressions, surfaces, contracts, invariants and validation
 - [Test generation](./references/test-generation.md) — generating tests from specifications
+- [Recommended loops](./references/recommended-loops.md) — the gather-context → take-action → verify → repeat loop, with spec-first and code-first walkthroughs
 - [Patterns](./references/patterns.md) — 9 worked patterns: auth, RBAC, invitations, soft delete, notifications, usage limits, comments, library spec integration, framework integration contract
