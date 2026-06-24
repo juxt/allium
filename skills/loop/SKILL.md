@@ -9,14 +9,19 @@ Drive a goal to convergence by running the Allium loop yourself: **gather contex
 
 For the conceptual model and worked walkthroughs, see [recommended loops](../allium/references/recommended-loops.md).
 
-## 1. Detect the entry point
+## 1. Detect the entry point — announce, then proceed
 
-Pick the starting mode (confirm with the user only if genuinely ambiguous):
+Choose the starting mode from the project state **and the goal's intent**, then **announce the chosen path in one line, name the override, and proceed — do not wait for confirmation.** The user can interrupt and redirect if it's wrong; the entry choice is not a gate.
 
-- No spec for the area, behaviour described → **spec-first**: start with `elicit`.
-- No spec, but existing code in the area → **code-first**: start with `distill`.
-- Spec present, requirements changed → start with `tend`.
-- Spec present, code may have drifted → start with `weed`.
+- No spec and no code → **spec-first**: start with `elicit`.
+- No spec, code exists, goal captures/verifies existing behaviour → **code-first**: start with `distill`.
+- No spec, code exists, goal adds **new** behaviour → **spec-first**: `elicit` the new behaviour (don't distill — distilling captures what's there, not what you're adding).
+- Spec exists, goal **changes** behaviour → start with `tend`.
+- Spec exists, code may have **drifted** from it → start with `weed`.
+
+State answers "is there a spec / code?"; the **goal's intent** answers capture-vs-add (`distill` vs `elicit`) and change-vs-reconcile (`tend` vs `weed`) — so read the goal, not just the file tree. If the user gives an explicit entry (`/allium:loop distill <area>`, or just "tend the spec"), use it and skip detection.
+
+Announce like: *"No spec here, code present, goal reads as new behaviour → starting with elicit. (Say 'distill' or 'tend' to switch.)"* This announce-and-proceed applies to the **entry path only** — genuine blocking open questions still pause and escalate (§5).
 
 ## 2. Run the loop (one tick)
 

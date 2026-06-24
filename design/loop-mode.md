@@ -21,14 +21,17 @@ The skill is designed so the identical procedure serves both: run once and it se
 - Optional: entry-point override (`from-intent` | `from-code`), iteration cap, target area/scope.
 - No goal → infer from context or ask one question.
 
-## 4. Entry-point detection (decision tree)
+## 4. Entry-point detection — announce, then proceed
 
-Pick the starting mode; confirm with the user only if ambiguous:
+Choose the starting mode from project state **and goal intent**, then **announce the chosen path in one line (naming the override) and proceed — no blocking confirmation.** The user can interrupt and redirect; an explicit entry argument (e.g. `/allium:loop distill <area>`) skips detection.
 
-- Spec for the area **absent**, behaviour described → **spec-first** (`elicit`).
-- Spec absent, **existing code** in the area → **code-first** (`distill`).
-- Spec **present**, requirements changed → **tend**, then continue.
-- Spec present, code may have drifted → **weed-first** maintenance loop.
+- No spec, no code → **spec-first** (`elicit`).
+- No spec, code present, goal captures/verifies existing behaviour → **code-first** (`distill`).
+- No spec, code present, goal adds **new** behaviour → **spec-first** (`elicit`) — distilling would capture what exists, not what you're adding.
+- Spec present, goal **changes** behaviour → **tend**, then continue the loop.
+- Spec present, code may have **drifted** → **weed**-first.
+
+State answers "spec? code?"; **intent** answers capture-vs-add and change-vs-reconcile — both matter, so read the goal, not just the file tree. The announce-and-proceed applies to the *entry path only*; genuine blocking open questions still pause and escalate (§7).
 
 ## 5. The tick (one iteration)
 
