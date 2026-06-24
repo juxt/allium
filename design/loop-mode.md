@@ -92,6 +92,7 @@ The ledger (§10) records which inner loop is active so an unattended resume (§
 
 ## 11. Output / reporting
 
+- Per-phase one-line marker as each phase begins (e.g. `→ Verify: tests → weed → allium check`) so the run stays legible; the harness shows the underlying commands, so don't narrate every command — just the phase boundaries.
 - Per-tick one-line state summary.
 - Final report: what converged, what was escalated, residual parked questions, test/weed status.
 
