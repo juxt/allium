@@ -27,11 +27,11 @@ Announce like: *"No spec here, code present, goal reads as new behaviour → sta
 
 Announce each phase as it begins with a one-line marker (shown in parentheses below) so the run stays legible across ticks. Let the harness show the underlying commands — don't narrate every command, just the phase boundaries.
 
-1. **Gather context** *(`→ Gather: elicit/distill/tend the spec`)* — run the entry skill (or `tend`) only if the spec needs to change this tick. Treat elicitation as an *inner loop*: keep asking the user questions until the spec covers the edge cases, then continue. Distillation may take several passes.
+1. **Gather context** *(`→ Gather: elicit/distill/tend the spec`)* — run the entry skill (or `tend`) only if the spec needs to change this tick. Treat elicitation as an *inner loop*: keep asking the user questions until the spec covers the edge cases, then continue. Distillation may take several passes. The spec is CLI-checked on every edit (the hook / LSP run `allium check`); **resolve any reported issues before propagating** — tests are generated from the spec, so it must be valid first.
 2. **Take action** *(`→ Act: propagate tests, then implement`)* — `propagate` to (re)generate tests when the spec changed, then implement.
    - **Spec-first: confirm the new tests FAIL before implementing.** A generated test that is already green is already covered (reference it, don't duplicate) or vacuous (fix the spec or test).
    - Never edit a generated test to make it pass.
-3. **Verify** *(`→ Verify: run tests → weed → allium check`)* — actually run it: the project's test command, then `weed` for spec↔code alignment, then `allium check`/`analyse`. Parse the results; never narrate a pass you didn't execute.
+3. **Verify** *(`→ Verify: run tests → weed → allium analyse`)* — actually run it: the project's test command, then `weed` for spec↔code alignment, then `allium analyse` for semantic gaps (dead ends, unreachable states). The spec's *structure* is already validated on every edit (§2.1), so verify adds the behavioural checks: tests, drift, and semantic analysis. Parse the results; never narrate a pass you didn't execute.
 4. **Route the outcome:**
    - test fails → fix the code;
    - a test is wrong → `tend` the spec, then `propagate` again;
