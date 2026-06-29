@@ -10,13 +10,13 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, portability, links, routing, generation, discovery, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, discovery, crosstalk
  *
- * The first six groups are offline (free, fast). The last two require --live
+ * All groups except discovery and crosstalk are offline (free, fast); those two require --live
  * and make Claude API calls.
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { execFileSync, execSync } from "child_process";
 import path from "path";
 
@@ -102,6 +102,22 @@ function resolveRelativeLinks(body, fileDir) {
   }));
 }
 
+// Broader link check for prose docs (README, references, design notes):
+// any markdown link to a local path, skipping external URLs and pure anchors.
+function resolveDocLinks(body, fileDir) {
+  const linkPattern = /\[[^\]]*\]\(([^)]+)\)/g;
+  const out = [];
+  let m;
+  while ((m = linkPattern.exec(body)) !== null) {
+    const raw = m[1].trim().split(/\s+/)[0]; // drop any "title" suffix
+    if (/^(https?:|mailto:|#)/.test(raw)) continue; // external or pure anchor
+    const noAnchor = raw.replace(/#.*$/, "");
+    if (!noAnchor) continue;
+    out.push({ link: raw, exists: existsSync(path.resolve(fileDir, noAnchor)) });
+  }
+  return out;
+}
+
 function claudeQuery(prompt, { cwd } = {}) {
   const output = execFileSync(
     getClaudePath(),
@@ -132,10 +148,11 @@ function claudeQuery(prompt, { cwd } = {}) {
 }
 
 // Known paths
-const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
+const skillNames = ["allium", "distill", "elicit", "loop", "propagate", "tend", "weed"];
 const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
 const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
+const vscodePromptPath = path.join(ROOT, ".github", "prompts", "allium-loop.prompt.md");
 const codexPluginPath = path.join(ROOT, ".codex-plugin", "plugin.json");
 const portableSkillNames = ["tend", "weed"];
 
@@ -220,6 +237,33 @@ if (shouldRun("structure")) {
       fail(`${label} naming`, "must end with .agent.md");
     } else {
       pass(`${label} naming`);
+    }
+  }
+
+  console.log("");
+
+  // VS Code / Copilot prompt (the loop orchestrator, projected from the skill)
+  {
+    const label = rel(vscodePromptPath);
+    if (!existsSync(vscodePromptPath)) {
+      fail(label, "file not found");
+    } else {
+      const parsed = parseFrontmatter(readFileSync(vscodePromptPath, "utf-8"));
+      if (!parsed) {
+        fail(label, "no valid frontmatter");
+      } else {
+        const { frontmatter } = parsed;
+        if (!frontmatter.description) fail(label, "missing 'description'");
+        else pass(label);
+        // A prompt drives interactive orchestration, so it must run in agent mode.
+        if (frontmatter.mode !== "agent") fail(`${label} mode`, "must be mode: agent");
+        else pass(`${label} mode`);
+      }
+      if (!path.basename(vscodePromptPath).endsWith(".prompt.md")) {
+        fail(`${label} naming`, "must end with .prompt.md");
+      } else {
+        pass(`${label} naming`);
+      }
     }
   }
 }
@@ -342,6 +386,7 @@ if (shouldRun("portability")) {
   const portableArtifacts = [
     ...portableSkillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md")),
     ...vscodeAgentPaths,
+    vscodePromptPath,
   ];
   for (const filePath of portableArtifacts) {
     if (!existsSync(filePath)) continue;
@@ -361,6 +406,38 @@ if (shouldRun("portability")) {
 // Links — all relative markdown links resolve to real files
 // ---------------------------------------------------------------------------
 
+if (shouldRun("consistency")) {
+  console.log("\n── consistency: manifests & registration ──\n");
+
+  const claudePluginPath = path.join(ROOT, ".claude-plugin", "plugin.json");
+  const claude = readJson(claudePluginPath);
+  const codex = readJson(codexPluginPath);
+
+  // Version parity across the two plugin manifests.
+  if (claude && codex && claude.version && claude.version === codex.version) {
+    pass(`version parity (${claude.version})`);
+  } else {
+    fail("version parity", `claude=${claude?.version} codex=${codex?.version}`);
+  }
+
+  // Registration: skills/ dirs == test skillNames == .claude-plugin skills[].
+  const skillsRoot = path.join(ROOT, "skills");
+  const actualDirs = existsSync(skillsRoot)
+    ? readdirSync(skillsRoot).filter((d) => existsSync(path.join(skillsRoot, d, "SKILL.md")))
+    : [];
+  const claudeArray = Array.isArray(claude?.skills) ? claude.skills.map((s) => path.basename(s)) : [];
+  const sortUniq = (a) => [...new Set(a)].sort();
+  const dirs = sortUniq(actualDirs);
+  const named = sortUniq(skillNames);
+  const registered = sortUniq(claudeArray);
+  const eq = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+  if (eq(dirs, named) && eq(dirs, registered)) {
+    pass(`skill registration consistent (${dirs.length} skills)`);
+  } else {
+    fail("skill registration", `dirs=[${dirs}] skillNames=[${named}] claude-plugin=[${registered}]`);
+  }
+}
+
 if (shouldRun("links")) {
   console.log("\n── links: relative link resolution ──\n");
 
@@ -370,6 +447,35 @@ if (shouldRun("links")) {
     const parsed = parseFrontmatter(readFileSync(filePath, "utf-8"));
     if (!parsed) continue;
     const links = resolveRelativeLinks(parsed.body, path.dirname(filePath));
+    const broken = links.filter((l) => !l.exists);
+    for (const { link } of broken) {
+      fail(`${rel(filePath)}`, `broken link: ${link}`);
+    }
+    if (broken.length === 0) {
+      pass(`${rel(filePath)} (${links.length} link${links.length !== 1 ? "s" : ""})`);
+    }
+  }
+
+  // Prose docs (README + reference docs + design notes) — broader link check
+  // that also covers bare relative paths, not just ./ and ../ links.
+  const proseDocs = [path.join(ROOT, "README.md")];
+  for (const n of skillNames) {
+    const refDir = path.join(ROOT, "skills", n, "references");
+    if (existsSync(refDir)) {
+      for (const f of readdirSync(refDir)) {
+        if (f.endsWith(".md")) proseDocs.push(path.join(refDir, f));
+      }
+    }
+  }
+  const designDir = path.join(ROOT, "design");
+  if (existsSync(designDir)) {
+    for (const f of readdirSync(designDir)) {
+      if (f.endsWith(".md")) proseDocs.push(path.join(designDir, f));
+    }
+  }
+  for (const filePath of proseDocs) {
+    if (!existsSync(filePath)) continue;
+    const links = resolveDocLinks(readFileSync(filePath, "utf-8"), path.dirname(filePath));
     const broken = links.filter((l) => !l.exists);
     for (const { link } of broken) {
       fail(`${rel(filePath)}`, `broken link: ${link}`);
@@ -426,6 +532,104 @@ if (shouldRun("generation")) {
     pass("generated files up to date");
   } catch {
     fail("generated files out of date", "run: node scripts/generate-multi-editor.mjs");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Loopdocs — the loop constants (caps + phase phrase) stay consistent across
+// the docs that restate them. Canonical values live here in the test.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("loopdocs")) {
+  console.log("\n── loopdocs: loop constant drift ──\n");
+
+  const HARD_CAP = 6;
+  const NO_PROGRESS = 2;
+  const PHASE_PHRASE = "gather context → take action → verify → repeat";
+
+  // Files that state the numeric caps.
+  const capFiles = [
+    "skills/loop/SKILL.md",
+    "skills/allium/references/recommended-loops.md",
+    "design/loop-mode.md",
+  ];
+  for (const rp of capFiles) {
+    const fp = path.join(ROOT, rp);
+    if (!existsSync(fp)) continue; // design note may be absent post-release
+    const src = readFileSync(fp, "utf-8");
+    const hard = src.match(/hard cap[^\n.]*?\b(\d+)\b/i);
+    const noProg = src.match(/no-progress[^\n.]*?\b(\d+)\b/i);
+    if (hard && Number(hard[1]) === HARD_CAP) pass(`${rp} hard cap = ${HARD_CAP}`);
+    else fail(`${rp} hard cap`, `expected ${HARD_CAP}, found ${hard ? hard[1] : "none"}`);
+    if (noProg && Number(noProg[1]) === NO_PROGRESS) pass(`${rp} no-progress cap = ${NO_PROGRESS}`);
+    else fail(`${rp} no-progress cap`, `expected ${NO_PROGRESS}, found ${noProg ? noProg[1] : "none"}`);
+  }
+
+  // Files that state the phase phrase in arrow form.
+  const phaseFiles = [
+    "skills/loop/SKILL.md",
+    "skills/allium/references/recommended-loops.md",
+    "skills/allium/SKILL.md",
+    "design/loop-mode.md",
+  ];
+  for (const rp of phaseFiles) {
+    const fp = path.join(ROOT, rp);
+    if (!existsSync(fp)) continue;
+    if (readFileSync(fp, "utf-8").includes(PHASE_PHRASE)) pass(`${rp} phase phrase`);
+    else fail(`${rp} phase phrase`, `missing "${PHASE_PHRASE}"`);
+  }
+
+  // README states the phases in verb form — check the four appear in order.
+  const readmePath = path.join(ROOT, "README.md");
+  if (existsSync(readmePath)) {
+    const src = readFileSync(readmePath, "utf-8");
+    const stems = [/gather/i, /take[s]? action/i, /verif/i, /repeat/i];
+    const idx = stems.map((s) => src.search(s));
+    if (idx.every((i) => i >= 0) && idx.every((v, i) => i === 0 || v > idx[i - 1])) {
+      pass("README.md phases in order");
+    } else {
+      fail("README.md phases", `not all present and in order: ${idx}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hooks — the PostToolUse hook config is valid and points at a real script.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("hooks")) {
+  console.log("\n── hooks: hook config integrity ──\n");
+
+  const hooksPath = path.join(ROOT, "hooks", "hooks.json");
+  if (!existsSync(hooksPath)) {
+    fail("hooks/hooks.json", "not found");
+  } else {
+    const cfg = readJson(hooksPath);
+    if (!cfg) {
+      fail("hooks/hooks.json", "invalid JSON");
+    } else {
+      pass("hooks/hooks.json valid JSON");
+      const post = cfg.hooks?.PostToolUse;
+      if (!Array.isArray(post) || post.length === 0) {
+        fail("hooks PostToolUse", "missing or empty");
+      } else {
+        pass("hooks PostToolUse present");
+        let matchersOk = true;
+        let scriptsOk = true;
+        for (const entry of post) {
+          if (!entry || !entry.matcher) matchersOk = false;
+          const cmds = Array.isArray(entry?.hooks) ? entry.hooks : [];
+          for (const h of cmds) {
+            const m =
+              typeof h.command === "string" &&
+              h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/);
+            if (m && !existsSync(path.join(ROOT, m[1]))) scriptsOk = false;
+          }
+        }
+        matchersOk ? pass("hooks have matchers") : fail("hooks matcher", "an entry is missing a matcher");
+        scriptsOk ? pass("hook command scripts exist") : fail("hook command", "referenced script not found");
+      }
+    }
   }
 }
 

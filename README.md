@@ -80,11 +80,11 @@ codex plugin add allium@juxt-plugins
 npx skills add juxt/allium
 ```
 
-**GitHub Copilot** reads skills and agents from the repository automatically. No installation needed.
+**GitHub Copilot** reads skills and agents from the repository automatically. No installation needed. The end-to-end loop is also wired as a Copilot prompt — invoke it in VS Code Copilot Chat (Agent mode) with `/allium-loop <goal>`.
 
 **Other editors:** If your editor doesn't read from `.agents/skills/`, symlink the installed skills into wherever it does look (e.g. `ln -s .agents/skills/allium .continue/rules/allium`, or `mklink /J` on Windows). Use a symlink rather than copying; the skill files contain relative links to reference material that a copy would break.
 
-Once installed, type `/allium` to get started. Allium examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
+Once installed, type `/allium` to get started. Allium examines your project and points you at the best next move — usually driving the whole loop end to end (`/allium:loop`), or a single skill like distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
@@ -108,16 +108,17 @@ See the [allium-tools repo](https://github.com/juxt/allium-tools) for details.
 
 ## Skills and agents
 
-Allium provides five skills, an entry point and two autonomous agents.
+Allium provides six skills, an entry point and two autonomous agents.
 
 | Skill | Purpose |
 |---|---|
-| `/allium <prompt>` | Entry point. Examines your project or the prompt and routes you to the right skill. |
+| `/allium <prompt>` | Entry point. Examines your project and either drives the whole loop (`/allium:loop`) or routes you to the right single skill. |
 | `/elicit <feature idea>` (or `/allium:elicit`) | Build a spec through structured conversation. |
 | `/distill <codebase area>` (or `/allium:distill`) | Extract a spec from existing code. |
 | `/propagate <optional constraints>` (or `/allium:propagate`) | Generate tests from a spec. |
 | `/tend <optional constraints>` (or `/allium:tend`) | Targeted changes to existing specs. |
 | `/weed <optional constraints>` (or `/allium:weed`) | Find and fix divergences between spec and code. |
+| `/loop <goal>` (or `/allium:loop`) | Drive the whole loop to convergence — gather context, take action, verify, repeat — running the other skills as phases. |
 
 How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. Skills also auto-trigger when you open or edit `.allium` files.
 
@@ -259,6 +260,28 @@ A developer starts a new session days later, working on a different feature.
 ---
 
 The developer never mentioned invoicing or payment method capture. The Allium did, from a session that ended days ago. Without it, the LLM would have implemented the trial with no awareness of these constraints, and the gaps would have surfaced in production.
+
+### The loop in motion
+
+A developer asks for a feature and lets the loop run to convergence.
+
+---
+
+> ***> Add gift cards to checkout.***
+>
+> ✻ I'll capture this as a spec first (`/elicit`). One thing to pin down before building: can a gift card be combined with a promo code, or are they mutually exclusive?
+>
+> ***> Mutually exclusive.***
+>
+> ✻ Spec updated. Generated tests with `/propagate` and ran them — 4 new tests, all failing as expected (red). Implementing against them now.
+>
+> ✻ Tests green. `/weed` flagged a divergence: the code lets a gift card pay for shipping, but the spec scopes it to goods only. Fixing the code to match the spec.
+>
+> ✻ Re-ran: tests pass, `/weed` clean, no open questions. Spec, tests and code agree — converged.
+
+---
+
+The loop did the work: elicitation forced the promo-code decision up front, the red step proved the tests were real, and verification (`/weed`) caught a drift the passing tests didn't. The agent stops when the three artefacts agree, not when the code merely runs.
 
 ## Verification
 

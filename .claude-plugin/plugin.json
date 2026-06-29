@@ -1,6 +1,6 @@
 {
   "name": "allium",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "description": "Velocity through clarity.",
   "author": {
     "name": "JUXT",
@@ -14,6 +14,7 @@
     "./skills/allium",
     "./skills/distill",
     "./skills/elicit",
+    "./skills/loop",
     "./skills/propagate",
     "./skills/tend",
     "./skills/weed"
