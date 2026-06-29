@@ -99,6 +99,40 @@ ${adapted}`;
 }
 
 // ---------------------------------------------------------------------------
+// Copilot / VS Code prompt generation (the loop orchestrator)
+// ---------------------------------------------------------------------------
+//
+// The loop is a skill, not an agent, so it has no agents/ source — the Copilot
+// variant is projected directly from skills/loop/SKILL.md into a VS Code prompt
+// file (invokable as /allium-loop). Two adaptations beyond adaptBody(), because
+// Copilot lacks two Claude Code mechanisms the skill assumes:
+//   1. No edit hook / LSP, so the spec is not auto-checked — the implicit
+//      "checked on every edit" becomes an explicit "run allium check yourself".
+//   2. Reference links are absolutised so the prompt stays valid when copied out
+//      of this repo into a target project (its relative ../ paths would break).
+
+function adaptLoopBody(body) {
+  return adaptBody(body)
+    .replace(
+      "The spec is CLI-checked on every edit (the hook / LSP run `allium check`); **resolve any reported issues before propagating**",
+      "Run `allium check` yourself after every spec edit; **resolve any reported issues before propagating**"
+    )
+    .replace(
+      "[recommended loops](../allium/references/recommended-loops.md)",
+      "[recommended loops](https://github.com/juxt/allium/blob/main/skills/allium/references/recommended-loops.md)"
+    );
+}
+
+function generateCopilotPrompt() {
+  const { frontmatter, body } = parseFrontmatter(read("skills/loop/SKILL.md"));
+  return `---
+description: "${frontmatter.description}"
+mode: agent
+---
+${adaptLoopBody(body)}`;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -111,6 +145,13 @@ for (const name of AGENTS) {
     );
     dirty = true;
   }
+}
+
+if (write(".github/prompts/allium-loop.prompt.md", generateCopilotPrompt())) {
+  console.log(
+    `${CHECK ? "out of date" : "wrote"}: .github/prompts/allium-loop.prompt.md`
+  );
+  dirty = true;
 }
 
 if (CHECK && dirty) {

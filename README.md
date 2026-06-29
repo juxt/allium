@@ -80,7 +80,7 @@ codex plugin add allium@juxt-plugins
 npx skills add juxt/allium
 ```
 
-**GitHub Copilot** reads skills and agents from the repository automatically. No installation needed.
+**GitHub Copilot** reads skills and agents from the repository automatically. No installation needed. The end-to-end loop is also wired as a Copilot prompt — invoke it in VS Code Copilot Chat (Agent mode) with `/allium-loop <goal>`.
 
 **Other editors:** If your editor doesn't read from `.agents/skills/`, symlink the installed skills into wherever it does look (e.g. `ln -s .agents/skills/allium .continue/rules/allium`, or `mklink /J` on Windows). Use a symlink rather than copying; the skill files contain relative links to reference material that a copy would break.
 

@@ -60,6 +60,57 @@ tree — run `/reload-plugins` to pick up your edits in the same session.
 
 ---
 
+## 1b. Or: try it in GitHub Copilot
+
+Copilot has no `--plugin-dir`. It reads agents and prompts from `.github/` in the
+**workspace that's open in VS Code**, so there's nothing to "load" — you drop the
+loop's prompt file into your target project and invoke it. The loop ships as a
+prompt (not an agent) because it's interactive — it asks elicitation questions and
+escalates open questions — and prompt files run in the main Chat thread where that
+Q&A is natural. It's generated from `skills/loop/SKILL.md`, so it stays in lockstep
+with the canonical skill.
+
+```bash
+# from your branch checkout, copy the one generated file into your TARGET project:
+mkdir -p /path/to/target/.github/prompts
+cp /path/to/allium-pr-review/.github/prompts/allium-loop.prompt.md \
+   /path/to/target/.github/prompts/
+
+# optional: copy the tend/weed agents too, so the loop's delegation steps
+# (§7) have sub-agents to hand off to
+mkdir -p /path/to/target/.github/agents
+cp /path/to/allium-pr-review/.github/agents/{tend,weed}.agent.md \
+   /path/to/target/.github/agents/
+```
+
+Then open the target project in VS Code, switch Copilot Chat to **Agent mode**
+(the loop edits files and runs the test / `allium` commands — Ask/Edit modes
+can't), and run:
+
+```
+/allium-loop build a coffee loyalty stamp card: a stamp per purchase; every
+10th stamp issues a reward that expires 30 days after it's earned
+```
+
+The command name is the filename minus `.prompt.md` — `/allium-loop`, **not**
+`/allium:loop` (that colon form is Claude Code plugin syntax). Everything after it
+is the goal.
+
+Two differences from the Claude path worth knowing while reviewing:
+
+- **No auto-check.** Claude Code's hook/LSP checks the spec on every edit; Copilot
+  has neither, so the prompt instructs the model to **run `allium check` itself**
+  after each spec edit. You should see explicit `allium check` calls rather than
+  silent inline diagnostics. (Install the [CLI](#prerequisites) for this; without
+  it the loop degrades to assisted mode exactly as under Claude Code.)
+- **No live reload.** `--plugin-dir` reads the working tree live; here, if you edit
+  `skills/loop/SKILL.md`, regenerate (`node scripts/generate-multi-editor.mjs`) and
+  re-copy the prompt file into the target project.
+
+> Same rule as above: run it in a *target* project, not in `allium-pr-review`.
+
+---
+
 ## 2. Give it something to loop on
 
 Pick one track. Both run inside the scratch project from step 1.
