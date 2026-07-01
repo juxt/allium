@@ -26,6 +26,44 @@ Copilot reads skills and agents from the repository automatically. No installati
 
 Allium is just markdown files. If your tool isn't listed above, or you prefer to manage things yourself, grab the files from the [GitHub repository](https://github.com/juxt/allium) and place them wherever your LLM reads custom instructions from.
 
+## The command line tool
+
+The `allium` CLI is optional, but strongly advised. It validates, parses and analyses your specification files, and some of Allium's most compelling benefits arise from it. With the CLI installed, your LLM checks every `.allium` file after writing or editing it, catching structural errors before they accumulate, and can run process-level analysis such as data flow, reachability and deadlock detection.
+
+Pick the method that suits your platform. Pre-built binaries for macOS, Windows and Linux, along with source, live in the [Allium-Tools repository](https://github.com/juxt/allium-tools); grab the latest from the [releases page](https://github.com/juxt/allium-tools/releases).
+
+### macOS
+
+Homebrew is the simplest route:
+
+```bash
+brew tap juxt/allium && brew install allium
+```
+
+If you already have a Rust toolchain, you can install from crates.io instead:
+
+```bash
+cargo install allium-cli
+```
+
+### Windows
+
+Download the latest `.exe` from the [releases page](https://github.com/juxt/allium-tools/releases) and place it somewhere on your `PATH`. With a Rust toolchain installed, `cargo install allium-cli` also works.
+
+### Linux
+
+Install from crates.io with a Rust toolchain:
+
+```bash
+cargo install allium-cli
+```
+
+Arch users can install from the [AUR](https://aur.archlinux.org/packages/allium-tools). Pre-built binaries are also on the [releases page](https://github.com/juxt/allium-tools/releases).
+
+### From source
+
+Clone the [Allium-Tools repository](https://github.com/juxt/allium-tools) and build with `cargo build --release`. The binary lands in `target/release`.
+
 ## Using Allium
 
 Type `/allium` to get started. This is an entry point that examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
