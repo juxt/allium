@@ -84,7 +84,7 @@ npx skills add juxt/allium
 
 **Other editors:** If your editor doesn't read from `.agents/skills/`, symlink the installed skills into wherever it does look (e.g. `ln -s .agents/skills/allium .continue/rules/allium`, or `mklink /J` on Windows). Use a symlink rather than copying; the skill files contain relative links to reference material that a copy would break.
 
-Once installed, type `/allium` to get started. Allium examines your project and guides you toward the right skill, whether that's distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
+Once installed, type `/allium` to get started. Allium examines your project and points you at the best next move — usually driving the whole loop end to end, or a single skill like distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
@@ -112,14 +112,14 @@ Allium provides five skills, an entry point and two autonomous agents.
 
 | Skill | Purpose |
 |---|---|
-| `/allium <prompt>` | Entry point. Examines your project or the prompt and routes you to the right skill. |
+| `/allium <goal or prompt>` | Entry point. Give it a goal and it drives the whole loop to convergence — gather context, take action, verify, repeat — running the other skills as phases; give it a single task and it routes you to the right skill. |
 | `/elicit <feature idea>` (or `/allium:elicit`) | Build a spec through structured conversation. |
 | `/distill <codebase area>` (or `/allium:distill`) | Extract a spec from existing code. |
 | `/propagate <optional constraints>` (or `/allium:propagate`) | Generate tests from a spec. |
 | `/tend <optional constraints>` (or `/allium:tend`) | Targeted changes to existing specs. |
 | `/weed <optional constraints>` (or `/allium:weed`) | Find and fix divergences between spec and code. |
 
-How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. Skills also auto-trigger when you open or edit `.allium` files.
+How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. The entry point is `/allium` — because its name matches the plugin, its fully qualified form is `/allium:allium` (the same `plugin:skill` rule as every other skill); either invokes it. Skills also auto-trigger when you open or edit `.allium` files.
 
 Tend and weed are also available as autonomous **agents** that run in their own context, keeping Allium syntax out of your main session. Claude Code picks up agents from `agents/`, Copilot from `.github/agents/`. How editors discover skills and agents is still settling; we make these available in the most portable formats we can and expect to consolidate as conventions stabilise. If your editor doesn't pick something up, [raise an issue](https://github.com/juxt/allium/issues).
 
@@ -259,6 +259,28 @@ A developer starts a new session days later, working on a different feature.
 ---
 
 The developer never mentioned invoicing or payment method capture. The Allium did, from a session that ended days ago. Without it, the LLM would have implemented the trial with no awareness of these constraints, and the gaps would have surfaced in production.
+
+### The loop in motion
+
+A developer asks for a feature and lets the loop run to convergence.
+
+---
+
+> ***> Add gift cards to checkout.***
+>
+> ✻ I'll capture this as a spec first (`/elicit`). One thing to pin down before building: can a gift card be combined with a promo code, or are they mutually exclusive?
+>
+> ***> Mutually exclusive.***
+>
+> ✻ Spec updated. Generated tests with `/propagate` and ran them — 4 new tests, all failing as expected (red). Implementing against them now.
+>
+> ✻ Tests green. `/weed` flagged a divergence: the code lets a gift card pay for shipping, but the spec scopes it to goods only. Fixing the code to match the spec.
+>
+> ✻ Re-ran: tests pass, `/weed` clean, no open questions. Spec, tests and code agree — converged.
+
+---
+
+The loop did the work: elicitation forced the promo-code decision up front, the red step proved the tests were real, and verification (`/weed`) caught a drift the passing tests didn't. The agent stops when the three artefacts agree, not when the code merely runs.
 
 ## Verification
 
