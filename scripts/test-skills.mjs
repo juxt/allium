@@ -148,11 +148,10 @@ function claudeQuery(prompt, { cwd } = {}) {
 }
 
 // Known paths
-const skillNames = ["allium", "distill", "elicit", "loop", "propagate", "tend", "weed"];
+const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
 const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
 const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
-const vscodePromptPath = path.join(ROOT, ".github", "prompts", "allium-loop.prompt.md");
 const codexPluginPath = path.join(ROOT, ".codex-plugin", "plugin.json");
 const portableSkillNames = ["tend", "weed"];
 
@@ -241,31 +240,6 @@ if (shouldRun("structure")) {
   }
 
   console.log("");
-
-  // VS Code / Copilot prompt (the loop orchestrator, projected from the skill)
-  {
-    const label = rel(vscodePromptPath);
-    if (!existsSync(vscodePromptPath)) {
-      fail(label, "file not found");
-    } else {
-      const parsed = parseFrontmatter(readFileSync(vscodePromptPath, "utf-8"));
-      if (!parsed) {
-        fail(label, "no valid frontmatter");
-      } else {
-        const { frontmatter } = parsed;
-        if (!frontmatter.description) fail(label, "missing 'description'");
-        else pass(label);
-        // A prompt drives interactive orchestration, so it must run in agent mode.
-        if (frontmatter.mode !== "agent") fail(`${label} mode`, "must be mode: agent");
-        else pass(`${label} mode`);
-      }
-      if (!path.basename(vscodePromptPath).endsWith(".prompt.md")) {
-        fail(`${label} naming`, "must end with .prompt.md");
-      } else {
-        pass(`${label} naming`);
-      }
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -386,7 +360,6 @@ if (shouldRun("portability")) {
   const portableArtifacts = [
     ...portableSkillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md")),
     ...vscodeAgentPaths,
-    vscodePromptPath,
   ];
   for (const filePath of portableArtifacts) {
     if (!existsSync(filePath)) continue;
@@ -549,7 +522,7 @@ if (shouldRun("loopdocs")) {
 
   // Files that state the numeric caps.
   const capFiles = [
-    "skills/loop/SKILL.md",
+    "skills/allium/references/driving-the-loop.md",
     "skills/allium/references/recommended-loops.md",
     "design/loop-mode.md",
   ];
@@ -567,7 +540,7 @@ if (shouldRun("loopdocs")) {
 
   // Files that state the phase phrase in arrow form.
   const phaseFiles = [
-    "skills/loop/SKILL.md",
+    "skills/allium/references/driving-the-loop.md",
     "skills/allium/references/recommended-loops.md",
     "skills/allium/SKILL.md",
     "design/loop-mode.md",

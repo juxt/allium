@@ -1,5 +1,7 @@
 # Trying loop mode locally (for PR reviewers)
 
+> **Superseded (2026-07):** the loop folded into the `allium` entry-point skill, so it now runs as `/allium <goal>` (not `/allium:loop`), and the `/allium-loop` Copilot prompt was removed. The specific commands, filenames and generation steps below predate that rename and are retained only as a historical record — substitute `/allium` for `/allium:loop` when running it.
+>
 > Companion to the [loop-mode design note](./loop-mode.md). This is a reviewer
 > recipe: run `/allium:loop` from **this PR branch** against a throwaway project,
 > watch it drive a goal to convergence, and feed back. Like the rest of `design/`

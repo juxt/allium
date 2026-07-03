@@ -1,13 +1,8 @@
----
-description: "Drive the Allium loop to convergence — gather context, take action, verify, repeat — running elicit or distill, propagate, implementation and weed as phases until the spec, tests and code agree. Use when the user wants to build or reconcile a feature end to end, run the spec-to-tests-to-code loop autonomously, or asks to loop on a goal."
-mode: agent
----
+# Driving the loop
 
-# Loop
+This reference is the procedure `/allium` follows when you hand it a goal: it drives the Allium loop to convergence on your behalf. For the conceptual model and worked walkthroughs, see [recommended loops](./recommended-loops.md).
 
 Drive a goal to convergence by running the Allium loop yourself: **gather context → take action → verify → repeat**, until the spec, tests and code agree. You orchestrate; each phase is an existing skill (`elicit`, `distill`, `propagate`, `tend`, `weed`) plus ordinary implementation. What makes the loop trustworthy is the verification signal — you stop when behaviour is proven against intent, not when the code merely runs.
-
-For the conceptual model and worked walkthroughs, see [recommended loops](https://github.com/juxt/allium/blob/main/skills/allium/references/recommended-loops.md).
 
 ## 1. Detect the entry point — announce, then proceed
 
@@ -19,7 +14,7 @@ Choose the starting mode from the project state **and the goal's intent**, then 
 - Spec exists, goal **changes** behaviour → start with `tend`.
 - Spec exists, code may have **drifted** from it → start with `weed`.
 
-State answers "is there a spec / code?"; the **goal's intent** answers capture-vs-add (`distill` vs `elicit`) and change-vs-reconcile (`tend` vs `weed`) — so read the goal, not just the file tree. If the user gives an explicit entry (`/allium:loop distill <area>`, or just "tend the spec"), use it and skip detection.
+State answers "is there a spec / code?"; the **goal's intent** answers capture-vs-add (`distill` vs `elicit`) and change-vs-reconcile (`tend` vs `weed`) — so read the goal, not just the file tree. If the user gives an explicit entry (`/allium distill <area>`, or just "tend the spec"), use it and skip detection.
 
 Announce like: *"No spec here, code present, goal reads as new behaviour → starting with elicit. (Say 'distill' or 'tend' to switch.)"* This announce-and-proceed applies to the **entry path only** — genuine blocking open questions still pause and escalate (§5).
 
@@ -27,7 +22,7 @@ Announce like: *"No spec here, code present, goal reads as new behaviour → sta
 
 Announce each phase as it begins with a one-line marker (shown in parentheses below) so the run stays legible across ticks. Let the harness show the underlying commands — don't narrate every command, just the phase boundaries.
 
-1. **Gather context** *(`→ Gather: elicit/distill/tend the spec`)* — run the entry skill (or `tend`) only if the spec needs to change this tick. Treat elicitation as an *inner loop*: keep asking the user questions until the spec covers the edge cases, then continue. Distillation may take several passes. Run `allium check` yourself after every spec edit; **resolve any reported issues before propagating** — tests are generated from the spec, so it must be valid first.
+1. **Gather context** *(`→ Gather: elicit/distill/tend the spec`)* — run the entry skill (or `tend`) only if the spec needs to change this tick. Treat elicitation as an *inner loop*: keep asking the user questions until the spec covers the edge cases, then continue. Distillation may take several passes. The spec is CLI-checked on every edit (the hook / LSP run `allium check`); **resolve any reported issues before propagating** — tests are generated from the spec, so it must be valid first.
 2. **Take action** *(`→ Act: propagate tests, then implement`)* — `propagate` to (re)generate tests when the spec changed, then implement.
    - **Spec-first: confirm the new tests FAIL before implementing.** A generated test that is already green is already covered (reference it, don't duplicate) or vacuous (fix the spec or test).
    - Never edit a generated test to make it pass.

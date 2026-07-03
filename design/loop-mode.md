@@ -1,5 +1,7 @@
-# Loop mode (`/allium:loop`) — design note
+# Loop mode (`/allium`) — design note
 
+> **Superseded (2026-07):** the loop is no longer a separate `/allium:loop` command. The `loop` skill was folded into the `allium` entry-point skill, so `/allium <goal>` drives the loop directly; its procedure now lives in [`skills/allium/references/driving-the-loop.md`](../skills/allium/references/driving-the-loop.md). The standalone `loop` skill and the `/allium-loop` Copilot prompt were removed. The design below is kept as a historical record — command names and file paths in it predate the rename.
+>
 > **Status: MVP built** — implemented as the `loop` skill (`skills/loop/SKILL.md`); Layer 1 (in-session) only. Living document — update as the design evolves.
 > **Lifecycle:** internal design note, not user-facing. To be retired when `/allium:loop` ships — its content graduates into the skill itself and the recommended-loops reference. Keep it out of the user-facing vendored plugin until then (split onto its own branch, or exclude `design/` from the marketplace sync, before any release that would otherwise ship it).
 > Companion to the shipped [recommended loops](../skills/allium/references/recommended-loops.md) reference, which documents the loop *pattern*. This note designs a skill that *drives* it.
