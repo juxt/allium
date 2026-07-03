@@ -119,7 +119,7 @@ Allium provides five skills, an entry point and two autonomous agents.
 | `/tend <optional constraints>` (or `/allium:tend`) | Targeted changes to existing specs. |
 | `/weed <optional constraints>` (or `/allium:weed`) | Find and fix divergences between spec and code. |
 
-How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. Skills also auto-trigger when you open or edit `.allium` files.
+How skills appear depends on your editor. Some show the fully qualified form (`/allium:weed`), others show the short form (`/weed`), and some support both. If one form isn't recognised, try the other. The entry point is `/allium` — because its name matches the plugin, its fully qualified form is `/allium:allium` (the same `plugin:skill` rule as every other skill); either invokes it. Skills also auto-trigger when you open or edit `.allium` files.
 
 Tend and weed are also available as autonomous **agents** that run in their own context, keeping Allium syntax out of your main session. Claude Code picks up agents from `agents/`, Copilot from `.github/agents/`. How editors discover skills and agents is still settling; we make these available in the most portable formats we can and expect to consolidate as conventions stabilise. If your editor doesn't pick something up, [raise an issue](https://github.com/juxt/allium/issues).
 
