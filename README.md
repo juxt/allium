@@ -17,8 +17,8 @@ You keep a `.allium` file alongside your code describing what the system should 
 Two forces feed the spec, and one loop keeps it honest against the code:
 
 ```
-        intent ──/elicit──►  ┌──────────────┐  ◄──/distill── existing code
-       (forward)             │ .allium spec │              (backward)
+        intent ──/elicit──►  ┌───────────────┐  ◄──/distill── existing code
+       (forward)             │ .allium spec  │              (backward)
                              └──────┬───┬────┘
                           /tend     │   │   /weed
                       (edit spec)   │   │  (reconcile with code)
