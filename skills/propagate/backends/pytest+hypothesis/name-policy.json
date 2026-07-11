@@ -1,0 +1,7 @@
+{
+  "test_name_case": "snake",
+  "file_name_case": "snake",
+  "directory_layout": "tests/",
+  "file_pattern": "test_{obligation_subject}{file_extension}",
+  "test_name_pattern": "test_{obligation_id_slug}"
+}

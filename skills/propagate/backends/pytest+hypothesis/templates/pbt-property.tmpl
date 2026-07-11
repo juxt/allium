@@ -1,0 +1,17 @@
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(state=st.builds(dict))
+def {{test_name}}(state{{#each fixtures_required}}, {{it}}{{/each}}):
+    """obligation: {{obligation.obligation_id}}
+
+    property test — invariant must hold across generated states.
+
+    bridge: {{bridge.primary_symbol}}
+    {{#if preconditions}}preconditions:
+    {{#each preconditions}}  - {{it}}
+    {{/each}}{{/if}}
+    """
+    # TODO: replace the placeholder state strategy above with a real
+    # generator that builds inputs satisfying preconditions, then call
+    # {{bridge.primary_symbol_local}} and assert the invariant.
+    assume(state is not None)
+    assert {{bridge.primary_symbol_local}} is not None

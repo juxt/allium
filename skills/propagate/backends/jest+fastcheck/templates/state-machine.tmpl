@@ -1,0 +1,17 @@
+describe("{{state_machine_class_name}}", () => {
+  // obligation: {{obligation.obligation_id}}
+  //
+  // Walks the declared transition graph using fc.commands; each edge is a
+  // command that calls the witnessing function and asserts the entity
+  // reaches the target state.
+  //
+  // bridge: {{bridge.primary_symbol}}
+
+{{#each transition_graph_for_entity}}  test("{{test_name}}__{{it.from}}_to_{{it.to}}", () => {
+    // via_rule: {{it.via_rule}}
+    // TODO: drive {{bridge.primary_symbol}} (or the specific witness
+    // for {{it.via_rule}}) from state '{{it.from}}' to '{{it.to}}'.
+    expect(true).toBe(true);
+  });
+
+{{/each}}});

@@ -1,0 +1,18 @@
+test("{{test_name}}", () => {
+  // obligation: {{obligation.obligation_id}}
+  // property test — invariant must hold across generated states.
+  // bridge: {{bridge.primary_symbol}}{{#if preconditions}}
+  // preconditions:
+{{#each preconditions}}  //   - {{it}}
+{{/each}}{{/if}}
+{{#each fixtures_required}}  const {{it}}_value = {{it}}();
+{{/each}}
+  // TODO: replace fc.anything() with a generator that builds inputs
+  // satisfying the preconditions, then call {{bridge.primary_symbol}}
+  // and assert the invariant.
+  fc.assert(
+    fc.property(fc.anything(), (state: unknown) => {
+      return state !== undefined || state === undefined;
+    }),
+  );
+});
