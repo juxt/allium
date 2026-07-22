@@ -155,7 +155,7 @@ Cross-module tests are integration tests by nature. They verify that the spec's 
 
 When exploring the codebase, note which spec obligations are already covered by existing tests. An existing integration test that exercises the happy path from event submission through to acknowledged output already covers multiple `rule_success` obligations and the end-to-end scenario.
 
-When an existing test covers a spec obligation, reference it rather than generating a duplicate. The propagate skill's value at the integration level is verifying that coverage is complete against the spec's obligation list, identifying gaps, and generating tests to fill them. Replacing working hand-written tests with generated equivalents adds no value.
+When an existing test covers a spec obligation, reference it rather than generating a duplicate. The propagate skill's value at the integration level is verifying that coverage is complete against the spec's obligation list, identifying gaps, and generating tests to fill them — the reconciliation step in the process below makes this check explicit. Replacing working hand-written tests with generated equivalents adds no value.
 
 ### For deferred specs
 
@@ -175,6 +175,7 @@ Deferred specifications are fully specified in separate files. When the target c
 5. **Map constructs to code** — correlate spec entities/rules/surfaces with implementation classes/functions/endpoints
 6. **Generate tests** — produce test files following the project's conventions
 7. **Verify tests compile/run** — ensure generated tests are syntactically valid
+8. **Reconcile obligations** — confirm every obligation maps to a covering test, and auto-cover any gaps (see [Obligation reconciliation](#obligation-reconciliation))
 
 ### Discovery checklist
 
@@ -200,6 +201,30 @@ When generator specs are available, use them to produce valid test data:
 - For entities with transition graphs, generate entities at specific lifecycle states with correct field presence per `when` clauses (e.g. a `shipped` Order has `tracking_number` and `shipped_at` populated; a `pending` Order does not)
 - For invariants, generate states that exercise boundary conditions
 - For config parameters, use declared defaults unless testing overrides
+
+### Obligation reconciliation
+
+After generating tests, walk the full obligation list — from `allium plan` output or the manual derivation — and map each obligation to the test that covers it, whether generated this run or pre-existing. Reconciliation is silent: obligations are internal working data, so do not narrate the mapping, print the obligation list or present a coverage report while everything is on track.
+
+For each obligation with no covering test, attempt to cover it:
+
+1. Generate the missing test, or extend an existing test that partially covers it
+2. Verify the new test compiles and runs
+3. Re-check the obligation against the result
+
+This is a mini-loop, and it needs the same guards as the outer Allium loop (see [driving the loop](../allium/references/driving-the-loop.md)):
+
+- **Attempt cap** — at most 2 attempts per obligation. If the second attempt does not produce a compiling test that covers it, park the obligation.
+- **No-progress cap** — if a full pass over the remaining gaps covers nothing new, stop; further passes will thrash.
+
+Obligations still uncovered when a guard trips are the only part of reconciliation the user sees. Report each with a classification and a one-line reason:
+
+- **Infrastructure gap** — the test needs a seam the code does not provide: no injectable clock for a temporal obligation, no integration fixture for a cross-module chain
+- **Unmappable construct** — in a code-first flow, no implementation code correlates with the spec construct; the implementation bridge could not be built
+
+Missing implementation is not a residue category. In a spec-first flow no code exists yet by design: write the test against the intended interface and let it fail — a failing test covers its obligation, and the loop's implement phase turns it green. An obligation is uncovered only when no test for it could be written at all.
+
+Close with a single summary line: `N obligations, M covered, K uncovered`. When everything is covered that one line is the entire user-facing output of reconciliation. Silence about an individual obligation means it is covered; anything itemised needs a human decision. When propagate runs inside the Allium loop, this line feeds the loop's consolidated summary, and the loop must not treat the spec as converged while obligations remain uncovered without a reported reason.
 
 ## Interaction with other tools
 
