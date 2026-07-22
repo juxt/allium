@@ -4,7 +4,7 @@
 
 ---
 
-Feed your AI something healthier than Markdown. [juxt.github.io/allium](https://juxt.github.io/allium/)
+Feed your AI something healthier than Markdown. [allium-lang.org](https://allium-lang.org/)
 
 ## What this is
 
