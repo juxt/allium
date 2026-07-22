@@ -6,7 +6,7 @@
     "name": "JUXT",
     "url": "https://juxt.pro"
   },
-  "homepage": "https://juxt.github.io/allium/",
+  "homepage": "https://allium-lang.org/",
   "repository": "https://github.com/juxt/allium",
   "license": "MIT",
   "keywords": [
@@ -30,7 +30,7 @@
       "Write",
       "Interactive"
     ],
-    "websiteURL": "https://juxt.github.io/allium/",
+    "websiteURL": "https://allium-lang.org/",
     "defaultPrompt": [
       "Draft an Allium spec for this feature.",
       "Review this .allium spec for gaps.",
