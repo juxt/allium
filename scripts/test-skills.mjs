@@ -10,14 +10,15 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, discovery, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, discovery, parking, crosstalk
  *
- * All groups except discovery and crosstalk are offline (free, fast); those two require --live
- * and make Claude API calls.
+ * All groups except discovery, parking and crosstalk are offline (free, fast); those three
+ * require --live and make Claude API calls.
  */
 
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from "fs";
 import { execFileSync, execSync } from "child_process";
+import { tmpdir } from "os";
 import path from "path";
 
 let _claudePath;
@@ -150,10 +151,11 @@ function claudeQuery(prompt, { cwd } = {}) {
 // Known paths
 const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
 const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
-const agentPaths = ["tend", "weed"].map((n) => path.join(ROOT, "agents", `${n}.md`));
-const vscodeAgentPaths = ["tend", "weed"].map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
+const agentNames = ["distill", "propagate", "tend", "weed"];
+const agentPaths = agentNames.map((n) => path.join(ROOT, "agents", `${n}.md`));
+const vscodeAgentPaths = agentNames.map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
 const codexPluginPath = path.join(ROOT, ".codex-plugin", "plugin.json");
-const portableSkillNames = ["tend", "weed"];
+const portableSkillNames = agentNames;
 
 // Patterns that should not appear in portable artifacts
 const CLAUDE_CODE_LEAKS = [
@@ -607,6 +609,49 @@ if (shouldRun("hooks")) {
 }
 
 // ---------------------------------------------------------------------------
+// Modes — the interaction-mode contract is stated everywhere it must be.
+// The skill is the single source of truth for each agent-backed capability;
+// these canonical phrases (cf. loopdocs) pin the contract in all three
+// artefacts so a rewording that silently drops it fails here.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("modes")) {
+  console.log("\n── modes: interaction-mode contract ──\n");
+
+  const MODE_HEADING = "## Interaction modes";
+  const MODE_PHRASE = "no user is reachable";
+  const PIN_PHRASE = "never wait for an answer";
+
+  for (const name of agentNames) {
+    const skillSrc = readFileSync(path.join(ROOT, "skills", name, "SKILL.md"), "utf-8");
+    if (skillSrc.includes(MODE_HEADING) && skillSrc.includes(MODE_PHRASE)) {
+      pass(`skills/${name} states both modes`);
+    } else {
+      fail(`skills/${name} interaction modes`, `missing "${MODE_HEADING}" or "${MODE_PHRASE}"`);
+    }
+
+    const shellSrc = readFileSync(path.join(ROOT, "agents", `${name}.md`), "utf-8");
+    if (shellSrc.includes(MODE_PHRASE) && shellSrc.includes(PIN_PHRASE)) {
+      pass(`agents/${name} pins non-interactive mode`);
+    } else {
+      fail(`agents/${name} pin`, `missing "${MODE_PHRASE}" or "${PIN_PHRASE}"`);
+    }
+    if (shellSrc.includes(`- allium:${name}`)) {
+      pass(`agents/${name} preloads allium:${name}`);
+    } else {
+      fail(`agents/${name} preload`, `frontmatter must list "- allium:${name}" under skills:`);
+    }
+
+    const vsSrc = readFileSync(path.join(ROOT, ".github", "agents", `${name}.agent.md`), "utf-8");
+    if (vsSrc.includes(PIN_PHRASE) && vsSrc.includes(MODE_HEADING)) {
+      pass(`.github/agents/${name} carries pin + skill body`);
+    } else {
+      fail(`.github/agents/${name}`, `missing "${PIN_PHRASE}" or "${MODE_HEADING}"`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Discovery — live Claude Code skill and agent loading
 // ---------------------------------------------------------------------------
 
@@ -636,12 +681,166 @@ if (shouldRun("discovery")) {
         "List every allium agent (subagent_type) available to you via the Agent tool. " +
         'Output ONLY a JSON array of agent names, e.g. ["foo","bar"]. No other text.'
       );
-      const expectedAgents = ["tend", "weed"];
+      const expectedAgents = agentNames;
       const missing = expectedAgents.filter((a) => !agents.includes(a));
       if (missing.length > 0) fail("agent discovery", `missing: ${missing.join(", ")}`);
       else pass(`agent discovery (${agents.length} agents)`);
     } catch (e) {
       fail("agent discovery", e.message?.slice(0, 200));
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Parking — live behavioural probe: a non-interactive agent surfaces an
+// undecided point instead of asking the user or silently guessing. Each case
+// states the undecided point in the task, so a faithful agent must park it.
+// The probe spends model tokens, but the assertions are deterministic — a
+// file grep or a summary-line regex, never one model judging another.
+//
+// The three spec-writing agents (tend, distill, weed) share one parking
+// mechanism: an `open question` declaration in the spec they write, so they
+// share one assertion. propagate's contract differs — it surfaces decisions
+// in its returned report (the reconciliation summary), not as a spec
+// construct — so it has its own case and assertion.
+// ---------------------------------------------------------------------------
+
+const GIFTCARD_SPEC = `-- allium: 3
+
+entity GiftCard {
+    code: String
+    balance: Integer
+    status: active | redeemed
+}
+`;
+
+const GIFTCARD_PY = `# giftcard.py — reference implementation
+def redeem(card, amount):
+    # An over-redemption forces the balance to zero rather than rejecting.
+    card["balance"] = max(0, card["balance"] - amount)
+    if card["balance"] == 0:
+        card["status"] = "redeemed"
+    return card
+`;
+
+// Runs one agent headlessly in a throwaway dir and returns the printed
+// orchestrator output. bypassPermissions because propagate must run the
+// project's test command; the dir is temporary and discarded.
+function runAgentProbe(dir, prompt) {
+  return execFileSync(
+    getClaudePath(),
+    [
+      "--plugin-dir", ROOT,
+      "--print",
+      "--permission-mode", "bypassPermissions",
+      "--max-budget-usd", "2.00",
+      prompt,
+    ],
+    { encoding: "utf-8", timeout: 600000, cwd: dir, stdio: ["pipe", "pipe", "pipe"] }
+  );
+}
+
+function readAllAllium(dir) {
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".allium"))
+    .map((f) => readFileSync(path.join(dir, f), "utf-8"))
+    .join("\n");
+}
+
+if (shouldRun("parking")) {
+  console.log("\n── parking: non-interactive agents surface decisions, not ask ──\n");
+
+  if (!LIVE) {
+    skip("parking probes", "pass --live to enable (uses API tokens)");
+  } else {
+    // The three `open question`-parking agents, filename-agnostic: assert some
+    // .allium in the dir carries the parked question after the run.
+    const specCases = [
+      {
+        agent: "tend",
+        files: { "shop.allium": GIFTCARD_SPEC },
+        task:
+          "Add gift card expiry behaviour to shop.allium. The business has not yet " +
+          "decided the expiry period or what happens to any remaining balance when a " +
+          "card expires.",
+      },
+      {
+        agent: "distill",
+        files: { "giftcard.py": GIFTCARD_PY },
+        task:
+          "Distil an Allium spec for giftcard.py into giftcard.allium. The team has " +
+          "not decided whether forcing an over-redeemed balance to zero is intended " +
+          "behaviour or an accident to preserve — do not guess.",
+      },
+      {
+        agent: "weed",
+        files: { "shop.allium": GIFTCARD_SPEC, "giftcard.py": GIFTCARD_PY },
+        task:
+          "In update-spec mode, reconcile shop.allium with giftcard.py. The code sets " +
+          "status to redeemed only when the balance reaches zero, which the spec does " +
+          "not describe. The team has not decided whether that is the intended rule — " +
+          "where undecided, record it rather than guessing.",
+      },
+    ];
+
+    for (const c of specCases) {
+      const dir = mkdtempSync(path.join(tmpdir(), `allium-parking-${c.agent}-`));
+      try {
+        for (const [name, body] of Object.entries(c.files)) {
+          writeFileSync(path.join(dir, name), body);
+        }
+        runAgentProbe(
+          dir,
+          `Use the Agent tool to spawn the 'allium:${c.agent}' subagent with exactly ` +
+            `this task: "${c.task}" When it finishes, output only DONE.`
+        );
+        const specs = readAllAllium(dir);
+        if (specs.trim()) pass(`${c.agent}: produced a spec`);
+        else fail(`${c.agent}: produced a spec`, "no .allium content in the dir");
+        if (/open question/.test(specs)) pass(`${c.agent}: parked the undecided point as an open question`);
+        else fail(`${c.agent}: open question`, "no `open question` declaration in any .allium");
+      } catch (e) {
+        fail(`${c.agent} parking probe`, e.message?.slice(0, 200));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    // propagate: self-contained runnable project (Node's built-in test runner,
+    // no npm install) so reconciliation can actually run. Assert the relayed
+    // report carries the reconciliation summary line — propagate surfacing its
+    // status in output rather than going silent or asking.
+    {
+      const dir = mkdtempSync(path.join(tmpdir(), "allium-parking-propagate-"));
+      try {
+        writeFileSync(path.join(dir, "shop.allium"), GIFTCARD_SPEC);
+        writeFileSync(
+          path.join(dir, "package.json"),
+          JSON.stringify({ name: "shop", version: "1.0.0", type: "module", scripts: { test: "node --test" } }, null, 2) + "\n"
+        );
+        writeFileSync(
+          path.join(dir, "giftcard.js"),
+          "export class GiftCard {\n" +
+            "  constructor(code, balance) { this.code = code; this.balance = balance; this.status = 'active'; }\n" +
+            "  redeem(amount) { this.balance = Math.max(0, this.balance - amount); if (this.balance === 0) this.status = 'redeemed'; }\n" +
+            "}\n"
+        );
+        const out = runAgentProbe(
+          dir,
+          "Use the Agent tool to spawn the 'allium:propagate' subagent with exactly this task: " +
+            '"Propagate tests from shop.allium against this project (giftcard.js, Node built-in test runner via npm test)." ' +
+            "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
+        );
+        if (/\d+\s+obligations?,\s+\d+\s+covered,\s+\d+\s+uncovered/i.test(out)) {
+          pass("propagate: surfaced the reconciliation summary in its report");
+        } else {
+          fail("propagate: reconciliation summary", "no `N obligations, M covered, K uncovered` line in relayed output");
+        }
+      } catch (e) {
+        fail("propagate parking probe", e.message?.slice(0, 200));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     }
   }
 }
@@ -713,8 +912,8 @@ if (shouldRun("crosstalk")) {
       }
 
       // Local agents should also be present (from agents/)
-      const localAgents = agents.filter((a) => a === "tend" || a === "weed");
-      if (localAgents.length >= 2) {
+      const localAgents = agents.filter((a) => agentNames.includes(a));
+      if (localAgents.length >= agentNames.length) {
         pass("allium repo: local agents present");
       } else {
         // Not a failure, just informational — depends on plugin install state

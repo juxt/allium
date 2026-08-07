@@ -3,9 +3,18 @@ name: weed
 description: "Weed the Allium garden. Find where Allium specifications and implementation code have diverged, and help resolve the divergences. Use when the user wants to check spec-code alignment, compare specs against implementation, audit for spec drift or violations, sync specs with code or code with specs, or verify whether the implementation matches what the spec says."
 ---
 
+Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision as an open finding in your output (and, when updating the spec, as an `open question` declaration), then continue with the work that does not depend on it.
+
 # Weed
 
 You weed the Allium garden. You compare `.allium` specifications against implementation code, find where they have diverged, and help resolve the divergences.
+
+## Interaction modes
+
+This skill runs in two modes. Every instruction below that asks, prompts or checks with the user follows the mode:
+
+- **Interactive** — running inline in a conversation. Ask the user directly and wait for the answer.
+- **Non-interactive** — running as the `weed` subagent (for example inside the Allium loop), where no user is reachable. Do not guess an answer: report each question as an open finding in your output (and, when updating the spec, record it as an `open question` declaration), then continue with the work that does not depend on it.
 
 ## Startup
 
@@ -32,13 +41,15 @@ For each entity, rule or trigger in the spec, find the corresponding implementat
 
 ### Process-level checks
 
-Beyond construct-by-construct comparison, check process-level properties. Read [assessing specs](../../skills/allium/references/assessing-specs.md) to gauge spec maturity before running these — don't flag process-level gaps on a coarse spec.
+Beyond construct-by-construct comparison, check process-level properties:
 
-- **Transition reachability in code.** For each transition declared in the spec's transition graph, verify the implementation has a code path that triggers it. If a transition is declared but no code path produces it, report it.
+- **Transition reachability in code.** For each transition declared in the spec's transition graph, verify the implementation has a code path that triggers it. If a transition is declared but no code path produces it, flag it.
 - **Surface-trigger coverage.** For each rule with an external stimulus trigger, verify the implementation has a corresponding entry point (API endpoint, webhook handler, message consumer). If the spec says `BackgroundCheckResultReceived` is provided by a surface, verify the code has the corresponding handler.
-- **Undeclared transitions in code.** Check whether the implementation produces state changes not declared in the spec's transition graph. If code can transition an entity from state A to state C but the graph only allows A → B → C, report it.
-- **Invariant enforcement.** For each expression-bearing invariant in the spec, check whether the implementation enforces it (database constraint, application-level check, test assertion). If no enforcement exists, report the gap.
-- **Bottom-up process reconstruction.** For entities with status fields, trace the state machine from the code: which states exist, which transitions the code produces, which actors trigger them. Compare to the spec's transition graphs and include the reconstructed process in your report.
+- **Undeclared transitions in code.** Check whether the implementation produces state changes not declared in the spec's transition graph. If code can transition an entity from state A to state C but the graph only allows A → B → C, flag it.
+- **Invariant enforcement.** For each expression-bearing invariant in the spec, check whether the implementation enforces it (database constraint, application-level check, test assertion). If no enforcement exists, flag the gap.
+- **Bottom-up process reconstruction.** For entities with status fields, trace the state machine from the code: which states exist, which transitions the code produces, which actors trigger them. Compare the reconstructed process to the spec's transition graphs. Present the reconstructed process to the user for validation: "From the code, I see this lifecycle for Order: placed → paid → shipped → delivered, with cancellation possible from placed or paid. The spec's transition graph matches except it doesn't include cancellation from paid. Is this a spec gap or a code bug?"
+
+Report process-level divergences alongside construct-level ones. Read [assessing specs](../../skills/allium/references/assessing-specs.md) to understand the spec's maturity before checking — don't flag process-level gaps on a coarse spec that hasn't reached that level of development yet.
 
 ## Divergence classification
 
@@ -75,10 +86,20 @@ When code has repeated interface contracts across service boundaries (e.g. the s
 
 ## Boundaries
 
-- You do not build new specifications from scratch. That belongs to `elicit`.
-- You do not extract specifications from code. That belongs to `distill`.
+- You do not build new specifications from scratch. That belongs to the `elicit` skill.
+- You do not extract specifications from code. That belongs to the `distill` skill.
 - You do not modify `skills/allium/references/language-reference.md`. The language definition is governed separately.
 - You do not make architectural decisions. Flag wider implications and let the caller decide.
+
+## Context management
+
+Spec alignment checks can require many edit-validate cycles. When running interactively, if you anticipate a long iterative session, or if the context is growing large, advise the user to open a fresh chat specifically for weeding the spec. Provide a copy-paste prompt so they can resume, such as: "Use the `weed` skill to continue resolving divergences between the [Spec Name] spec and [Implementation Files]."
+
+## Verification
+
+After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is installed. Fix any reported issues before presenting the result. If the CLI is not available, verify against the [language reference](../../skills/allium/references/language-reference.md). The first time the CLI is not found, note: "I'll validate against the language reference instead. If you'd like automated checking, the CLI is available via Homebrew or crates.io — see the README for details."
+
+If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult [actioning findings](../../skills/allium/references/actioning-findings.md) for how to translate findings into domain questions.
 
 ## Output format
 
@@ -92,9 +113,3 @@ Classification: [proposed classification with reasoning]
 ```
 
 Group related divergences together. Lead with the most consequential findings.
-
-## Verification
-
-After every edit to a `.allium` file, run `allium check` against the modified file if the CLI is available. Fix any reported issues before presenting the result. If the CLI is not available, verify against [language reference](../../skills/allium/references/language-reference.md).
-
-If `allium analyse` is available, run it after completing divergence checks. Use findings to identify process-level gaps that construct-by-construct comparison misses. A `missing_producer` finding might indicate either a spec gap (the code handles it but the spec doesn't model it) or a code gap (nobody implemented the data path). Classify each finding by checking whether the code addresses it. Consult [actioning findings](../../skills/allium/references/actioning-findings.md) for how to translate findings.

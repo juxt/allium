@@ -3,6 +3,10 @@ name: propagate
 description: "Generate tests from Allium specifications. Use when the user wants to propagate tests, generate test files from a spec, write tests for a specification, create property-based tests, produce state machine tests, check test coverage against spec obligations, or understand what tests a specification requires."
 ---
 
+Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision in your final output and continue with the work that does not depend on it. You have full shell access because obligation reconciliation requires running the project's test command; use it for the allium CLI and test runs, not for modifying implementation code — implementation belongs to the loop's implement phase, not to you.
+
+Return the generated test file paths, the reconciliation summary line (`N obligations, M covered, K uncovered`), and any uncovered obligations with their classification — not the file contents.
+
 # Propagation
 
 This skill generates tests from Allium specifications. Propagation is how plants reproduce from cuttings of the parent: the spec is the parent, the tests are the offspring.
@@ -25,7 +29,7 @@ Before propagating tests, you need:
 3. **Test obligations** — from `allium plan <spec>` (JSON listing every required test)
 4. **Domain model** — from `allium model <spec>` (JSON describing entity shapes, constraints, state machines)
 
-If the CLI tools are not available, derive test obligations manually from the spec using the test-generation taxonomy in [`references/test-generation.md`](../allium/references/test-generation.md).
+If the CLI tools are not available, derive test obligations manually from the spec using the test-generation taxonomy in [`references/test-generation.md`](../../skills/allium/references/test-generation.md).
 
 ## Modes
 
@@ -73,7 +77,7 @@ Categories from the test-generation taxonomy:
 - **Deadlock scenario tests** — for states where `allium analyse` identifies potential deadlocks, generate tests that put the entity in the stuck state and verify whether it can progress.
 - **Cross-entity process tests** — for processes spanning multiple entities, generate integration tests that exercise the full process from start to terminal state across all participating entities.
 
-If `allium analyse` is available, use its findings to prioritise test generation. A `missing_producer` or `dead_transition` finding indicates a gap worth exercising with a test. A `deadlock` finding should generate a test documenting that the entity cannot escape the stuck state. Consult [actioning findings](../allium/references/actioning-findings.md) for the finding type taxonomy.
+If `allium analyse` is available, use its findings to prioritise test generation. A `missing_producer` or `dead_transition` finding indicates a gap worth exercising with a test. A `deadlock` finding should generate a test documenting that the entity cannot escape the stuck state. Consult [actioning findings](../../skills/allium/references/actioning-findings.md) for the finding type taxonomy.
 
 ## Test output kinds
 
@@ -175,7 +179,7 @@ Deferred specifications are fully specified in separate files. When the target c
 
 ## Process
 
-1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults. Read [assessing specs](../allium/references/assessing-specs.md) to gauge the spec's maturity. A coarse spec (entities and transition graphs but no rules) will produce limited test obligations — mostly structural tests. If the spec is too coarse for meaningful test generation, suggest using the `elicit` or `distill` skill to develop it further before propagating tests. A spec with rules and surfaces enables the full test taxonomy including data flow chain tests and reachability tests.
+1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults. Read [assessing specs](../../skills/allium/references/assessing-specs.md) to gauge the spec's maturity. A coarse spec (entities and transition graphs but no rules) will produce limited test obligations — mostly structural tests. If the spec is too coarse for meaningful test generation, suggest using the `elicit` or `distill` skill to develop it further before propagating tests. A spec with rules and surfaces enables the full test taxonomy including data flow chain tests and reachability tests.
 2. **Read test obligations** — from `allium plan` output or manual derivation
 3. **Read domain model** — from `allium model` output or manual derivation
 4. **Explore the codebase** — find existing tests, test framework, entity implementations, rule implementations
@@ -219,7 +223,7 @@ For each obligation with no covering test, attempt to cover it:
 2. Verify the new test compiles and runs
 3. Re-check the obligation against the result
 
-This is a mini-loop, and it needs the same guards as the outer Allium loop (see [driving the loop](../allium/references/driving-the-loop.md)):
+This is a mini-loop, and it needs the same guards as the outer Allium loop (see [driving the loop](../../skills/allium/references/driving-the-loop.md)):
 
 - **Attempt cap** — at most 2 attempts per obligation. If the second attempt does not produce a compiling test that covers it, park the obligation.
 - **No-progress cap** — if a full pass over the remaining gaps covers nothing new, stop; further passes will thrash.

@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Generates VS Code agent variants from the canonical Claude Code
- * agent definitions in agents/.
+ * Generates VS Code agent variants (.github/agents/*.agent.md).
  *
- * Skills (skills/tend/SKILL.md, skills/weed/SKILL.md) are hand-maintained
- * independently of agents. Skills are interactive; agents are autonomous.
- * The two diverge intentionally in tone and behaviour.
+ * The canonical source for each capability is its skill
+ * (skills/<name>/SKILL.md). Claude Code agents (agents/<name>.md) are thin
+ * shells that preload the skill at runtime via the `skills:` frontmatter
+ * field. VS Code has no preload mechanism, so this script materialises the
+ * equivalent at build time: the shell's non-interactive pin followed by the
+ * full skill body, with relative links rewritten for the .github/agents/
+ * location.
  *
  * Usage: node scripts/generate-multi-editor.mjs [--check]
  *
@@ -20,7 +23,7 @@ import path from "path";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const CHECK = process.argv.includes("--check");
 
-const AGENTS = ["tend", "weed"];
+const AGENTS = ["distill", "propagate", "tend", "weed"];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,27 +56,33 @@ function parseFrontmatter(src) {
   return { frontmatter: fm, body: match[2] };
 }
 
-function adaptBody(body) {
-  return (
-    body
-      // Replace ${CLAUDE_PLUGIN_ROOT} paths with relative markdown links
-      .replace(
-        /`\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/allium\/references\/language-reference\.md`/g,
-        "[language reference](../../skills/allium/references/language-reference.md)"
-      )
-      .replace(
-        /`\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/allium\/references\/assessing-specs\.md`/g,
-        "[assessing specs](../../skills/allium/references/assessing-specs.md)"
-      )
-      .replace(
-        /`\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/allium\/references\/actioning-findings\.md`/g,
-        "[actioning findings](../../skills/allium/references/actioning-findings.md)"
-      )
-      // Replace Claude Code tool names with generic instructions
-      .replace(/\(use `Glob` to find them if not specified\)/g, "(search the project to find them if not specified)")
-      // Replace "agent" cross-references with "skill" for portable contexts
-      .replace(/the `weed` agent/g, "the `weed` skill")
-      .replace(/the `tend` agent/g, "the `tend` skill")
+// The non-interactive pin lives in the Claude Code shell. Everything that is
+// Claude Code plumbing — the preload mention, the plugin-root fallback, the
+// heading — is dropped; what remains is the harness-neutral mode instruction.
+function extractPin(shellBody) {
+  return shellBody
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(
+      (p) =>
+        p &&
+        !p.startsWith("#") &&
+        !p.includes("${CLAUDE_PLUGIN_ROOT}") &&
+        !p.includes("preloaded")
+    )
+    .map((p) => p.replace("You have full Bash access", "You have full shell access"))
+    .join("\n\n");
+}
+
+// Skill bodies use links relative to skills/<name>/. Rewrite them for the
+// .github/agents/ location.
+// Skill bodies link relative to skills/<name>/: `./x` is skill-local,
+// `../other/x` reaches a sibling skill. Rewrite both for the
+// .github/agents/ location in a single pass, so a rewritten prefix is
+// never re-matched by a later rule.
+function adaptSkillBody(name, body) {
+  return body.replace(/\]\((\.\/|\.\.\/)/g, (_, prefix) =>
+    prefix === "./" ? `](../../skills/${name}/` : "](../../skills/"
   );
 }
 
@@ -82,20 +91,21 @@ function adaptBody(body) {
 // ---------------------------------------------------------------------------
 
 function generateVscodeAgent(name) {
-  const src = read(`agents/${name}.md`);
-  const { frontmatter, body } = parseFrontmatter(src);
-  const adapted = adaptBody(body);
+  const shell = parseFrontmatter(read(`agents/${name}.md`));
+  const skill = parseFrontmatter(read(`skills/${name}/SKILL.md`));
 
   // Omit tools — VS Code defaults to all available tools.
   // Claude Code's Bash restriction (allium check *) can't be expressed
   // in VS Code's format, so we accept broader tool access.
-  const agent = `---
+  return `---
 name: ${name}
-description: "${frontmatter.description}"
+description: "${shell.frontmatter.description}"
 ---
-${adapted}`;
 
-  return agent;
+${extractPin(shell.body)}
+
+${adaptSkillBody(name, skill.body.trim())}
+`;
 }
 
 // ---------------------------------------------------------------------------

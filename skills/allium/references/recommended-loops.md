@@ -110,7 +110,7 @@ Note the expectation is **inverted** from the spec-first loop: there the new tes
 
 ## Running the loop autonomously (for the LLM and the agents)
 
-Both loops can be driven autonomously — `/tend` and `/weed` already ship as standalone agents. When running unattended, treat the loop as an explicit control loop:
+Both loops can be driven autonomously — `/distill`, `/propagate`, `/tend` and `/weed` all ship as standalone agents. When running unattended, treat the loop as an explicit control loop:
 
 **Per tick:**
 1. Advance the spec (`/elicit` or `/distill` on the first tick, `/tend` thereafter only if needed).
@@ -154,7 +154,7 @@ You don't have to invoke the skills one at a time. Hand a single agentic session
 - **No-progress cap** — stop after **2 iterations** with no measurable change (test pass count, weed verdict, open-question count). This catches thrashing against a test the agent can't satisfy.
 - **Escalate on open question** — a decision goes to the human, never a silent guess.
 
-The loop can also be driven by the autonomous `tend` and `weed` agents, or by a harness loop primitive (for example a self-paced `/loop` in Claude Code). Those supply the "keep going" mechanism; the procedure and the exit conditions above are unchanged.
+The loop can also be driven by the autonomous `distill`, `propagate`, `tend` and `weed` agents, or by a harness loop primitive (for example a self-paced `/loop` in Claude Code). Those supply the "keep going" mechanism; the procedure and the exit conditions above are unchanged.
 
 ## The "produce the code" prompt
 
