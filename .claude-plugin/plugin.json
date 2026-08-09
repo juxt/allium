@@ -19,6 +19,8 @@
     "./skills/weed"
   ],
   "agents": [
+    "./agents/distill.md",
+    "./agents/propagate.md",
     "./agents/tend.md",
     "./agents/weed.md"
   ],

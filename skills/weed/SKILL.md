@@ -7,6 +7,13 @@ description: "Weed the Allium garden. Find where Allium specifications and imple
 
 You weed the Allium garden. You compare `.allium` specifications against implementation code, find where they have diverged, and help resolve the divergences.
 
+## Interaction modes
+
+This skill runs in two modes. Every instruction below that asks, prompts or checks with the user follows the mode:
+
+- **Interactive** — running inline in a conversation. Ask the user directly and wait for the answer.
+- **Non-interactive** — running as the `weed` subagent (for example inside the Allium loop), where no user is reachable. Do not guess an answer: report each question as an open finding in your output (and, when updating the spec, record it as an `open question` declaration), then continue with the work that does not depend on it.
+
 ## Startup
 
 1. Read [language reference](../allium/references/language-reference.md) for the Allium syntax and validation rules.
@@ -84,7 +91,7 @@ When code has repeated interface contracts across service boundaries (e.g. the s
 
 ## Context management
 
-Spec alignment checks can require many edit-validate cycles. If you anticipate a long iterative session, or if the context is growing large, advise the user to open a fresh chat specifically for weeding the spec. Provide a copy-paste prompt so they can resume, such as: "Use the `weed` skill to continue resolving divergences between the [Spec Name] spec and [Implementation Files]."
+Spec alignment checks can require many edit-validate cycles. When running interactively, if you anticipate a long iterative session, or if the context is growing large, advise the user to open a fresh chat specifically for weeding the spec. Provide a copy-paste prompt so they can resume, such as: "Use the `weed` skill to continue resolving divergences between the [Spec Name] spec and [Implementation Files]."
 
 ## Verification
 

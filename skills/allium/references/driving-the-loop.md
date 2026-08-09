@@ -70,7 +70,7 @@ After the slices converge, run a **whole-spec integration pass** — cross-entit
 
 ## 7. Run phases in isolation
 
-Where the harness allows, run each phase as an isolated sub-agent (`tend` and `weed` are already agents) so this orchestrator holds only the loop state and each phase gets a clean context — that is what keeps a long run within budget. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger; do not rely on in-memory state surviving between phases.
+Where the harness allows, run each phase as an isolated sub-agent (`distill`, `propagate`, `tend` and `weed` all ship as agents) so this orchestrator holds only the loop state and each phase gets a clean context — that is what keeps a long run within budget. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger; do not rely on in-memory state surviving between phases.
 
 ## 8. The ledger
 
