@@ -68,9 +68,13 @@ If the goal spans more than one independent behavioural slice, decompose along t
 
 After the slices converge, run a **whole-spec integration pass** — cross-entity / data-flow / reachability tests plus a full `weed` — so the seams *between* slices converge too. Run this autonomously without blocking to confirm the plan, and produce one consolidated summary at the end.
 
-## 7. Run phases in isolation
+## 7. Delegate each phase to an isolated sub-agent (default)
 
-Where the harness allows, run each phase as an isolated sub-agent (`distill`, `propagate`, `tend` and `weed` all ship as agents) so this orchestrator holds only the loop state and each phase gets a clean context — that is what keeps a long run within budget. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger; do not rely on in-memory state surviving between phases.
+By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend` and `propagate` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path and the ledger, never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a short result (artefact path + summary + parked questions); that result is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
+
+This is what keeps a long or large run within budget: the orchestrator's context stays flat (loop state only) while each phase's reading is bounded to that phase and then discarded. An inline run, by contrast, accumulates every phase's reads into one context that grows tick over tick until it is slow, expensive, or overflows the window.
+
+**When to run inline instead.** Delegation has a fixed per-phase cost — each sub-agent starts cold and loads its runbook. For a *small* scope (a single file or a few hundred lines, one entity, a spec that sits comfortably in context) that overhead outweighs the saving, so run the phases inline in your own context. Switch to delegation when the scope is large, the loop will run several ticks, or you are already carrying a lot of context. Rule of thumb: **if reading the whole in-scope surface once would dominate your context, delegate; otherwise inline is cheaper.** When you delegate, invoke each phase by its agent name (`allium:distill`, `allium:weed`, `allium:tend`, `allium:propagate`) so the routing is deterministic rather than left to description-matching.
 
 ## 8. The ledger
 
