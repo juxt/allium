@@ -321,14 +321,30 @@ The presence of multiple implementations suggests the variation itself is a doma
 
 ## Distillation process
 
+Distillation reads a lot of code but produces a small spec. The expensive mistake is letting all that source pile up in one context window where it is re-read on every turn. Keep the working set lean: orchestrate the read-heavy steps as subagents and keep only their distilled output.
+
+### The orchestration model
+
+For anything beyond a handful of files, do not read the whole codebase yourself. Instead:
+
+1. **Map** the codebase into bounded contexts — a light scan (Step 1), not a deep read.
+2. **Fan out.** Spawn one subagent per bounded context. Each reads only its slice and returns *distilled fragments* — draft entities (states + transition edges), draft rules (trigger / requires / ensures), external boundaries, actors and config — each with `file:line` evidence. Subagents return spec fragments and evidence, never raw source. Give each subagent its target paths, the shared entity vocabulary from the map (so contexts agree on names), and the extraction guidance in Steps 2–5; ask for a compact fragment, not prose commentary.
+3. **Assemble.** You, the orchestrator, hold only the map and the returned fragments — not the source. Merge fragments into one spec: dedupe cross-cutting entities (`Email`, `Notification`, `AuditLog`), reconcile terminology (one name per concept, see the challenges reference), and resolve cross-context references.
+4. **Abstract and validate** the assembled spec (Steps 6–7).
+
+Why this matters: raw source never accumulates in your context, so it is not re-processed turn after turn; each subagent's slice is discarded once its fragment returns. You still read every relevant line — just not all at once, and not repeatedly. The result is the same spec at a fraction of the tokens.
+
+For a genuinely small codebase (a handful of files) the fan-out overhead is not worth it — read it directly and apply Steps 1–7 inline.
+
 ### Step 1: Map the territory
 
-Before extracting any specification, understand the codebase structure:
+Scan — do not deeply read — to carve the codebase into bounded contexts and a shared vocabulary, and to plan the fan-out. Identify:
 
-1. **Identify entry points.** API routes, CLI commands, message handlers, scheduled jobs.
-2. **Find the domain models.** Usually in `models/`, `entities/`, `domain/`.
-3. **Locate business logic.** Services, use cases, handlers.
-4. **Note external integrations.** What third parties does it talk to?
+1. **Entry points.** API routes, CLI commands, message handlers, scheduled jobs.
+2. **Domain models.** Usually in `models/`, `entities/`, `domain/`.
+3. **Business logic.** Services, use cases, handlers.
+4. **External integrations.** What third parties does it talk to?
+5. **Bounded contexts.** Group the above into cohesive slices (by module, package or feature area) — these become the fan-out units. Note the entities that appear in more than one slice; they are the shared vocabulary every subagent must use consistently.
 
 Create a rough map:
 ```
@@ -345,7 +361,15 @@ Services:
 
 Integrations:
   - Google Calendar, Slack, Greenhouse, SendGrid
+
+Bounded contexts (fan-out units):
+  - scheduling: Interview, InterviewSlot (SchedulingService, /api/interviews)
+  - invitations: Invitation, Feedback (/api/invitations, expire job)
+  - intake: Candidate (Greenhouse webhook) — external
+Shared entities: Candidate, Interview (appear across contexts)
 ```
+
+Steps 2–5 are the **extraction guidance each fan-out subagent applies to its slice** (and that you apply directly for a small codebase). Hand them to each subagent along with its target paths and the shared vocabulary; collect the fragments and assemble per the orchestration model.
 
 ### Step 2: Extract entity states
 
@@ -542,9 +566,9 @@ After extracting surfaces from API endpoints, identify actors by examining authe
 
 Ask the user to confirm: "This endpoint requires admin role authentication. Is 'Admin' a distinct actor, or is this the same person as the regular user with elevated permissions?"
 
-### Step 6: Abstract away implementation
+### Step 6: Assemble and abstract
 
-Now make a pass through your extracted spec and remove implementation details.
+If you fanned out, first assemble the returned fragments into one spec: collect every entity, rule, boundary and config value; dedupe cross-cutting entities and reconcile terminology so each concept has exactly one name (a concept that two contexts named differently must be unified now — see the Duplicate terminology challenge below). Then make a pass over the assembled spec to remove implementation details.
 
 **Before (too concrete):**
 ```
