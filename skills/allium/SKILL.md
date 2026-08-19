@@ -33,6 +33,7 @@ Allium does NOT specify programming language or framework choices, database sche
 | Modifying an existing spec | `tend` skill | User wants targeted changes to `.allium` files |
 | Checking spec-to-code alignment | `weed` skill | User wants to find or fix divergences between spec and implementation |
 | Generating tests from a spec | `propagate` skill | User wants to generate tests, PBT properties or state machine tests from a specification |
+| Attesting a loop's convergence | `witness` skill | User wants to independently confirm a run's convergence claim from ground truth — tests really pass, no generated test was weakened, no blocking question was silently parked |
 | Driving the whole loop to convergence | this skill (see [driving the loop](./references/driving-the-loop.md)) | User wants to build or reconcile a feature end to end — `/allium <goal>` runs the gather→act→verify→repeat loop autonomously until spec, tests and code agree |
 
 ## Responding to `/allium` (loop-first)
@@ -56,7 +57,7 @@ Two entry points, one convergence loop:
 - **Spec-first (forward, from intent):** `/elicit` → `/propagate` → implement → `/weed`; use `/tend` then re-`/propagate` when requirements change.
 - **Code-first (backward, from existing code):** `/distill` → review intended vs accidental behaviour → `/propagate` → run tests against the code → `/weed` to reconcile → repeat per area.
 
-The work is "done" when tests pass, `/weed` reports no divergence, and no open questions remain (plus, for code-first, a fresh `/distill` finds nothing new). Two standing rules while looping: never weaken a generated test to make it pass (fix the spec and re-propagate instead), and escalate genuine ambiguity to the human rather than guessing.
+The work is "done" when tests pass, `/weed` reports no divergence, no open questions remain (plus, for code-first, a fresh `/distill` finds nothing new), and an independent `/witness` pass attests that claim against ground truth. Two standing rules while looping: never weaken a generated test to make it pass (fix the spec and re-propagate instead), and escalate genuine ambiguity to the human rather than guessing — both are enforced by the witness at the convergence gate, not left to trust.
 
 Implementation itself is ordinary coding — Allium produces the spec and tests, not the application code. See the [recommended loops](./references/recommended-loops.md) reference for the full walkthrough, diagrams, exit conditions and the implementation prompt.
 
