@@ -23,7 +23,7 @@ import path from "path";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const CHECK = process.argv.includes("--check");
 
-const AGENTS = ["distill", "propagate", "tend", "weed"];
+const AGENTS = ["distill", "propagate", "tend", "weed", "witness"];
 
 // ---------------------------------------------------------------------------
 // Helpers

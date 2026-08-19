@@ -42,6 +42,7 @@ Each skill moves one artefact relative to another:
 | *(implement)* | tests → code | ordinary coding — **not an Allium skill** |
 | `/weed` | code ↔ spec | reconcile divergence either direction |
 | `/tend` | edits spec | re-enter the loop after a change |
+| `/witness` | attests convergence | independently confirm the loop's claim from ground truth (gate) |
 
 The implementation step is plain LLM-and-human coding. Allium has no codegen for the application itself; it produces the spec and the tests, and those hold the hand-written code to the specified behaviour.
 
@@ -110,7 +111,7 @@ Note the expectation is **inverted** from the spec-first loop: there the new tes
 
 ## Running the loop autonomously (for the LLM and the agents)
 
-Both loops can be driven autonomously — `/distill`, `/propagate`, `/tend` and `/weed` all ship as standalone agents. When running unattended, treat the loop as an explicit control loop:
+Both loops can be driven autonomously — `/distill`, `/propagate`, `/tend`, `/weed` and `/witness` all ship as standalone agents. When running unattended, treat the loop as an explicit control loop:
 
 **Per tick:**
 1. Advance the spec (`/elicit` or `/distill` on the first tick, `/tend` thereafter only if needed).
@@ -120,12 +121,12 @@ Both loops can be driven autonomously — `/distill`, `/propagate`, `/tend` and 
 5. Re-evaluate the convergence invariant.
 
 **Exit conditions — stop when either holds:**
-- the convergence invariant is satisfied; or
+- the convergence invariant is satisfied *and an independent `witness` pass attests it* (see [driving the loop](./driving-the-loop.md) §11) — the run's own reading is confirmed against ground truth before you call it done; or
 - a bounded iteration budget is exhausted (don't spin forever).
 
 **Guardrails (do not violate, even to reach green):**
 - **Confirm new tests fail before implementing (spec-first).** A generated test that is green before any new code is written is a signal — already-covered or vacuous — not success. Resolve it first; don't carry it into the implement step.
-- **Never weaken or edit a generated test to pass.** If a test seems wrong, fix the spec and re-propagate.
+- **Never weaken or edit a generated test to pass.** If a test seems wrong, fix the spec and re-propagate. This is not left to trust: when the loop is witnessed, a generated test whose recorded hash changed with no intervening propagate fails the witness and blocks convergence.
 - **Escalate ambiguity; don't guess.** A real open question goes to the human and into the spec's `open questions` section — silently picking an interpretation is the exact failure Allium exists to prevent.
 - **No magic numbers in code that the spec puts in `config`.** Honour the spec's parameters.
 - **Fix the code, not the contract**, when code and spec disagree and the spec is right.
@@ -154,7 +155,7 @@ You don't have to invoke the skills one at a time. Hand a single agentic session
 - **No-progress cap** — stop after **2 iterations** with no measurable change (test pass count, weed verdict, open-question count). This catches thrashing against a test the agent can't satisfy.
 - **Escalate on open question** — a decision goes to the human, never a silent guess.
 
-The loop can also be driven by the autonomous `distill`, `propagate`, `tend` and `weed` agents, or by a harness loop primitive (for example a self-paced `/loop` in Claude Code). Those supply the "keep going" mechanism; the procedure and the exit conditions above are unchanged.
+The loop can also be driven by the autonomous `distill`, `propagate`, `tend`, `weed` and `witness` agents, or by a harness loop primitive (for example a self-paced `/loop` in Claude Code). Those supply the "keep going" mechanism; the procedure and the exit conditions above are unchanged.
 
 ## The "produce the code" prompt
 

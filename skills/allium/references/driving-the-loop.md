@@ -41,14 +41,17 @@ Stop when **all** hold:
 - tests pass,
 - `weed` reports no divergence,
 - no blocking open questions remain (only parked, non-blocking ones),
-- (code-first) a fresh `distill` pass finds nothing new.
+- (code-first) a fresh `distill` pass finds nothing new,
+- the **witness** attests convergence: an independent `witness` pass returns `PASS` (§11).
+
+The first four are the run's own reading of its state; the witness re-derives them from ground truth and confirms nothing was falsified on the way to green. Convergence is declared on the witness's verdict, not the run's self-report.
 
 ## 4. Stop conditions & safety
 
 - **Hard cap** — stop after **6** iterations.
 - **No-progress cap** — stop after **2** iterations with no change in tests / weed verdict / open-question count (catches thrashing against a test you can't satisfy).
 - **Escalate** on a blocking open question (§5).
-- **Anti-cheat (non-negotiable)** — never weaken or edit a generated test to pass; honour `config` (no magic numbers in code the spec parameterises).
+- **Anti-cheat (non-negotiable, and witnessed)** — never weaken or edit a generated test to pass; honour `config` (no magic numbers in code the spec parameterises). This is not left to good behaviour: the witness (§11) re-derives it from ground truth — a generated test whose recorded hash changed with no intervening `propagate` fails the witness and blocks convergence.
 - On hitting a cap or an unrecoverable error, **stop and report** — don't spin.
 
 Caps default to 6 / 2 and may be overridden per invocation or via a `config` block.
@@ -64,21 +67,23 @@ Rule: a question is *blocking* iff the next unit of work depends on its answer. 
 
 ## 6. Large goals: decompose, then integrate
 
-If the goal spans more than one independent behavioural slice, decompose along the spec's seams — one sub-goal per **entity lifecycle**, **surface**, or **independent rule / data-flow chain**. Order sub-goals topologically by the data-flow / trigger graph (producers before consumers). Run each sub-goal as its own loop.
+If the goal spans more than one independent behavioural slice, decompose along the spec's seams — one sub-goal per **entity lifecycle**, **surface**, or **independent rule / data-flow chain**. Order sub-goals topologically by the data-flow / trigger graph (producers before consumers). Run each sub-goal as its own loop, and witness each slice at its own convergence gate (§11) before you count it converged, so a falsified slice cannot be assembled into the whole.
 
-After the slices converge, run a **whole-spec integration pass** — cross-entity / data-flow / reachability tests plus a full `weed` — so the seams *between* slices converge too. Run this autonomously without blocking to confirm the plan, and produce one consolidated summary at the end.
+After the slices converge, run a **whole-spec integration pass** — cross-entity / data-flow / reachability tests plus a full `weed`, and a final `witness` over the assembled spec — so the seams *between* slices converge too. Run this autonomously without blocking to confirm the plan, and produce one consolidated summary at the end.
 
 ## 7. Delegate each phase to an isolated sub-agent (default)
 
-By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend` and `propagate` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path and the ledger, never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a short result (artefact path + summary + parked questions); that result is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
+By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend`, `propagate` and `witness` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path and the ledger, never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a short result (artefact path + summary + parked questions); that result is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
 
 This is what keeps a long or large run within budget: the orchestrator's context stays flat (loop state only) while each phase's reading is bounded to that phase and then discarded. An inline run, by contrast, accumulates every phase's reads into one context that grows tick over tick until it is slow, expensive, or overflows the window.
 
-**When to run inline instead.** Delegation has a fixed per-phase cost — each sub-agent starts cold and loads its runbook. For a *small* scope (a single file or a few hundred lines, one entity, a spec that sits comfortably in context) that overhead outweighs the saving, so run the phases inline in your own context. Switch to delegation when the scope is large, the loop will run several ticks, or you are already carrying a lot of context. Rule of thumb: **if reading the whole in-scope surface once would dominate your context, delegate; otherwise inline is cheaper.** When you delegate, invoke each phase by its agent name (`allium:distill`, `allium:weed`, `allium:tend`, `allium:propagate`) so the routing is deterministic rather than left to description-matching.
+**When to run inline instead.** Delegation has a fixed per-phase cost — each sub-agent starts cold and loads its runbook. For a *small* scope (a single file or a few hundred lines, one entity, a spec that sits comfortably in context) that overhead outweighs the saving, so run the phases inline in your own context. Switch to delegation when the scope is large, the loop will run several ticks, or you are already carrying a lot of context. Rule of thumb: **if reading the whole in-scope surface once would dominate your context, delegate; otherwise inline is cheaper.** When you delegate, invoke each phase by its agent name (`allium:distill`, `allium:weed`, `allium:tend`, `allium:propagate`, `allium:witness`) so the routing is deterministic rather than left to description-matching.
 
 ## 8. The ledger
 
 Keep loop state in `.allium-loop/<goal-slug>.json`: goal, mode, tick count, active inner loop, last verdicts, completed sub-goals, and parked (non-blocking) open questions. This makes the loop resumable — a fresh run reads it and continues where it left off.
+
+The ledger also carries the evidence the witness (§11) re-derives convergence from, so record it as the phases produce it: `generated_test_hashes` (a content hash per generated test file, written by `propagate`) and the `reconciliation` line, the recorded `weed` verdict, and — for spec-first — the red-before-green observations per new test. The witness reads these; it does not take them on trust, but it needs them to exist. The witness writes its own artefact alongside the ledger, `.allium-loop/<goal-slug>.witness.json` — the durable convergence record, keep it out of git the same way.
 
 Git-ignore it: resolve the repo root (`git rev-parse --show-toplevel`; skip if not a git repo), then ensure `.allium-loop/` is ignored there — create `.gitignore` if absent, append if missing, no-op if already ignored (`git check-ignore` first). Best-effort: if it can't be written, continue and say so. Mention it once; don't prompt.
 
@@ -88,4 +93,16 @@ The loop is only as good as its verification. Discover the project's test comman
 
 ## 10. Report
 
-End with: what converged, per–sub-goal status, tests and weed verdict, anything escalated, and all parked questions consolidated.
+End with: what converged, per–sub-goal status, tests and weed verdict, the witness verdict and its record path, anything escalated, and all parked questions consolidated.
+
+## 11. Witness the convergence (the gate)
+
+The loop's phases run inside isolated sub-agents (§7) and report their results as prose the orchestrator cannot see behind. Left there, convergence would rest on the actor's own word that tests pass, no test was weakened, and no blocking question was quietly parked. The **witness** closes that gap: at the convergence gate, spawn the `allium:witness` agent to re-derive the claim from ground truth and gate convergence on *its* verdict.
+
+The witness is independent and **deterministic** — it re-runs the cheap, deterministic tools (the test command, `allium check`/`analyse`, file hashing, `grep`) and reads the machine output the phases already emitted; it does **not** re-run the model-heavy phases (`propagate`, `distill`, `weed` reasoning). That is what keeps it to one light pass per converged run rather than a second loop. It checks: tests genuinely pass (the runner's exit status, not the reported count); no generated test's hash changed without a `propagate` (the anti-cheat rule of §4, enforced); coverage has no unexplained gap; the `weed` verdict matches the claim; no blocking question was downgraded; and — best-effort — red-before-green held. Its verdict and evidence land in `.allium-loop/<goal-slug>.witness.json`.
+
+- **PASS** → convergence is real; stop and report (§10).
+- **FAIL** → route each violation to the phase that fixes it (edited test → revert + `propagate`; claimed-pass-but-failing → implement; downgraded question → escalate; unexplained coverage gap → `propagate`) and continue the loop. The witness never fixes anything itself.
+- **INCONCLUSIVE** (no evidence to witness — e.g. verification could not run, §9) → do not declare convergence; degrade loudly.
+
+Run the witness at the convergence gate, not every tick — the phases already verify each tick; the witness confirms the *final* claim (and each slice's claim, §6). On a small inline scope where you ran the phases in your own context, you may witness inline too; the checks are the same, only the isolation differs.

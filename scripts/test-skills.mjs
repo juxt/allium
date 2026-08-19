@@ -10,10 +10,10 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, discovery, parking, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, discovery, parking, witnessing, crosstalk
  *
- * All groups except discovery, parking and crosstalk are offline (free, fast); those three
- * require --live and make Claude API calls.
+ * All groups except discovery, parking, witnessing and crosstalk are offline (free, fast);
+ * those four require --live and make Claude API calls.
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from "fs";
@@ -149,9 +149,9 @@ function claudeQuery(prompt, { cwd } = {}) {
 }
 
 // Known paths
-const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed"];
+const skillNames = ["allium", "distill", "elicit", "propagate", "tend", "weed", "witness"];
 const skillPaths = skillNames.map((n) => path.join(ROOT, "skills", n, "SKILL.md"));
-const agentNames = ["distill", "propagate", "tend", "weed"];
+const agentNames = ["distill", "propagate", "tend", "weed", "witness"];
 const agentPaths = agentNames.map((n) => path.join(ROOT, "agents", `${n}.md`));
 const vscodeAgentPaths = agentNames.map((n) => path.join(ROOT, ".github", "agents", `${n}.agent.md`));
 const codexPluginPath = path.join(ROOT, ".codex-plugin", "plugin.json");
@@ -841,6 +841,101 @@ if (shouldRun("parking")) {
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Witnessing — live behavioural probe: the witness catches a weakened test.
+// A generated test whose recorded hash no longer matches its content is the
+// cardinal anti-cheat violation; the witness must return FAIL. The fixture
+// records the ORIGINAL sha256 in the ledger, then edits the test — so the
+// mismatch is real and the assertion is deterministic (a verdict regex over
+// the relayed report), never one model judging another.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("witnessing")) {
+  console.log("\n── witnessing: the witness catches a weakened test ──\n");
+
+  if (!LIVE) {
+    skip("witness tamper probe", "pass --live to enable (uses API tokens)");
+  } else {
+    const dir = mkdtempSync(path.join(tmpdir(), "allium-witness-"));
+    try {
+      // A minimal converged project: spec, a generated test that passes, and a
+      // ledger recording the test's original hash + a clean prior verdict.
+      const testFile = "giftcard.test.js";
+      const originalTest =
+        "import { test } from 'node:test';\n" +
+        "import assert from 'node:assert';\n" +
+        "import { GiftCard } from './giftcard.js';\n" +
+        "test('redeem to zero marks redeemed', () => {\n" +
+        "  const c = new GiftCard('A', 10); c.redeem(10);\n" +
+        "  assert.strictEqual(c.status, 'redeemed');\n" +
+        "});\n";
+      writeFileSync(path.join(dir, "shop.allium"), GIFTCARD_SPEC);
+      writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify({ name: "shop", version: "1.0.0", type: "module", scripts: { test: "node --test" } }, null, 2) + "\n"
+      );
+      writeFileSync(
+        path.join(dir, "giftcard.js"),
+        "export class GiftCard {\n" +
+          "  constructor(code, balance) { this.code = code; this.balance = balance; this.status = 'active'; }\n" +
+          "  redeem(amount) { this.balance = Math.max(0, this.balance - amount); if (this.balance === 0) this.status = 'redeemed'; }\n" +
+          "}\n"
+      );
+      writeFileSync(path.join(dir, testFile), originalTest);
+
+      // Record the ORIGINAL hash in the ledger, then weaken the test. The
+      // witness recomputes the hash and must see the divergence.
+      const originalHash = execFileSync("shasum", ["-a", "256", path.join(dir, testFile)], { encoding: "utf-8" }).split(/\s+/)[0];
+      const ledgerDir = path.join(dir, ".allium-loop");
+      execFileSync("mkdir", ["-p", ledgerDir]);
+      writeFileSync(
+        path.join(ledgerDir, "giftcard.json"),
+        JSON.stringify(
+          {
+            goal: "giftcard",
+            mode: "spec-first",
+            generated_test_hashes: { [testFile]: `sha256:${originalHash}` },
+            reconciliation: "1 obligations, 1 covered, 0 uncovered",
+            weed: "clean",
+          },
+          null,
+          2
+        ) + "\n"
+      );
+      // Weaken the generated test so it can never fail — the tamper.
+      writeFileSync(
+        path.join(dir, testFile),
+        "import { test } from 'node:test';\n" +
+          "test('redeem to zero marks redeemed', () => { /* weakened: asserts nothing */ });\n"
+      );
+
+      const out = runAgentProbe(
+        dir,
+        "Use the Agent tool to spawn the 'allium:witness' subagent with exactly this task: " +
+          '"Witness the convergence of the giftcard loop in this directory. The ledger is ' +
+          ".allium-loop/giftcard.json and records the generated test hashes. Re-derive the checks " +
+          'and write the witness record." ' +
+          "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
+      );
+
+      if (/\bFAIL\b/i.test(out) && /(hash|tamper|weakened|edited|modif)/i.test(out)) {
+        pass("witness: returned FAIL naming the weakened test");
+      } else {
+        fail("witness: tamper detection", "relayed report did not FAIL on the hash mismatch");
+      }
+      if (existsSync(path.join(ledgerDir, "giftcard.witness.json"))) {
+        pass("witness: wrote the witness record");
+      } else {
+        fail("witness: record", "no .allium-loop/giftcard.witness.json written");
+      }
+    } catch (e) {
+      fail("witness tamper probe", e.message?.slice(0, 200));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   }
 }
