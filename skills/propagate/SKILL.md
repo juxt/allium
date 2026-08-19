@@ -233,6 +233,15 @@ Missing implementation is not a residue category. In a spec-first flow no code e
 
 Close with a single summary line: `N obligations, M covered, K uncovered`. When everything is covered that one line is the entire user-facing output of reconciliation. Silence about an individual obligation means it is covered; anything itemised needs a human decision. When propagate runs inside the Allium loop, this line feeds the loop's consolidated summary, and the loop must not treat the spec as converged while obligations remain uncovered without a reported reason.
 
+### Recording the tamper baseline (in the loop)
+
+When running inside the Allium loop, record the reconciliation baseline so the loop's independent witness can later confirm nothing was falsified. In the ledger (`.allium-loop/<goal-slug>.json`, see [driving the loop](../allium/references/driving-the-loop.md)):
+
+- write a content hash (e.g. sha256) for each generated test file under `generated_test_hashes`, keyed by path;
+- record the reconciliation summary line under `reconciliation`.
+
+The hash is the ground truth the `witness` skill re-derives: a generated test whose hash changes with no intervening propagate run is a hand-edited test — the anti-cheat violation the loop must never reach convergence with. Recording the baseline is what makes that check possible; skip it and the witness can confirm the tests pass but not that they were not weakened. This is cheap bookkeeping, not a report — do not narrate it.
+
 ## Interaction with other tools
 
 - **distill** produces specs from code. Those specs feed propagate.
