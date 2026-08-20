@@ -10,7 +10,7 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, discovery, parking, witnessing, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, discovery, parking, witnessing, crosstalk
  *
  * All groups except discovery, parking, witnessing and crosstalk are offline (free, fast);
  * those four require --live and make Claude API calls.
@@ -181,6 +181,80 @@ function readJson(filePath) {
 
 function isObject(value) {
   return value && typeof value === "object" && !Array.isArray(value);
+}
+
+// Minimal dependency-free validator for the JSON-Schema subset our hand-off
+// schemas use: const, enum, type (object/array/string/integer/number/boolean),
+// required, properties, items, additionalProperties:false. Returns an array of
+// error strings (empty means valid). Deterministic — this is the check that
+// turns "does the phase's output conform" into a test rather than an eval.
+function validateAgainstSchema(schema, value, pathStr = "") {
+  const errors = [];
+  const here = pathStr || "(root)";
+  if ("const" in schema) {
+    if (value !== schema.const)
+      errors.push(`${here}: expected ${JSON.stringify(schema.const)}, got ${JSON.stringify(value)}`);
+    return errors;
+  }
+  if (schema.enum) {
+    if (!schema.enum.includes(value))
+      errors.push(`${here}: ${JSON.stringify(value)} not in ${JSON.stringify(schema.enum)}`);
+    return errors;
+  }
+  switch (schema.type) {
+    case "object":
+      if (!isObject(value)) { errors.push(`${here}: expected object`); break; }
+      for (const req of schema.required || [])
+        if (!(req in value)) errors.push(`${here}: missing required '${req}'`);
+      if (schema.additionalProperties === false)
+        for (const k of Object.keys(value))
+          if (!(schema.properties && k in schema.properties))
+            errors.push(`${here}: unexpected property '${k}'`);
+      for (const [k, sub] of Object.entries(schema.properties || {}))
+        if (k in value) errors.push(...validateAgainstSchema(sub, value[k], `${here}.${k}`));
+      break;
+    case "array":
+      if (!Array.isArray(value)) { errors.push(`${here}: expected array`); break; }
+      if (schema.items)
+        value.forEach((el, i) => errors.push(...validateAgainstSchema(schema.items, el, `${here}[${i}]`)));
+      break;
+    case "string":
+      if (typeof value !== "string") errors.push(`${here}: expected string`);
+      break;
+    case "integer":
+      if (!Number.isInteger(value)) errors.push(`${here}: expected integer`);
+      break;
+    case "number":
+      if (typeof value !== "number") errors.push(`${here}: expected number`);
+      break;
+    case "boolean":
+      if (typeof value !== "boolean") errors.push(`${here}: expected boolean`);
+      break;
+  }
+  return errors;
+}
+
+// The property typed hand-offs buy: convergence is a pure function of the
+// phases' typed fields, not a prose read. Mirrors driving-the-loop §3 for the
+// two piloted phases (test counts come from the runner, not yet a schema'd
+// phase). Deterministic by construction.
+function isConverged({ weed, propagate, testsFailed, blockingQuestions }) {
+  return (
+    testsFailed === 0 &&
+    weed.verdict === "clean" &&
+    propagate.uncovered_obligations.length === 0 &&
+    blockingQuestions === 0
+  );
+}
+
+// Pull the JSON record out of a relayed agent message: prefer the marked
+// region, then take the outermost { ... }. Returns null if none parses.
+function extractJsonRecord(text) {
+  const marked = text.match(/<<<REPORT([\s\S]*?)REPORT>>>/);
+  const body = (marked ? marked[1] : text).replace(/```json\n?/g, "").replace(/```\n?/g, "");
+  const m = body.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try { return JSON.parse(m[0]); } catch { return null; }
 }
 
 // ---------------------------------------------------------------------------
@@ -652,6 +726,146 @@ if (shouldRun("modes")) {
 }
 
 // ---------------------------------------------------------------------------
+// Handoffs — typed phase result records (pilot: weed, propagate). The schemas
+// are the deterministic contract between a phase and the loop. These offline
+// tests prove three things: valid records validate, malformed ones are caught,
+// and convergence reduces to a pure function of the typed fields. No model runs
+// here — conformance is a check, not an eval.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("handoffs")) {
+  console.log("\n── handoffs: typed phase result records ──\n");
+
+  const schemaDir = path.join(ROOT, "skills", "allium", "references", "schemas");
+  const schemas = {};
+  for (const name of ["distill-result", "weed-result", "tend-result", "propagate-result", "witness-result", "ledger"]) {
+    const fp = path.join(schemaDir, `${name}.schema.json`);
+    if (!existsSync(fp)) { fail(`schemas/${name}`, "file not found"); continue; }
+    schemas[name] = readJson(fp);
+    if (schemas[name]) pass(`schemas/${name}.schema.json is valid JSON`);
+  }
+
+  console.log("");
+
+  // Valid fixtures — one clean, one dirty/uncovered — must validate.
+  const weedClean = {
+    phase: "weed", mode: "check", verdict: "clean",
+    divergences: [], open_questions: [], summary: "spec and code agree",
+  };
+  const weedDirty = {
+    phase: "weed", mode: "check", verdict: "dirty",
+    divergences: [
+      { subject: "Order.cancel", classification: "code-bug", spec: "cancel allowed from paid (spec:42)", code: "guarded to pending only (order.py:88)" },
+    ],
+    open_questions: ["Should cancellation from shipped be allowed?"],
+    summary: "1 divergence: Order.cancel (code-bug)",
+  };
+  const propagateCovered = {
+    phase: "propagate",
+    obligations: { total: 12, covered: 12, uncovered: 0 },
+    uncovered_obligations: [],
+    generated_tests: [{ path: "order.test.js", hash: "sha256:abc123" }],
+    test_paths: ["order.test.js"], open_questions: [],
+    summary: "12 obligations, 12 covered, 0 uncovered",
+  };
+  const propagateGap = {
+    phase: "propagate",
+    obligations: { total: 12, covered: 11, uncovered: 1 },
+    uncovered_obligations: [
+      { obligation: "temporal: InvitationExpires deadline", classification: "infrastructure-gap", reason: "no injectable clock" },
+    ],
+    generated_tests: [{ path: "order.test.js", hash: "sha256:abc123" }],
+    test_paths: ["order.test.js"], open_questions: [],
+    summary: "12 obligations, 11 covered, 1 uncovered",
+  };
+
+  const distillRec = {
+    phase: "distill", spec_path: "giftcard.allium",
+    open_questions: ["Is forcing an over-redeemed balance to zero intended?"],
+    summary: "GiftCard redemption and status lifecycle",
+  };
+  const tendRec = {
+    phase: "tend", spec_path: "shop.allium",
+    changes: ["Added expiry field to GiftCard", "Added GiftCardExpires rule"],
+    open_questions: ["Expiry period undecided"],
+    summary: "Added gift card expiry behaviour",
+  };
+  const witnessPass = {
+    phase: "witness", verdict: "PASS",
+    checks: [{ name: "tests-pass", result: "pass", ground_truth: "runner exit 0, 12/12" }],
+    violations: [], record_path: ".allium-loop/giftcard.witness.json",
+    summary: "witness: PASS · checks 6/6",
+  };
+  const witnessFail = {
+    phase: "witness", verdict: "FAIL",
+    checks: [{ name: "no-test-weakened", result: "fail", ground_truth: "sha256 mismatch on order.test.js" }],
+    violations: [{ violation: "order.test.js edited after propagate", routing: "revert + propagate" }],
+    record_path: ".allium-loop/giftcard.witness.json",
+    summary: "witness: FAIL · tampering on order.test.js",
+  };
+  const ledgerRec = {
+    goal: "gift-cards", mode: "spec-first", tick: 3,
+    completed_sub_goals: ["redemption"], open_questions: [],
+    generated_test_hashes: { "order.test.js": "sha256:abc123" },
+    reconciliation: "12 obligations, 12 covered, 0 uncovered",
+  };
+
+  const validFixtures = [
+    ["weed-result", "clean", weedClean], ["weed-result", "dirty", weedDirty],
+    ["propagate-result", "covered", propagateCovered], ["propagate-result", "gap", propagateGap],
+    ["distill-result", "spec", distillRec],
+    ["tend-result", "changes", tendRec],
+    ["witness-result", "pass", witnessPass], ["witness-result", "fail", witnessFail],
+    ["ledger", "state", ledgerRec],
+  ];
+  for (const [schemaName, label, rec] of validFixtures) {
+    if (!schemas[schemaName]) continue;
+    const errs = validateAgainstSchema(schemas[schemaName], rec);
+    errs.length === 0 ? pass(`${schemaName} valid fixture (${label})`) : fail(`${schemaName} valid fixture (${label})`, errs.join("; "));
+  }
+
+  console.log("");
+
+  // Malformed fixtures — each violates the schema in one way and MUST be caught.
+  const badCases = [
+    ["weed-result", "bad enum verdict", { ...weedClean, verdict: "green" }],
+    ["weed-result", "missing required field", (() => { const r = { ...weedClean }; delete r.summary; return r; })()],
+    ["weed-result", "wrong type for divergences", { ...weedClean, divergences: "none" }],
+    ["weed-result", "unexpected property", { ...weedClean, extra: true }],
+    ["weed-result", "bad classification in item", { ...weedDirty, divergences: [{ ...weedDirty.divergences[0], classification: "typo" }] }],
+    ["propagate-result", "obligations not integer", { ...propagateCovered, obligations: { total: "12", covered: 12, uncovered: 0 } }],
+    ["propagate-result", "uncovered item missing reason", { ...propagateGap, uncovered_obligations: [{ obligation: "x", classification: "infrastructure-gap" }] }],
+    ["propagate-result", "generated_tests missing hash", { ...propagateCovered, generated_tests: [{ path: "x.js" }] }],
+    ["distill-result", "missing spec_path", (() => { const r = { ...distillRec }; delete r.spec_path; return r; })()],
+    ["tend-result", "changes wrong type", { ...tendRec, changes: "added expiry" }],
+    ["witness-result", "bad verdict enum", { ...witnessPass, verdict: "OK" }],
+    ["witness-result", "check bad result enum", { ...witnessPass, checks: [{ name: "x", result: "green", ground_truth: "y" }] }],
+    ["ledger", "bad mode enum", { ...ledgerRec, mode: "hybrid" }],
+    ["ledger", "tick not integer", { ...ledgerRec, tick: "3" }],
+  ];
+  for (const [schemaName, label, rec] of badCases) {
+    if (!schemas[schemaName]) continue;
+    const errs = validateAgainstSchema(schemas[schemaName], rec);
+    errs.length > 0 ? pass(`${schemaName} rejects: ${label}`) : fail(`${schemaName} rejects: ${label}`, "malformed record validated");
+  }
+
+  console.log("");
+
+  // Convergence is a deterministic function of the typed fields. One converged
+  // case, and one per dimension that must block it.
+  const convCases = [
+    ["all clean → converged", { weed: weedClean, propagate: propagateCovered, testsFailed: 0, blockingQuestions: 0 }, true],
+    ["tests failing → not converged", { weed: weedClean, propagate: propagateCovered, testsFailed: 2, blockingQuestions: 0 }, false],
+    ["weed dirty → not converged", { weed: weedDirty, propagate: propagateCovered, testsFailed: 0, blockingQuestions: 0 }, false],
+    ["uncovered obligation → not converged", { weed: weedClean, propagate: propagateGap, testsFailed: 0, blockingQuestions: 0 }, false],
+    ["blocking question → not converged", { weed: weedClean, propagate: propagateCovered, testsFailed: 0, blockingQuestions: 1 }, false],
+  ];
+  for (const [label, state, expected] of convCases) {
+    isConverged(state) === expected ? pass(`convergence: ${label}`) : fail(`convergence: ${label}`, `expected ${expected}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Discovery — live Claude Code skill and agent loading
 // ---------------------------------------------------------------------------
 
@@ -917,8 +1131,8 @@ if (shouldRun("witnessing")) {
         dir,
         "Use the Agent tool to spawn the 'allium:witness' subagent with exactly this task: " +
           '"Witness the convergence of the giftcard loop in this directory. The ledger is ' +
-          ".allium-loop/giftcard.json and records the generated test hashes. Re-derive the checks " +
-          'and write the witness record." ' +
+          ".allium-loop/giftcard.json and records the generated test hashes. Re-derive the checks, " +
+          'write the witness record, and return the witness-result JSON object as your result." ' +
           "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
       );
 
@@ -932,10 +1146,158 @@ if (shouldRun("witnessing")) {
       } else {
         fail("witness: record", "no .allium-loop/giftcard.witness.json written");
       }
+      // Same spawn, second assertion: the returned record conforms to the
+      // witness-result schema and its verdict is FAIL (the typed hand-off).
+      const witnessSchema = readJson(path.join(ROOT, "skills", "allium", "references", "schemas", "witness-result.schema.json"));
+      const wrec = extractJsonRecord(out);
+      if (witnessSchema && wrec) {
+        const errs = validateAgainstSchema(witnessSchema, wrec);
+        if (errs.length === 0 && wrec.verdict === "FAIL") pass("witness: record conforms to witness-result schema (verdict=FAIL)");
+        else fail("witness: schema conformance", errs.slice(0, 3).join("; ") || `verdict=${wrec.verdict}`);
+      } else {
+        fail("witness: schema conformance", "no JSON record in relayed output");
+      }
     } catch (e) {
       fail("witness tamper probe", e.message?.slice(0, 200));
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Handoffs (live) — the eval: do the real weed and propagate agents emit
+// JSON that conforms to their schemas? Stochastic input (an LLM writes the
+// record), deterministic assertion (the record validates or it does not).
+// This is the one part of the typed-handoff contract a fixture can't settle.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("handoffs")) {
+  console.log("\n── handoffs (live): agents emit schema-conforming records ──\n");
+
+  if (!LIVE) {
+    skip("handoff conformance probes", "pass --live to enable (uses API tokens)");
+  } else {
+    const schemaDir = path.join(ROOT, "skills", "allium", "references", "schemas");
+    const weedSchema = readJson(path.join(schemaDir, "weed-result.schema.json"));
+    const propagateSchema = readJson(path.join(schemaDir, "propagate-result.schema.json"));
+    const distillSchema = readJson(path.join(schemaDir, "distill-result.schema.json"));
+    const tendSchema = readJson(path.join(schemaDir, "tend-result.schema.json"));
+
+    // weed: a spec/code pair that genuinely diverges, so a real record has
+    // structure to fill (verdict dirty, at least one classified divergence).
+    {
+      const dir = mkdtempSync(path.join(tmpdir(), "allium-handoff-weed-"));
+      try {
+        writeFileSync(path.join(dir, "shop.allium"), GIFTCARD_SPEC);
+        writeFileSync(path.join(dir, "giftcard.py"), GIFTCARD_PY);
+        const out = runAgentProbe(
+          dir,
+          "Use the Agent tool to spawn the 'allium:weed' subagent with exactly this task: " +
+            '"In check mode, compare shop.allium against giftcard.py and report the divergences." ' +
+            "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
+        );
+        const rec = extractJsonRecord(out);
+        if (!rec) {
+          fail("weed: emitted a JSON record", "no JSON object in relayed output");
+        } else {
+          const errs = validateAgainstSchema(weedSchema, rec);
+          errs.length === 0
+            ? pass(`weed: record conforms (verdict=${rec.verdict})`)
+            : fail("weed: schema conformance", errs.slice(0, 3).join("; "));
+        }
+      } catch (e) {
+        fail("weed handoff probe", e.message?.slice(0, 200));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    // propagate: self-contained runnable project so reconciliation runs and the
+    // record's obligation counts and generated_tests are real.
+    {
+      const dir = mkdtempSync(path.join(tmpdir(), "allium-handoff-propagate-"));
+      try {
+        writeFileSync(path.join(dir, "shop.allium"), GIFTCARD_SPEC);
+        writeFileSync(
+          path.join(dir, "package.json"),
+          JSON.stringify({ name: "shop", version: "1.0.0", type: "module", scripts: { test: "node --test" } }, null, 2) + "\n"
+        );
+        writeFileSync(
+          path.join(dir, "giftcard.js"),
+          "export class GiftCard {\n" +
+            "  constructor(code, balance) { this.code = code; this.balance = balance; this.status = 'active'; }\n" +
+            "  redeem(amount) { this.balance = Math.max(0, this.balance - amount); if (this.balance === 0) this.status = 'redeemed'; }\n" +
+            "}\n"
+        );
+        const out = runAgentProbe(
+          dir,
+          "Use the Agent tool to spawn the 'allium:propagate' subagent with exactly this task: " +
+            '"Propagate tests from shop.allium against this project (giftcard.js, Node built-in test runner via npm test)." ' +
+            "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
+        );
+        const rec = extractJsonRecord(out);
+        if (!rec) {
+          fail("propagate: emitted a JSON record", "no JSON object in relayed output");
+        } else {
+          const errs = validateAgainstSchema(propagateSchema, rec);
+          errs.length === 0
+            ? pass(`propagate: record conforms (${rec.summary || "obligations reported"})`)
+            : fail("propagate: schema conformance", errs.slice(0, 3).join("; "));
+        }
+      } catch (e) {
+        fail("propagate handoff probe", e.message?.slice(0, 200));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    // distill: a small source file to capture as a spec.
+    {
+      const dir = mkdtempSync(path.join(tmpdir(), "allium-handoff-distill-"));
+      try {
+        writeFileSync(path.join(dir, "giftcard.py"), GIFTCARD_PY);
+        const out = runAgentProbe(
+          dir,
+          "Use the Agent tool to spawn the 'allium:distill' subagent with exactly this task: " +
+            '"Distil an Allium spec for giftcard.py into giftcard.allium." ' +
+            "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
+        );
+        const rec = extractJsonRecord(out);
+        if (!rec) fail("distill: emitted a JSON record", "no JSON object in relayed output");
+        else {
+          const errs = validateAgainstSchema(distillSchema, rec);
+          errs.length === 0 ? pass(`distill: record conforms (${rec.spec_path || "spec written"})`) : fail("distill: schema conformance", errs.slice(0, 3).join("; "));
+        }
+      } catch (e) {
+        fail("distill handoff probe", e.message?.slice(0, 200));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    // tend: edit an existing spec, undecided points parked.
+    {
+      const dir = mkdtempSync(path.join(tmpdir(), "allium-handoff-tend-"));
+      try {
+        writeFileSync(path.join(dir, "shop.allium"), GIFTCARD_SPEC);
+        const out = runAgentProbe(
+          dir,
+          "Use the Agent tool to spawn the 'allium:tend' subagent with exactly this task: " +
+            '"Add gift card expiry behaviour to shop.allium. The expiry period is undecided." ' +
+            "Then output the subagent's final message verbatim between <<<REPORT and REPORT>>> markers."
+        );
+        const rec = extractJsonRecord(out);
+        if (!rec) fail("tend: emitted a JSON record", "no JSON object in relayed output");
+        else {
+          const errs = validateAgainstSchema(tendSchema, rec);
+          errs.length === 0 ? pass(`tend: record conforms (${rec.spec_path || "spec edited"})`) : fail("tend: schema conformance", errs.slice(0, 3).join("; "));
+        }
+      } catch (e) {
+        fail("tend handoff probe", e.message?.slice(0, 200));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     }
   }
 }
