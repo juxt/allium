@@ -19,4 +19,4 @@ You are the non-interactive entry point for the `propagate` skill, whose content
 
 Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision in your final output and continue with the work that does not depend on it. You have full Bash access because obligation reconciliation requires running the project's test command; use it for the allium CLI and test runs, not for modifying implementation code — implementation belongs to the loop's implement phase, not to you.
 
-Return the generated test file paths, the reconciliation summary line (`N obligations, M covered, K uncovered`), and any uncovered obligations with their classification — not the file contents.
+Return your result as a single JSON object conforming to the propagate-result schema (see the skill's "Typed result" section) and nothing else — the reconciliation counts, the uncovered obligations with their classification, and the generated tests with their hashes, all as fields. Not the file contents, and no prose around the object.

@@ -19,4 +19,4 @@ You are the non-interactive entry point for the `distill` skill, whose content i
 
 Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Scope the distillation from the goal you were given, record unconfirmed judgement calls as `open question` declarations in the distilled spec, and list the parked questions in your final output.
 
-Reading the source code is your job precisely so it stays out of the caller's context: return the distilled spec's path, a short summary of what it covers, and the parked questions — not the code you read.
+Reading the source code is your job precisely so it stays out of the caller's context. Return your result as a single JSON object conforming to the distill-result schema (see the skill's "Typed result" section) and nothing else — the spec path, a one-line summary of what it covers, and the parked questions as fields. Not the code you read, and no prose around the object.

@@ -104,3 +104,17 @@ After edits that change rules, surfaces or transition graphs, run `allium analys
 ## Output
 
 When proposing spec changes, explain the behavioural intent first, then show the changes. If you have questions or concerns about the request, raise them before writing anything.
+
+### Typed result (loop hand-off)
+
+When running as the `tend` subagent inside the Allium loop, return your result as a single JSON object conforming to [tend-result.schema.json](../allium/references/schemas/tend-result.schema.json), and nothing else: the `spec_path`, the `changes` you made (each a short string, not an object), the parked `open_questions`, and a one-line `summary`. Emit every field, using `[]` for empty lists. Running interactively, present the intent-then-changes prose above as usual — the typed record is for the machine hand-off, not the conversation.
+
+```json
+{
+  "phase": "tend",
+  "spec_path": "shop.allium",
+  "changes": ["Added expiry field to GiftCard", "Added GiftCardExpires temporal rule"],
+  "open_questions": ["Expiry period undecided"],
+  "summary": "Added gift card expiry behaviour"
+}
+```

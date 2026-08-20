@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/ledger",
+  "title": "Loop ledger",
+  "description": "The loop's durable state at .allium-loop/<goal-slug>.json. Typed so a resuming run reads structured state rather than re-parsing prose, and so the witness has a schema'd baseline to re-derive from. Open to extra fields — loop state evolves — but the core is fixed.",
+  "type": "object",
+  "required": ["goal", "mode", "tick"],
+  "additionalProperties": true,
+  "properties": {
+    "goal": { "type": "string" },
+    "mode": { "enum": ["spec-first", "code-first"] },
+    "tick": { "type": "integer" },
+    "active_inner_loop": { "type": "string" },
+    "completed_sub_goals": { "type": "array", "items": { "type": "string" } },
+    "open_questions": {
+      "type": "array",
+      "description": "parked, non-blocking questions",
+      "items": { "type": "string" }
+    },
+    "generated_test_hashes": {
+      "type": "object",
+      "description": "path -> content hash, written by propagate; the witness tamper baseline"
+    },
+    "reconciliation": { "type": "string", "description": "propagate's `N obligations, M covered, K uncovered` line" },
+    "last_results": {
+      "type": "object",
+      "description": "the most recent typed record per phase (distill, weed, tend, propagate, witness)"
+    },
+    "witness_records": {
+      "type": "array",
+      "description": "witness verdicts across ticks",
+      "items": { "type": "string" }
+    }
+  }
+}

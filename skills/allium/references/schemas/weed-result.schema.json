@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/weed-result",
+  "title": "Weed phase result",
+  "description": "The typed record the weed phase returns to the loop orchestrator in place of a prose summary. The structured fields drive deterministic routing and convergence; `summary` carries the one human-readable line so nothing is lost.",
+  "type": "object",
+  "required": ["verdict", "divergences", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "phase": { "const": "weed" },
+    "mode": {
+      "enum": ["check", "update-spec", "update-code"],
+      "description": "the mode weed ran in"
+    },
+    "verdict": {
+      "enum": ["clean", "dirty"],
+      "description": "clean = spec and code agree; dirty = at least one divergence remains"
+    },
+    "divergences": {
+      "type": "array",
+      "description": "every unresolved divergence; empty when verdict is clean",
+      "items": {
+        "type": "object",
+        "required": ["subject", "classification", "spec", "code"],
+        "additionalProperties": false,
+        "properties": {
+          "subject": { "type": "string", "description": "the entity, rule or trigger the divergence is about" },
+          "classification": { "enum": ["spec-bug", "code-bug", "aspirational", "intentional-gap"] },
+          "spec": { "type": "string", "description": "what the spec says, with file:line where known" },
+          "code": { "type": "string", "description": "what the code does, with file:line where known" }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "description": "questions parked for a human; each also recorded as an `open question` in the spec when weed writes one",
+      "items": { "type": "string" }
+    },
+    "artefacts": {
+      "type": "array",
+      "description": "spec files edited, in update-spec / update-code modes",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string", "description": "the single human-readable line" }
+  }
+}

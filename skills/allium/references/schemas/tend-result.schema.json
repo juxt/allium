@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/tend-result",
+  "title": "Tend phase result",
+  "description": "The typed record the tend phase returns to the loop orchestrator in place of a prose summary. Lists what changed in the spec and any judgement calls parked for a human.",
+  "type": "object",
+  "required": ["spec_path", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "phase": { "const": "tend" },
+    "spec_path": { "type": "string", "description": "the .allium spec that was edited" },
+    "changes": {
+      "type": "array",
+      "description": "the edits made, one entry each (entity/rule/surface added or changed)",
+      "items": { "type": "string" }
+    },
+    "open_questions": {
+      "type": "array",
+      "description": "decisions parked as `open question` declarations in the spec",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string", "description": "one line" }
+  }
+}

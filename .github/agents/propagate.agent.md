@@ -5,7 +5,7 @@ description: "Generate tests from Allium specifications. Use when the user wants
 
 Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision in your final output and continue with the work that does not depend on it. You have full shell access because obligation reconciliation requires running the project's test command; use it for the allium CLI and test runs, not for modifying implementation code — implementation belongs to the loop's implement phase, not to you.
 
-Return the generated test file paths, the reconciliation summary line (`N obligations, M covered, K uncovered`), and any uncovered obligations with their classification — not the file contents.
+Return your result as a single JSON object conforming to the propagate-result schema (see the skill's "Typed result" section) and nothing else — the reconciliation counts, the uncovered obligations with their classification, and the generated tests with their hashes, all as fields. Not the file contents, and no prose around the object.
 
 # Propagation
 
@@ -245,6 +245,22 @@ When running inside the Allium loop, record the reconciliation baseline so the l
 - record the reconciliation summary line under `reconciliation`.
 
 The hash is the ground truth the `witness` skill re-derives: a generated test whose hash changes with no intervening propagate run is a hand-edited test — the anti-cheat violation the loop must never reach convergence with. Recording the baseline is what makes that check possible; skip it and the witness can confirm the tests pass but not that they were not weakened. This is cheap bookkeeping, not a report — do not narrate it.
+
+### Typed result (loop hand-off)
+
+When running as the `propagate` subagent inside the Allium loop, return your result as a single JSON object conforming to [propagate-result.schema.json](../../skills/allium/references/schemas/propagate-result.schema.json), and nothing else. The loop routes on the structured fields: `obligations` and `uncovered_obligations` decide whether coverage is complete (the loop must not converge while `uncovered_obligations` is non-empty), and `generated_tests` carries the path-and-hash baseline the witness re-derives — the same hashes recorded above, now first-class in the hand-off. Keep the `summary` field to the `N obligations, M covered, K uncovered` line. Emit every field, using `[]` for empty lists — do not omit them. Running interactively, the summary line remains the whole user-facing output as before — the typed record is for the machine hand-off, not the conversation.
+
+```json
+{
+  "phase": "propagate",
+  "obligations": { "total": 12, "covered": 12, "uncovered": 0 },
+  "uncovered_obligations": [],
+  "generated_tests": [{ "path": "order.test.js", "hash": "sha256:9f2c…" }],
+  "test_paths": ["order.test.js"],
+  "open_questions": [],
+  "summary": "12 obligations, 12 covered, 0 uncovered"
+}
+```
 
 ## Interaction with other tools
 

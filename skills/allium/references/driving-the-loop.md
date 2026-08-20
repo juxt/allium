@@ -73,7 +73,7 @@ After the slices converge, run a **whole-spec integration pass** — cross-entit
 
 ## 7. Delegate each phase to an isolated sub-agent (default)
 
-By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend`, `propagate` and `witness` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path and the ledger, never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a short result (artefact path + summary + parked questions); that result is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
+By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend`, `propagate` and `witness` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path and the ledger, never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a **typed result record** — a JSON object conforming to that phase's schema (§12), not prose. That record is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
 
 This is what keeps a long or large run within budget: the orchestrator's context stays flat (loop state only) while each phase's reading is bounded to that phase and then discarded. An inline run, by contrast, accumulates every phase's reads into one context that grows tick over tick until it is slow, expensive, or overflows the window.
 
@@ -83,7 +83,7 @@ This is what keeps a long or large run within budget: the orchestrator's context
 
 Keep loop state in `.allium-loop/<goal-slug>.json`: goal, mode, tick count, active inner loop, last verdicts, completed sub-goals, and parked (non-blocking) open questions. This makes the loop resumable — a fresh run reads it and continues where it left off.
 
-The ledger also carries the evidence the witness (§11) re-derives convergence from, so record it as the phases produce it: `generated_test_hashes` (a content hash per generated test file, written by `propagate`) and the `reconciliation` line, the recorded `weed` verdict, and — for spec-first — the red-before-green observations per new test. The witness reads these; it does not take them on trust, but it needs them to exist. The witness writes its own artefact alongside the ledger, `.allium-loop/<goal-slug>.witness.json` — the durable convergence record, keep it out of git the same way.
+The ledger is itself typed — it conforms to [ledger.schema.json](./schemas/ledger.schema.json), so a resuming run reads structured state rather than re-parsing prose. It also carries the evidence the witness (§11) re-derives convergence from, so record it as the phases produce it: `generated_test_hashes` (a content hash per generated test file, written by `propagate`) and the `reconciliation` line, the recorded `weed` verdict, and — for spec-first — the red-before-green observations per new test. The witness reads these; it does not take them on trust, but it needs them to exist. The witness writes its own artefact alongside the ledger, `.allium-loop/<goal-slug>.witness.json` — the durable convergence record, keep it out of git the same way.
 
 Git-ignore it: resolve the repo root (`git rev-parse --show-toplevel`; skip if not a git repo), then ensure `.allium-loop/` is ignored there — create `.gitignore` if absent, append if missing, no-op if already ignored (`git check-ignore` first). Best-effort: if it can't be written, continue and say so. Mention it once; don't prompt.
 
@@ -106,3 +106,24 @@ The witness is independent and **deterministic** — it re-runs the cheap, deter
 - **INCONCLUSIVE** (no evidence to witness — e.g. verification could not run, §9) → do not declare convergence; degrade loudly.
 
 Run the witness at the convergence gate, not every tick — the phases already verify each tick; the witness confirms the *final* claim (and each slice's claim, §6). On a small inline scope where you ran the phases in your own context, you may witness inline too; the checks are the same, only the isolation differs.
+
+## 12. Typed hand-offs and routing
+
+Each phase returns a **typed result record**, not prose — a JSON object conforming to that phase's schema in [`schemas/`](./schemas/). Prose has to be *interpreted*; a typed record is *parsed*, so the loop routes and decides convergence as a deterministic function of fields rather than a read of a summary. The phases stay probabilistic inside; the control flow around them does not.
+
+The schemas: [`distill`](./schemas/distill-result.schema.json), [`weed`](./schemas/weed-result.schema.json), [`tend`](./schemas/tend-result.schema.json), [`propagate`](./schemas/propagate-result.schema.json), [`witness`](./schemas/witness-result.schema.json), and the [`ledger`](./schemas/ledger.schema.json). Each record carries a one-line `summary` for the human report, with the decision-bearing detail in structured fields. (Interactively, the skills still speak prose — the typed record is the machine hand-off, not the conversation.)
+
+**Routing** is a lookup on those fields, not a judgement:
+
+| Field | Route |
+|---|---|
+| `weed.verdict = clean` | no divergence; proceed |
+| `weed.divergences[].classification = spec-bug` | `tend` the spec, then `propagate` |
+| `weed.divergences[].classification = code-bug` | fix the code |
+| `weed.divergences[].classification = aspirational` \| `intentional-gap` | leave both; note it |
+| `propagate.uncovered_obligations` non-empty | not converged; back to `propagate` (or escalate if `infrastructure-gap`) |
+| `tend.open_questions` / `distill.open_questions` non-empty | classify each (§5): blocking → escalate, else park |
+| `witness.verdict = FAIL` | route each `violation` by its `routing` field (§11) |
+| any record fails schema validation | reject the hand-off; the phase must re-emit — a malformed record is never treated as a result |
+
+**Convergence** is the boolean over the typed fields: `tests.failed = 0` ∧ `weed.verdict = clean` ∧ no blocking open questions ∧ `propagate.uncovered_obligations` empty ∧ (code-first) a fresh `distill` finds nothing new ∧ `witness.verdict = PASS`. When every conjunct reads from a field, "are we done" stops being a vibe and becomes an evaluation.

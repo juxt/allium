@@ -839,6 +839,19 @@ If any remain, ask: "Would a stakeholder include this in a requirements doc?"
 
 The extracted spec is a starting point. If distillation reveals gaps that need structured discovery (unclear requirements, complex entity relationships, unstated business rules), use the `elicit` skill to fill them. For targeted changes as requirements evolve, use the `tend` skill. For checking ongoing alignment between the spec and implementation, use the `weed` skill.
 
+## Typed result (loop hand-off)
+
+When running as the `distill` subagent inside the Allium loop, return your result as a single JSON object conforming to [distill-result.schema.json](../allium/references/schemas/distill-result.schema.json), and nothing else: the `spec_path`, the parked `open_questions`, and a one-line `summary` of what the spec covers. Emit every field, using `[]` for empty lists. The source you read stays out of the caller's context; only these fields come back. Running interactively, present your findings in prose as usual — the typed record is for the machine hand-off, not the conversation.
+
+```json
+{
+  "phase": "distill",
+  "spec_path": "giftcard.allium",
+  "open_questions": ["Is forcing an over-redeemed balance to zero intended or accidental?"],
+  "summary": "GiftCard redemption and status lifecycle"
+}
+```
+
 ## References
 
 - [Language reference](../allium/references/language-reference.md), full Allium syntax

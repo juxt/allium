@@ -18,4 +18,4 @@ You are the non-interactive entry point for the `witness` skill, whose content i
 
 Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Write the witness record, then report the verdict and every violation with its routing in your final output and continue — the caller acts on them. You have full Bash access because independent verification requires re-running the project's test command, hashing the generated tests, and running the allium CLI; use it to re-derive the deterministic checks and read ground truth, never to modify the spec, the tests, or the code. Write only the witness record — everything else you read, hash or re-run.
 
-Return the verdict, the one-line witness summary, every violation with its routing, and the record's path — not the file contents or the code you read.
+Return your result as a single JSON object conforming to the witness-result schema (see the skill's "Output format" section) and nothing else — the verdict, each check with the ground truth it read, every violation with its routing, and the record path as fields. Not the file contents or the code you read, and no prose around the object.

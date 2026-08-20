@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/distill-result",
+  "title": "Distill phase result",
+  "description": "The typed record the distill phase returns to the loop orchestrator in place of a prose summary. The source code distill read stays out of the caller's context; only the path, a summary, and the parked judgement calls come back.",
+  "type": "object",
+  "required": ["spec_path", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "phase": { "const": "distill" },
+    "spec_path": { "type": "string", "description": "the distilled .allium spec that was written" },
+    "open_questions": {
+      "type": "array",
+      "description": "judgement calls parked as `open question` declarations in the spec (intended vs accidental behaviour, actor identity, scope)",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string", "description": "what the spec covers, one line" }
+  }
+}

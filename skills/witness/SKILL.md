@@ -71,13 +71,33 @@ Do not embed file contents or code — the record holds verdicts and the evidenc
 
 ## Output format
 
-Close with a single summary line the loop can fold into its report:
+When running as the `witness` subagent inside the Allium loop, return your result as a single JSON object conforming to [witness-result.schema.json](../allium/references/schemas/witness-result.schema.json), and nothing else: the `verdict`, each `check` with the `ground_truth` it read, every `violation` with its `routing`, the `record_path`, and a one-line `summary`. Emit every field, using `[]` for an empty `violations` list on a PASS. The loop gates convergence on `verdict` directly — no prose to parse. The object mirrors the durable record you wrote to `.allium-loop/<slug>.witness.json`.
+
+```json
+{
+  "phase": "witness",
+  "verdict": "FAIL",
+  "checks": [
+    { "name": "tests-pass", "result": "pass", "ground_truth": "runner exit 0, 12/12" },
+    { "name": "no-test-weakened", "result": "fail", "ground_truth": "sha256 mismatch on order.test.js" }
+  ],
+  "violations": [
+    { "violation": "order.test.js edited after propagate", "routing": "revert + propagate" }
+  ],
+  "record_path": ".allium-loop/gift-cards.witness.json",
+  "summary": "witness: FAIL · tampering on order.test.js"
+}
+```
+
+As the loop subagent, return **only** that JSON object — no prose before or after it, even though you also wrote the durable record to disk. The returned object is your result; the file is its durable copy.
+
+Running interactively (not as the loop subagent), skip the JSON and close with a single human-readable summary line instead:
 
 ```
 witness: PASS · checks 6/6 · tests 12/12 (runner) · tampering none · openQ 0 blocking · record .allium-loop/<slug>.witness.json
 ```
 
-On failure, lead with the verdict and the violations, each with its routing, then the record path. Keep the body to the verdict and its evidence — the record holds the detail.
+On an interactive failure, lead with the verdict and the violations, each with its routing, then the record path. Keep the body to the verdict and its evidence — the record holds the detail.
 
 ## Interaction with other tools
 

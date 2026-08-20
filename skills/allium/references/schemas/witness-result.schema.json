@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/witness-result",
+  "title": "Witness phase result",
+  "description": "The typed record the witness phase returns to the loop orchestrator. The verdict gates convergence; each check names the ground truth it read; each violation names the phase that fixes it. Mirrors the durable record written to .allium-loop/<slug>.witness.json.",
+  "type": "object",
+  "required": ["verdict", "checks", "violations", "record_path", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "phase": { "const": "witness" },
+    "verdict": {
+      "enum": ["PASS", "FAIL", "INCONCLUSIVE"],
+      "description": "PASS only when every check with evidence passed; INCONCLUSIVE when there was no evidence to witness"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "result", "ground_truth"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "description": "e.g. tests-pass, no-test-weakened, coverage, weed-verdict, open-questions, convergence, red-before-green" },
+          "result": { "enum": ["pass", "fail", "inconclusive"] },
+          "ground_truth": { "type": "string", "description": "the evidence read: runner exit status, hash comparison, reconciliation line, weed verdict, open-questions diff" }
+        }
+      }
+    },
+    "violations": {
+      "type": "array",
+      "description": "empty when verdict is PASS; each names its routing",
+      "items": {
+        "type": "object",
+        "required": ["violation", "routing"],
+        "additionalProperties": false,
+        "properties": {
+          "violation": { "type": "string" },
+          "routing": { "type": "string", "description": "the phase that resolves it (e.g. revert + propagate, implement, escalate)" }
+        }
+      }
+    },
+    "record_path": { "type": "string", "description": ".allium-loop/<slug>.witness.json" },
+    "summary": { "type": "string", "description": "the one-line witness summary" }
+  }
+}

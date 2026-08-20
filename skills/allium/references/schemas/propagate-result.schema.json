@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/propagate-result",
+  "title": "Propagate phase result",
+  "description": "The typed record the propagate phase returns to the loop orchestrator in place of a prose summary. `obligations` and `uncovered_obligations` drive convergence; `generated_tests` is the tamper baseline the witness re-derives; `summary` carries the one human-readable line.",
+  "type": "object",
+  "required": ["obligations", "uncovered_obligations", "generated_tests", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "phase": { "const": "propagate" },
+    "obligations": {
+      "type": "object",
+      "required": ["total", "covered", "uncovered"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer" },
+        "covered": { "type": "integer" },
+        "uncovered": { "type": "integer" }
+      }
+    },
+    "uncovered_obligations": {
+      "type": "array",
+      "description": "one entry per uncovered obligation; must be empty for the loop to treat the spec as converged. Each carries a reason so nothing is silently dropped.",
+      "items": {
+        "type": "object",
+        "required": ["obligation", "classification", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "obligation": { "type": "string" },
+          "classification": { "enum": ["infrastructure-gap", "unmappable-construct"] },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "generated_tests": {
+      "type": "array",
+      "description": "the tamper baseline the witness re-derives; one entry per generated test file",
+      "items": {
+        "type": "object",
+        "required": ["path", "hash"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "hash": { "type": "string", "description": "content hash, e.g. sha256:..." }
+        }
+      }
+    },
+    "test_paths": {
+      "type": "array",
+      "description": "test files generated or updated this run",
+      "items": { "type": "string" }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "summary": { "type": "string", "description": "the `N obligations, M covered, K uncovered` line" }
+  }
+}
