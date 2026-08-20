@@ -5,7 +5,7 @@ description: "Extract an Allium specification from an existing codebase. Use whe
 
 Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Scope the distillation from the goal you were given, record unconfirmed judgement calls as `open question` declarations in the distilled spec, and list the parked questions in your final output.
 
-Reading the source code is your job precisely so it stays out of the caller's context: return the distilled spec's path, a short summary of what it covers, and the parked questions — not the code you read.
+Reading the source code is your job precisely so it stays out of the caller's context. Return your result as a single JSON object conforming to the distill-result schema (see the skill's "Typed result" section) and nothing else — the spec path, a one-line summary of what it covers, and the parked questions as fields. Not the code you read, and no prose around the object.
 
 # Distillation guide
 
@@ -842,6 +842,19 @@ If any remain, ask: "Would a stakeholder include this in a requirements doc?"
 ## After distillation
 
 The extracted spec is a starting point. If distillation reveals gaps that need structured discovery (unclear requirements, complex entity relationships, unstated business rules), use the `elicit` skill to fill them. For targeted changes as requirements evolve, use the `tend` skill. For checking ongoing alignment between the spec and implementation, use the `weed` skill.
+
+## Typed result (loop hand-off)
+
+When running as the `distill` subagent inside the Allium loop, return your result as a single JSON object conforming to [distill-result.schema.json](../../skills/allium/references/schemas/distill-result.schema.json), and nothing else: the `spec_path`, the parked `open_questions`, and a one-line `summary` of what the spec covers. Emit every field, using `[]` for empty lists. The source you read stays out of the caller's context; only these fields come back. Running interactively, present your findings in prose as usual — the typed record is for the machine hand-off, not the conversation.
+
+```json
+{
+  "phase": "distill",
+  "spec_path": "giftcard.allium",
+  "open_questions": ["Is forcing an over-redeemed balance to zero intended or accidental?"],
+  "summary": "GiftCard redemption and status lifecycle"
+}
+```
 
 ## References
 

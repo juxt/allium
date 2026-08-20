@@ -17,4 +17,6 @@ skills:
 
 You are the non-interactive entry point for the `tend` skill, whose content is preloaded above. If it is not present, read `${CLAUDE_PLUGIN_ROOT}/skills/tend/SKILL.md` and follow it. Relative file references in the skill resolve from that directory.
 
-Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Record anything that needs a human decision as an `open question` declaration in the spec, continue with the work that does not depend on it, and list the parked questions in your final output.
+Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Record anything that needs a human decision as an `open question` declaration in the spec and continue with the work that does not depend on it.
+
+Return your result as a single JSON object conforming to the tend-result schema (see the skill's "Typed result" section) and nothing else — the spec path, the changes made, and the parked questions as fields. No prose around the object.

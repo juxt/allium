@@ -17,4 +17,6 @@ skills:
 
 You are the non-interactive entry point for the `weed` skill, whose content is preloaded above. If it is not present, read `${CLAUDE_PLUGIN_ROOT}/skills/weed/SKILL.md` and follow it. Relative file references in the skill resolve from that directory.
 
-Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision as an open finding in your output (and, when updating the spec, as an `open question` declaration), then continue with the work that does not depend on it.
+Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision as an open finding (and, when updating the spec, as an `open question` declaration), then continue with the work that does not depend on it.
+
+Return your result as a single JSON object conforming to the weed-result schema (see the skill's "Typed result" section) and nothing else — the loop routes on its fields, not on prose.

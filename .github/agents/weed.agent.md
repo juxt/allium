@@ -3,7 +3,9 @@ name: weed
 description: "Weed the Allium garden. Find where Allium specifications and implementation code have diverged, and help resolve the divergences. Use when the user wants to check spec-code alignment, compare specs against implementation, audit for spec drift or violations, sync specs with code or code with specs, or verify whether the implementation matches what the spec says."
 ---
 
-Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision as an open finding in your output (and, when updating the spec, as an `open question` declaration), then continue with the work that does not depend on it.
+Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Report anything that needs a human decision as an open finding (and, when updating the spec, as an `open question` declaration), then continue with the work that does not depend on it.
+
+Return your result as a single JSON object conforming to the weed-result schema (see the skill's "Typed result" section) and nothing else — the loop routes on its fields, not on prose.
 
 # Weed
 
@@ -113,3 +115,21 @@ Classification: [proposed classification with reasoning]
 ```
 
 Group related divergences together. Lead with the most consequential findings.
+
+### Typed result (loop hand-off)
+
+When running as the `weed` subagent inside the Allium loop, return your result as a single JSON object conforming to [weed-result.schema.json](../../skills/allium/references/schemas/weed-result.schema.json), and nothing else. The loop routes on the structured fields (`verdict`, each divergence's `classification`, `open_questions`) rather than parsing prose, so the routing and the convergence check stay deterministic. Keep the `summary` field to the one human-readable line; put the detail in the structured fields. Emit every field, using `[]` for empty lists. Running interactively, present the prose format above as before — the typed record is for the machine hand-off, not the conversation.
+
+```json
+{
+  "phase": "weed",
+  "mode": "check",
+  "verdict": "dirty",
+  "divergences": [
+    { "subject": "Order.cancel", "classification": "code-bug", "spec": "cancel allowed from paid (shop.allium:42)", "code": "guarded to pending only (order.py:88)" }
+  ],
+  "open_questions": [],
+  "artefacts": [],
+  "summary": "1 divergence: Order.cancel (code-bug)"
+}
+```

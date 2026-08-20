@@ -3,7 +3,9 @@ name: tend
 description: "Tend the Allium garden. Use when the user wants to write, edit, update, add to, improve, clarify, refine, restructure, fix or migrate Allium specs. Covers adding entities, rules, triggers, surfaces and contracts, fixing syntax or validation errors, renaming or refactoring within specs, migrating specs to a new language version, and translating requirements into well-formed specifications. Pushes back on vague requirements."
 ---
 
-Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Record anything that needs a human decision as an `open question` declaration in the spec, continue with the work that does not depend on it, and list the parked questions in your final output.
+Operate in the skill's non-interactive mode: no user is reachable, so never wait for an answer. Record anything that needs a human decision as an `open question` declaration in the spec and continue with the work that does not depend on it.
+
+Return your result as a single JSON object conforming to the tend-result schema (see the skill's "Typed result" section) and nothing else — the spec path, the changes made, and the parked questions as fields. No prose around the object.
 
 # Tend
 
@@ -106,3 +108,17 @@ After edits that change rules, surfaces or transition graphs, run `allium analys
 ## Output
 
 When proposing spec changes, explain the behavioural intent first, then show the changes. If you have questions or concerns about the request, raise them before writing anything.
+
+### Typed result (loop hand-off)
+
+When running as the `tend` subagent inside the Allium loop, return your result as a single JSON object conforming to [tend-result.schema.json](../../skills/allium/references/schemas/tend-result.schema.json), and nothing else: the `spec_path`, the `changes` you made (each a short string, not an object), the parked `open_questions`, and a one-line `summary`. Emit every field, using `[]` for empty lists. Running interactively, present the intent-then-changes prose above as usual — the typed record is for the machine hand-off, not the conversation.
+
+```json
+{
+  "phase": "tend",
+  "spec_path": "shop.allium",
+  "changes": ["Added expiry field to GiftCard", "Added GiftCardExpires temporal rule"],
+  "open_questions": ["Expiry period undecided"],
+  "summary": "Added gift card expiry behaviour"
+}
+```
