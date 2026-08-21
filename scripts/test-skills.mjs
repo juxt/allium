@@ -10,13 +10,13 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, trace, discovery, parking, witnessing, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, trace, discovery, parking, witnessing, timinghook, crosstalk
  *
  * All groups except discovery, parking, witnessing and crosstalk are offline (free, fast);
  * those four require --live and make Claude API calls.
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync } from "fs";
 import { execFileSync, execSync } from "child_process";
 import { tmpdir } from "os";
 import path from "path";
@@ -696,20 +696,39 @@ if (shouldRun("hooks")) {
         fail("hooks PostToolUse", "missing or empty");
       } else {
         pass("hooks PostToolUse present");
-        let matchersOk = true;
-        let scriptsOk = true;
-        for (const entry of post) {
+      }
+
+      // Validate every event's entries: each has a matcher, and every
+      // ${CLAUDE_PLUGIN_ROOT}-referenced script exists on disk.
+      let matchersOk = true;
+      let scriptsOk = true;
+      const commands = [];
+      for (const event of ["PreToolUse", "PostToolUse"]) {
+        for (const entry of cfg.hooks?.[event] ?? []) {
           if (!entry || !entry.matcher) matchersOk = false;
-          const cmds = Array.isArray(entry?.hooks) ? entry.hooks : [];
-          for (const h of cmds) {
-            const m =
-              typeof h.command === "string" &&
-              h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/);
+          for (const h of Array.isArray(entry?.hooks) ? entry.hooks : []) {
+            if (typeof h.command === "string") commands.push(h.command);
+            const m = typeof h.command === "string" && h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/);
             if (m && !existsSync(path.join(ROOT, m[1]))) scriptsOk = false;
           }
         }
-        matchersOk ? pass("hooks have matchers") : fail("hooks matcher", "an entry is missing a matcher");
-        scriptsOk ? pass("hook command scripts exist") : fail("hook command", "referenced script not found");
+      }
+      matchersOk ? pass("hooks have matchers") : fail("hooks matcher", "an entry is missing a matcher");
+      scriptsOk ? pass("hook command scripts exist") : fail("hook command", "referenced script not found");
+
+      // The subagent timing hook is registered on both events (loop-trace pre/post).
+      const hasPre = commands.some((c) => c.includes("loop-trace.mjs") && /\bpre\b/.test(c));
+      const hasPost = commands.some((c) => c.includes("loop-trace.mjs") && /\bpost\b/.test(c));
+      hasPre && hasPost
+        ? pass("loop-trace timing hook registered on pre and post")
+        : fail("loop-trace hook", `missing registration (pre=${hasPre}, post=${hasPost})`);
+
+      // Run the timing hook's own unit tests, so its logic is covered in CI.
+      try {
+        execFileSync("node", [path.join(ROOT, "hooks", "loop-trace.test.mjs")], { encoding: "utf-8", stdio: "pipe" });
+        pass("loop-trace hook unit tests pass");
+      } catch (e) {
+        fail("loop-trace hook unit tests", (e.stdout || e.message || "").slice(-160));
       }
     }
   }
@@ -911,7 +930,8 @@ if (shouldRun("trace")) {
   if (traceSchema) pass("schemas/trace-entry.schema.json is valid JSON");
 
   const entry = (tick, failed, weed, uncovered, blocking = 0) => ({
-    tick, phases: ["weed"], tests: { passed: 10 - failed, failed },
+    tick, phases: [{ name: "weed", reason: "spec changed this tick" }],
+    tests: { passed: 10 - failed, failed },
     weed, uncovered_obligations: uncovered, open_questions: { blocking, parked: 0 },
   });
 
@@ -926,6 +946,8 @@ if (shouldRun("trace")) {
       ["open_questions not object", { ...good, open_questions: 2 }],
       ["unexpected property", { ...good, extra: 1 }],
       ["tick not integer", { ...good, tick: "1" }],
+      ["phases item missing name", { ...good, phases: [{ reason: "x" }] }],
+      ["phases item as bare string", { ...good, phases: ["weed"] }],
     ];
     for (const [label, rec] of bad) {
       validateAgainstSchema(traceSchema, rec).length > 0
@@ -1391,6 +1413,47 @@ if (shouldRun("handoffs")) {
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Timing hook (live) — the one thing unit tests can't settle: does the hook
+// actually fire against a real Claude Code run? Spawn a real subagent inside a
+// dir with .allium-loop/, then assert a timing line landed. If it didn't, the
+// matcher name or the payload fields are wrong for this harness — the whole
+// reason this probe exists.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("timinghook")) {
+  console.log("\n── timinghook (live): the hook captures a real subagent call ──\n");
+
+  if (!LIVE) {
+    skip("timing hook probe", "pass --live to enable (uses API tokens)");
+  } else {
+    const dir = mkdtempSync(path.join(tmpdir(), "allium-timinghook-"));
+    try {
+      mkdirSync(path.join(dir, ".allium-loop")); // the hook only records while a loop is active
+      writeFileSync(path.join(dir, "giftcard.py"), GIFTCARD_PY);
+      runAgentProbe(
+        dir,
+        "Use the Agent tool to spawn the 'allium:distill' subagent with exactly this task: " +
+          '"Distil an Allium spec for giftcard.py into giftcard.allium." When it finishes, output only DONE.'
+      );
+      const tp = path.join(dir, ".allium-loop", "timings.jsonl");
+      if (!existsSync(tp)) {
+        fail("timing hook fired", "no .allium-loop/timings.jsonl — matcher/payload mismatch, or hooks not loaded via --plugin-dir");
+      } else {
+        const lines = readFileSync(tp, "utf-8").trim().split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } });
+        const hit = lines.find((l) => l && typeof l.duration_ms === "number");
+        hit
+          ? pass(`timing hook captured a real call (agent=${hit.agent}, ${hit.duration_ms}ms)`)
+          : fail("timing hook entry", "timings.jsonl present but no valid {agent, duration_ms} line");
+      }
+    } catch (e) {
+      fail("timing hook probe", e.message?.slice(0, 200));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   }
 }

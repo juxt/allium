@@ -10,8 +10,16 @@
     "tick": { "type": "integer", "description": "the tick this entry records, from 1" },
     "phases": {
       "type": "array",
-      "description": "which phases ran this tick",
-      "items": { "type": "string" }
+      "description": "the phases run this tick, in order, each with why it was chosen — the routing decision, so a wrong or repeatedly ineffective call is visible in the trace",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "description": "the phase / subagent, e.g. weed, propagate" },
+          "reason": { "type": "string", "description": "why it was chosen this tick, e.g. the field that triggered it" }
+        }
+      }
     },
     "tests": {
       "type": "object",
