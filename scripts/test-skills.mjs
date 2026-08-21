@@ -10,7 +10,7 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, discovery, parking, witnessing, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, trace, discovery, parking, witnessing, crosstalk
  *
  * All groups except discovery, parking, witnessing and crosstalk are offline (free, fast);
  * those four require --live and make Claude API calls.
@@ -245,6 +245,39 @@ function isConverged({ weed, propagate, testsFailed, blockingQuestions }) {
     propagate.uncovered_obligations.length === 0 &&
     blockingQuestions === 0
   );
+}
+
+// The stall rule, pinned deterministically (driving-the-loop §13). The live
+// loop applies this by hand — it is counting over a short log, no tool needed —
+// but pinning it here stops the rule drifting and lets it later move into a
+// script or the CLI as an accelerator.
+function traceMetricImproved(prev, cur) {
+  return (
+    cur.tests.failed < prev.tests.failed ||
+    (prev.weed === "dirty" && cur.weed === "clean") ||
+    cur.uncovered_obligations < prev.uncovered_obligations ||
+    cur.open_questions.blocking < prev.open_questions.blocking
+  );
+}
+function traceEntryConverged(e) {
+  return e.tests.failed === 0 && e.weed === "clean" &&
+    e.uncovered_obligations === 0 && e.open_questions.blocking === 0;
+}
+// Count the trailing run of no-progress ticks; a stall once it reaches the
+// threshold (config.stall_warning_ticks, default 1). A converged tick or any
+// improvement breaks the run.
+function detectStall(trace, threshold = 1) {
+  let run = 0;
+  for (let i = trace.length - 1; i >= 1; i--) {
+    if (traceEntryConverged(trace[i])) break;
+    if (traceMetricImproved(trace[i - 1], trace[i])) break;
+    run++;
+  }
+  return {
+    stalled: run >= threshold,
+    flatTicks: run,
+    sinceTick: run > 0 ? trace[trace.length - run].tick : null,
+  };
 }
 
 // Pull the JSON record out of a relayed agent message: prefer the marked
@@ -863,6 +896,66 @@ if (shouldRun("handoffs")) {
   for (const [label, state, expected] of convCases) {
     isConverged(state) === expected ? pass(`convergence: ${label}`) : fail(`convergence: ${label}`, `expected ${expected}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Trace — the run trace (driving-the-loop §13). Offline and deterministic:
+// trace entries validate against their schema, and the stall rule is proven
+// over trajectories. The live loop applies the same rule by hand; this pins it.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("trace")) {
+  console.log("\n── trace: run trace entries and the stall rule ──\n");
+
+  const traceSchema = readJson(path.join(ROOT, "skills", "allium", "references", "schemas", "trace-entry.schema.json"));
+  if (traceSchema) pass("schemas/trace-entry.schema.json is valid JSON");
+
+  const entry = (tick, failed, weed, uncovered, blocking = 0) => ({
+    tick, phases: ["weed"], tests: { passed: 10 - failed, failed },
+    weed, uncovered_obligations: uncovered, open_questions: { blocking, parked: 0 },
+  });
+
+  // Schema: a valid entry validates; malformed ones are caught.
+  if (traceSchema) {
+    const good = entry(1, 5, "dirty", 3);
+    validateAgainstSchema(traceSchema, good).length === 0
+      ? pass("trace-entry valid fixture") : fail("trace-entry valid fixture", "should validate");
+    const bad = [
+      ["bad weed enum", { ...good, weed: "greenish" }],
+      ["tests missing failed", { ...good, tests: { passed: 5 } }],
+      ["open_questions not object", { ...good, open_questions: 2 }],
+      ["unexpected property", { ...good, extra: 1 }],
+      ["tick not integer", { ...good, tick: "1" }],
+    ];
+    for (const [label, rec] of bad) {
+      validateAgainstSchema(traceSchema, rec).length > 0
+        ? pass(`trace-entry rejects: ${label}`) : fail(`trace-entry rejects: ${label}`, "malformed entry validated");
+    }
+  }
+
+  console.log("");
+
+  // The stall rule over trajectories.
+  const converging = [entry(1, 5, "dirty", 3), entry(2, 3, "dirty", 2), entry(3, 1, "clean", 0), entry(4, 0, "clean", 0)];
+  const flat = [entry(1, 5, "dirty", 3), entry(2, 5, "dirty", 3), entry(3, 5, "dirty", 3)];
+  const recovered = [entry(1, 5, "dirty", 3), entry(2, 5, "dirty", 3), entry(3, 3, "dirty", 2)];
+  const converged = [entry(1, 2, "dirty", 1), entry(2, 0, "clean", 0)];
+
+  const cases = [
+    ["converging run is not stalled", detectStall(converging, 1).stalled, false],
+    ["flat run stalls at threshold 1", detectStall(flat, 1).stalled, true],
+    ["flat run of 2 not stalled at threshold 3", detectStall(flat, 3).stalled, false],
+    ["recovered run is not stalled", detectStall(recovered, 1).stalled, false],
+    ["converged run is not stalled", detectStall(converged, 1).stalled, false],
+  ];
+  for (const [label, got, want] of cases) {
+    got === want ? pass(`stall: ${label}`) : fail(`stall: ${label}`, `expected ${want}, got ${got}`);
+  }
+  // The report points at where it flattened.
+  const s = detectStall(flat, 1);
+  s.flatTicks === 2 && s.sinceTick === 2
+    ? pass("stall: reports flat run length and first flat tick")
+    : fail("stall: report", `flatTicks=${s.flatTicks} sinceTick=${s.sinceTick}`);
 }
 
 // ---------------------------------------------------------------------------
