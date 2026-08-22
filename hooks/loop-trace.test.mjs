@@ -1,5 +1,5 @@
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, readFileSync, existsSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, readFileSync, existsSync, rmSync, symlinkSync, writeFileSync } from "fs";
 import path from "path";
 import { tmpdir } from "os";
 
@@ -91,6 +91,42 @@ console.log("\n── loop-trace hook ──\n");
   } catch {
     assert("survives malformed input", false);
   }
+  rmSync(dir, { recursive: true, force: true });
+}
+
+// 6. A repository-controlled .allium-loop symlink must not redirect writes.
+{
+  const dir = newProject({ withLoopDir: false });
+  const outside = mkdtempSync(path.join(tmpdir(), "allium-timing-outside-"));
+  symlinkSync(outside, path.join(dir, ".allium-loop"));
+  const payload = { tool_use_id: "linked-dir", tool_name: "Task", tool_input: { subagent_type: "allium:weed" } };
+  runHook("pre", payload, dir);
+  assert("refuses a symlinked loop directory", !existsSync(path.join(outside, ".timing-pending.json")));
+  rmSync(dir, { recursive: true, force: true });
+  rmSync(outside, { recursive: true, force: true });
+}
+
+// 7. A symlinked pending-state file must not be read or overwritten.
+{
+  const dir = newProject({ withLoopDir: true });
+  const victim = path.join(dir, "victim-pending.txt");
+  writeFileSync(victim, "unchanged");
+  symlinkSync(victim, path.join(dir, ".allium-loop", ".timing-pending.json"));
+  runHook("pre", { tool_use_id: "linked-pending", tool_name: "Task", tool_input: { subagent_type: "allium:weed" } }, dir);
+  assert("refuses a symlinked pending-state file", readFileSync(victim, "utf-8") === "unchanged");
+  rmSync(dir, { recursive: true, force: true });
+}
+
+// 8. A symlinked timing log must not receive appended data.
+{
+  const dir = newProject({ withLoopDir: true });
+  const payload = { tool_use_id: "linked-log", tool_name: "Task", tool_input: { subagent_type: "allium:weed" } };
+  runHook("pre", payload, dir);
+  const victim = path.join(dir, "victim-timings.txt");
+  writeFileSync(victim, "unchanged");
+  symlinkSync(victim, path.join(dir, ".allium-loop", "timings.jsonl"));
+  runHook("post", payload, dir);
+  assert("refuses a symlinked timing log", readFileSync(victim, "utf-8") === "unchanged");
   rmSync(dir, { recursive: true, force: true });
 }
 
