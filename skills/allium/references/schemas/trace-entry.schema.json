@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "allium/handoffs/trace-entry",
+  "title": "Run trace entry",
+  "description": "One tick of the loop's run trace, appended to .allium-loop/<slug>.trace.jsonl. A snapshot of the convergence state that tick, drawn from the phases' typed records. The trace makes the run's trajectory observable, so a loop that has quietly stopped converging can be seen and surfaced instead of grinding silently.",
+  "type": "object",
+  "required": ["tick", "tests", "weed", "uncovered_obligations", "open_questions"],
+  "additionalProperties": false,
+  "properties": {
+    "tick": { "type": "integer", "description": "the tick this entry records, from 1" },
+    "phases": {
+      "type": "array",
+      "description": "the phases run this tick, in order, each with why it was chosen — the routing decision, so a wrong or repeatedly ineffective call is visible in the trace",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "description": "the phase / subagent, e.g. weed, propagate" },
+          "reason": { "type": "string", "description": "why it was chosen this tick, e.g. the field that triggered it" }
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "description": "the tick's test result; carried forward from the last run if tests did not run this tick",
+      "required": ["passed", "failed"],
+      "additionalProperties": false,
+      "properties": {
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" }
+      }
+    },
+    "weed": {
+      "enum": ["clean", "dirty"],
+      "description": "the tick's weed verdict, carried forward if weed did not run"
+    },
+    "uncovered_obligations": {
+      "type": "integer",
+      "description": "count from propagate; 0 when coverage is complete"
+    },
+    "open_questions": {
+      "type": "object",
+      "required": ["blocking", "parked"],
+      "additionalProperties": false,
+      "properties": {
+        "blocking": { "type": "integer" },
+        "parked": { "type": "integer" }
+      }
+    },
+    "durations_s": {
+      "type": "object",
+      "description": "best-effort wall-clock seconds per phase this tick, from Bash timestamps; optional"
+    }
+  }
+}

@@ -131,7 +131,7 @@ Both loops can be driven autonomously — `/distill`, `/propagate`, `/tend`, `/w
 - **No magic numbers in code that the spec puts in `config`.** Honour the spec's parameters.
 - **Fix the code, not the contract**, when code and spec disagree and the spec is right.
 
-**State worth tracking across ticks:** tests status (pass/fail counts), `/weed` verdict, count of open questions, and — for code-first — whether the last `/distill` pass found anything new. Convergence is all four trending to zero/clean.
+**State worth tracking across ticks:** tests status (pass/fail counts), `/weed` verdict, count of open questions, and — for code-first — whether the last `/distill` pass found anything new. Convergence is all four trending to zero/clean. When driving the loop autonomously, record these into a run trace each tick and surface the moment they stop trending, so a run that has quietly stalled says so instead of grinding to the cap in silence (see [driving the loop](./driving-the-loop.md) §13).
 
 ## Driving the loop with one prompt
 

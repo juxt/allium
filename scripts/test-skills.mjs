@@ -10,13 +10,13 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, discovery, parking, witnessing, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, trace, discovery, parking, witnessing, timinghook, crosstalk
  *
  * All groups except discovery, parking, witnessing and crosstalk are offline (free, fast);
  * those four require --live and make Claude API calls.
  */
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync } from "fs";
 import { execFileSync, execSync } from "child_process";
 import { tmpdir } from "os";
 import path from "path";
@@ -245,6 +245,39 @@ function isConverged({ weed, propagate, testsFailed, blockingQuestions }) {
     propagate.uncovered_obligations.length === 0 &&
     blockingQuestions === 0
   );
+}
+
+// The stall rule, pinned deterministically (driving-the-loop §13). The live
+// loop applies this by hand — it is counting over a short log, no tool needed —
+// but pinning it here stops the rule drifting and lets it later move into a
+// script or the CLI as an accelerator.
+function traceMetricImproved(prev, cur) {
+  return (
+    cur.tests.failed < prev.tests.failed ||
+    (prev.weed === "dirty" && cur.weed === "clean") ||
+    cur.uncovered_obligations < prev.uncovered_obligations ||
+    cur.open_questions.blocking < prev.open_questions.blocking
+  );
+}
+function traceEntryConverged(e) {
+  return e.tests.failed === 0 && e.weed === "clean" &&
+    e.uncovered_obligations === 0 && e.open_questions.blocking === 0;
+}
+// Count the trailing run of no-progress ticks; a stall once it reaches the
+// threshold (config.stall_warning_ticks, default 1). A converged tick or any
+// improvement breaks the run.
+function detectStall(trace, threshold = 1) {
+  let run = 0;
+  for (let i = trace.length - 1; i >= 1; i--) {
+    if (traceEntryConverged(trace[i])) break;
+    if (traceMetricImproved(trace[i - 1], trace[i])) break;
+    run++;
+  }
+  return {
+    stalled: run >= threshold,
+    flatTicks: run,
+    sinceTick: run > 0 ? trace[trace.length - run].tick : null,
+  };
 }
 
 // Pull the JSON record out of a relayed agent message: prefer the marked
@@ -663,20 +696,39 @@ if (shouldRun("hooks")) {
         fail("hooks PostToolUse", "missing or empty");
       } else {
         pass("hooks PostToolUse present");
-        let matchersOk = true;
-        let scriptsOk = true;
-        for (const entry of post) {
+      }
+
+      // Validate every event's entries: each has a matcher, and every
+      // ${CLAUDE_PLUGIN_ROOT}-referenced script exists on disk.
+      let matchersOk = true;
+      let scriptsOk = true;
+      const commands = [];
+      for (const event of ["PreToolUse", "PostToolUse"]) {
+        for (const entry of cfg.hooks?.[event] ?? []) {
           if (!entry || !entry.matcher) matchersOk = false;
-          const cmds = Array.isArray(entry?.hooks) ? entry.hooks : [];
-          for (const h of cmds) {
-            const m =
-              typeof h.command === "string" &&
-              h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/);
+          for (const h of Array.isArray(entry?.hooks) ? entry.hooks : []) {
+            if (typeof h.command === "string") commands.push(h.command);
+            const m = typeof h.command === "string" && h.command.match(/\$\{CLAUDE_PLUGIN_ROOT\}\/([^"\s]+)/);
             if (m && !existsSync(path.join(ROOT, m[1]))) scriptsOk = false;
           }
         }
-        matchersOk ? pass("hooks have matchers") : fail("hooks matcher", "an entry is missing a matcher");
-        scriptsOk ? pass("hook command scripts exist") : fail("hook command", "referenced script not found");
+      }
+      matchersOk ? pass("hooks have matchers") : fail("hooks matcher", "an entry is missing a matcher");
+      scriptsOk ? pass("hook command scripts exist") : fail("hook command", "referenced script not found");
+
+      // The subagent timing hook is registered on both events (loop-trace pre/post).
+      const hasPre = commands.some((c) => c.includes("loop-trace.mjs") && /\bpre\b/.test(c));
+      const hasPost = commands.some((c) => c.includes("loop-trace.mjs") && /\bpost\b/.test(c));
+      hasPre && hasPost
+        ? pass("loop-trace timing hook registered on pre and post")
+        : fail("loop-trace hook", `missing registration (pre=${hasPre}, post=${hasPost})`);
+
+      // Run the timing hook's own unit tests, so its logic is covered in CI.
+      try {
+        execFileSync("node", [path.join(ROOT, "hooks", "loop-trace.test.mjs")], { encoding: "utf-8", stdio: "pipe" });
+        pass("loop-trace hook unit tests pass");
+      } catch (e) {
+        fail("loop-trace hook unit tests", (e.stdout || e.message || "").slice(-160));
       }
     }
   }
@@ -863,6 +915,69 @@ if (shouldRun("handoffs")) {
   for (const [label, state, expected] of convCases) {
     isConverged(state) === expected ? pass(`convergence: ${label}`) : fail(`convergence: ${label}`, `expected ${expected}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Trace — the run trace (driving-the-loop §13). Offline and deterministic:
+// trace entries validate against their schema, and the stall rule is proven
+// over trajectories. The live loop applies the same rule by hand; this pins it.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("trace")) {
+  console.log("\n── trace: run trace entries and the stall rule ──\n");
+
+  const traceSchema = readJson(path.join(ROOT, "skills", "allium", "references", "schemas", "trace-entry.schema.json"));
+  if (traceSchema) pass("schemas/trace-entry.schema.json is valid JSON");
+
+  const entry = (tick, failed, weed, uncovered, blocking = 0) => ({
+    tick, phases: [{ name: "weed", reason: "spec changed this tick" }],
+    tests: { passed: 10 - failed, failed },
+    weed, uncovered_obligations: uncovered, open_questions: { blocking, parked: 0 },
+  });
+
+  // Schema: a valid entry validates; malformed ones are caught.
+  if (traceSchema) {
+    const good = entry(1, 5, "dirty", 3);
+    validateAgainstSchema(traceSchema, good).length === 0
+      ? pass("trace-entry valid fixture") : fail("trace-entry valid fixture", "should validate");
+    const bad = [
+      ["bad weed enum", { ...good, weed: "greenish" }],
+      ["tests missing failed", { ...good, tests: { passed: 5 } }],
+      ["open_questions not object", { ...good, open_questions: 2 }],
+      ["unexpected property", { ...good, extra: 1 }],
+      ["tick not integer", { ...good, tick: "1" }],
+      ["phases item missing name", { ...good, phases: [{ reason: "x" }] }],
+      ["phases item as bare string", { ...good, phases: ["weed"] }],
+    ];
+    for (const [label, rec] of bad) {
+      validateAgainstSchema(traceSchema, rec).length > 0
+        ? pass(`trace-entry rejects: ${label}`) : fail(`trace-entry rejects: ${label}`, "malformed entry validated");
+    }
+  }
+
+  console.log("");
+
+  // The stall rule over trajectories.
+  const converging = [entry(1, 5, "dirty", 3), entry(2, 3, "dirty", 2), entry(3, 1, "clean", 0), entry(4, 0, "clean", 0)];
+  const flat = [entry(1, 5, "dirty", 3), entry(2, 5, "dirty", 3), entry(3, 5, "dirty", 3)];
+  const recovered = [entry(1, 5, "dirty", 3), entry(2, 5, "dirty", 3), entry(3, 3, "dirty", 2)];
+  const converged = [entry(1, 2, "dirty", 1), entry(2, 0, "clean", 0)];
+
+  const cases = [
+    ["converging run is not stalled", detectStall(converging, 1).stalled, false],
+    ["flat run stalls at threshold 1", detectStall(flat, 1).stalled, true],
+    ["flat run of 2 not stalled at threshold 3", detectStall(flat, 3).stalled, false],
+    ["recovered run is not stalled", detectStall(recovered, 1).stalled, false],
+    ["converged run is not stalled", detectStall(converged, 1).stalled, false],
+  ];
+  for (const [label, got, want] of cases) {
+    got === want ? pass(`stall: ${label}`) : fail(`stall: ${label}`, `expected ${want}, got ${got}`);
+  }
+  // The report points at where it flattened.
+  const s = detectStall(flat, 1);
+  s.flatTicks === 2 && s.sinceTick === 2
+    ? pass("stall: reports flat run length and first flat tick")
+    : fail("stall: report", `flatTicks=${s.flatTicks} sinceTick=${s.sinceTick}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -1298,6 +1413,47 @@ if (shouldRun("handoffs")) {
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Timing hook (live) — the one thing unit tests can't settle: does the hook
+// actually fire against a real Claude Code run? Spawn a real subagent inside a
+// dir with .allium-loop/, then assert a timing line landed. If it didn't, the
+// matcher name or the payload fields are wrong for this harness — the whole
+// reason this probe exists.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("timinghook")) {
+  console.log("\n── timinghook (live): the hook captures a real subagent call ──\n");
+
+  if (!LIVE) {
+    skip("timing hook probe", "pass --live to enable (uses API tokens)");
+  } else {
+    const dir = mkdtempSync(path.join(tmpdir(), "allium-timinghook-"));
+    try {
+      mkdirSync(path.join(dir, ".allium-loop")); // the hook only records while a loop is active
+      writeFileSync(path.join(dir, "giftcard.py"), GIFTCARD_PY);
+      runAgentProbe(
+        dir,
+        "Use the Agent tool to spawn the 'allium:distill' subagent with exactly this task: " +
+          '"Distil an Allium spec for giftcard.py into giftcard.allium." When it finishes, output only DONE.'
+      );
+      const tp = path.join(dir, ".allium-loop", "timings.jsonl");
+      if (!existsSync(tp)) {
+        fail("timing hook fired", "no .allium-loop/timings.jsonl — matcher/payload mismatch, or hooks not loaded via --plugin-dir");
+      } else {
+        const lines = readFileSync(tp, "utf-8").trim().split("\n").filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } });
+        const hit = lines.find((l) => l && typeof l.duration_ms === "number");
+        hit
+          ? pass(`timing hook captured a real call (agent=${hit.agent}, ${hit.duration_ms}ms)`)
+          : fail("timing hook entry", "timings.jsonl present but no valid {agent, duration_ms} line");
+      }
+    } catch (e) {
+      fail("timing hook probe", e.message?.slice(0, 200));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   }
 }

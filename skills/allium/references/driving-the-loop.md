@@ -32,7 +32,7 @@ Announce each phase as it begins with a one-line marker (shown in parentheses be
    - a test is wrong → `tend` the spec, then `propagate` again;
    - `weed` says the spec is wrong → `tend` the spec;
    - open question → classify and handle (§5).
-5. **Record state** in the ledger (§8) and print a one-line summary: `tick n · tests x/y · weed clean/dirty · openQ blocking k / parked m`.
+5. **Record state** in the ledger (§8), **append a trace entry** for the tick (§13), and print a one-line summary: `tick n · tests x/y · weed clean/dirty · openQ blocking k / parked m`. If the trace shows the run has stopped making progress, say so out loud this tick (§13) — don't wait for the cap.
 
 ## 3. Convergence (when to stop)
 
@@ -50,6 +50,7 @@ The first four are the run's own reading of its state; the witness re-derives th
 
 - **Hard cap** — stop after **6** iterations.
 - **No-progress cap** — stop after **2** iterations with no change in tests / weed verdict / open-question count (catches thrashing against a test you can't satisfy).
+- **Surface the stall early** — don't let a flattening run grind to that cap in silence. The trace (§13) shows the trajectory each tick; the moment a tick makes no progress, say so out loud. The cap is the backstop, not the first sign.
 - **Escalate** on a blocking open question (§5).
 - **Anti-cheat (non-negotiable, and witnessed)** — never weaken or edit a generated test to pass; honour `config` (no magic numbers in code the spec parameterises). This is not left to good behaviour: the witness (§11) re-derives it from ground truth — a generated test whose recorded hash changed with no intervening `propagate` fails the witness and blocks convergence.
 - On hitting a cap or an unrecoverable error, **stop and report** — don't spin.
@@ -83,7 +84,7 @@ This is what keeps a long or large run within budget: the orchestrator's context
 
 Keep loop state in `.allium-loop/<goal-slug>.json`: goal, mode, tick count, active inner loop, last verdicts, completed sub-goals, and parked (non-blocking) open questions. This makes the loop resumable — a fresh run reads it and continues where it left off.
 
-The ledger is itself typed — it conforms to [ledger.schema.json](./schemas/ledger.schema.json), so a resuming run reads structured state rather than re-parsing prose. It also carries the evidence the witness (§11) re-derives convergence from, so record it as the phases produce it: `generated_test_hashes` (a content hash per generated test file, written by `propagate`) and the `reconciliation` line, the recorded `weed` verdict, and — for spec-first — the red-before-green observations per new test. The witness reads these; it does not take them on trust, but it needs them to exist. The witness writes its own artefact alongside the ledger, `.allium-loop/<goal-slug>.witness.json` — the durable convergence record, keep it out of git the same way.
+The ledger is itself typed — it conforms to [ledger.schema.json](./schemas/ledger.schema.json), so a resuming run reads structured state rather than re-parsing prose. It also carries the evidence the witness (§11) re-derives convergence from, so record it as the phases produce it: `generated_test_hashes` (a content hash per generated test file, written by `propagate`) and the `reconciliation` line, the recorded `weed` verdict, and — for spec-first — the red-before-green observations per new test. The witness reads these; it does not take them on trust, but it needs them to exist. The witness writes its own artefact alongside the ledger, `.allium-loop/<goal-slug>.witness.json` — the durable convergence record, keep it out of git the same way. The run trace (§13) lives beside them at `.allium-loop/<goal-slug>.trace.jsonl`; ignore it the same way.
 
 Git-ignore it: resolve the repo root (`git rev-parse --show-toplevel`; skip if not a git repo), then ensure `.allium-loop/` is ignored there — create `.gitignore` if absent, append if missing, no-op if already ignored (`git check-ignore` first). Best-effort: if it can't be written, continue and say so. Mention it once; don't prompt.
 
@@ -93,7 +94,7 @@ The loop is only as good as its verification. Discover the project's test comman
 
 ## 10. Report
 
-End with: what converged, per–sub-goal status, tests and weed verdict, the witness verdict and its record path, anything escalated, and all parked questions consolidated.
+End with: what converged, per–sub-goal status, tests and weed verdict, the witness verdict and its record path, anything escalated, all parked questions consolidated, and the run's **trajectory** from the trace (§13) — how the metrics moved tick over tick, and any stall that was surfaced.
 
 ## 11. Witness the convergence (the gate)
 
@@ -127,3 +128,27 @@ The schemas: [`distill`](./schemas/distill-result.schema.json), [`weed`](./schem
 | any record fails schema validation | reject the hand-off; the phase must re-emit — a malformed record is never treated as a result |
 
 **Convergence** is the boolean over the typed fields: `tests.failed = 0` ∧ `weed.verdict = clean` ∧ no blocking open questions ∧ `propagate.uncovered_obligations` empty ∧ (code-first) a fresh `distill` finds nothing new ∧ `witness.verdict = PASS`. When every conjunct reads from a field, "are we done" stops being a vibe and becomes an evaluation.
+
+## 13. Trace the run (observability)
+
+A long autonomous run can fail without failing. Nothing errors, but the loop stops converging — tests stick, `weed` stays dirty, obligations don't shrink — and it grinds tick after tick until a cap trips. The trace makes that visible while it is happening instead of after.
+
+**Append one entry per tick.** After recording state (§2 step 5), append a line to `.allium-loop/<goal-slug>.trace.jsonl` conforming to [trace-entry.schema.json](./schemas/trace-entry.schema.json): the tick number, the `phases` run **and why each was chosen** (the routing decision, so a wrong or repeatedly ineffective call is visible), the tick's `tests` (passed / failed), `weed` verdict, `uncovered_obligations`, and blocking / parked `open_questions`. These come straight from the phases' typed records (§12) — you already hold them, so this is bookkeeping, not new work. Carry a metric forward when its phase didn't run this tick.
+
+**Which calls, and were they the right ones.** Recording the phase *and its reason* each tick, next to whether that tick made progress, makes the routing auditable: a phase that keeps running and never moves a metric is a wrong or wasted call, and now it shows in the trace rather than hiding in a long run. This is the routing half of the telemetry, and the orchestrator records it directly — it knows which subagent it chose and why.
+
+**Real per-call timing comes from the hook, not from you.** A subagent call isn't a Bash call you can wrap in `date`, and you can't read your own latency, so precise timing is captured outside the model: the `loop-trace` hook stamps each subagent call's start and end and appends `{agent, duration_ms}` to `.allium-loop/timings.jsonl`. When that file is present, fold its durations into the trace (`durations_s`) and the end report. Where hooks don't run, there is simply no wall-clock — the trajectory and routing above still stand. Don't hand-time calls yourself; trust the hook or omit timing.
+
+**Watch the trajectory.** A tick makes **progress** if any convergence metric improved: fewer failing tests, `weed` went dirty → clean, fewer uncovered obligations, or fewer blocking questions. A tick with none of those, while not yet converged, is a **no-progress tick**.
+
+**Surface a stall out loud.** The moment a no-progress tick lands, say so in the run output — name what is stuck and for how long:
+
+```
+⚠ tick 4 · no progress — tests stuck at 5/10 for 2 ticks, weed still dirty, 3 uncovered
+```
+
+This is the whole point: the silent slow-down becomes a line you cannot miss. Keep surfacing it each further flat tick; the no-progress cap (§4) is the backstop that finally stops the run, not the first signal. The threshold for the first warning is `config.stall_warning_ticks` (default **1**, so the first flat tick warns); raise it in a `config` block if a run is legitimately slow and the early warning is noise.
+
+**The rule is simple on purpose.** Deciding "did any metric improve across the last N ticks" is counting over a short log, so the orchestrator applies it directly — no tool required, nothing to install. The same rule is pinned as a deterministic function in the test suite (`detectStall`) so it can't drift, and so it can later move into a script or the CLI as an accelerator, with the orchestrator as the always-present floor (§ the pattern `allium check` already uses: CLI when present, fall back otherwise).
+
+**Report the trajectory.** At the end (§10), summarise how the metrics moved across the run and call out any stall that was surfaced. A converged run reads as a clean descent to zero; a rescued one shows where it flattened and what unstuck it.
