@@ -16,11 +16,14 @@
 // blocks a call (always exits 0), and swallows its own errors.
 
 import {
+  closeSync,
+  constants,
   existsSync,
+  lstatSync,
+  openSync,
   readFileSync,
-  writeFileSync,
-  appendFileSync,
   realpathSync,
+  writeFileSync,
 } from "fs";
 import path from "path";
 
@@ -75,6 +78,12 @@ if (!projectRoot) process.exit(0);
 // Only trace while a loop is running; otherwise this is an unrelated subagent.
 const loopDir = path.join(projectRoot, ".allium-loop");
 if (!existsSync(loopDir)) process.exit(0);
+try {
+  const stat = lstatSync(loopDir);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) process.exit(0);
+} catch {
+  process.exit(0);
+}
 
 const pendingPath = path.join(loopDir, ".timing-pending.json");
 const timingsPath = path.join(loopDir, "timings.jsonl");
@@ -82,18 +91,36 @@ const now = Date.now();
 
 function readPending() {
   try {
+    const stat = lstatSync(pendingPath);
+    if (!stat.isFile() || stat.isSymbolicLink()) return { byId: {}, fifo: [] };
     const p = JSON.parse(readFileSync(pendingPath, "utf-8"));
     return { byId: p.byId ?? {}, fifo: Array.isArray(p.fifo) ? p.fifo : [] };
   } catch {
     return { byId: {}, fifo: [] };
   }
 }
-function writePending(p) {
+function writeWithoutFollowingSymlinks(filePath, data, append = false) {
+  let fd;
   try {
-    writeFileSync(pendingPath, JSON.stringify(p));
+    const noFollow = constants.O_NOFOLLOW ?? 0;
+    const mode = append ? constants.O_APPEND : constants.O_TRUNC;
+    fd = openSync(filePath, constants.O_WRONLY | constants.O_CREAT | mode | noFollow, 0o600);
+    writeFileSync(fd, data);
+    return true;
   } catch {
-    // best-effort
+    return false;
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        // best-effort
+      }
+    }
   }
+}
+function writePending(p) {
+  writeWithoutFollowingSymlinks(pendingPath, JSON.stringify(p));
 }
 
 if (event === "pre") {
@@ -122,10 +149,6 @@ if (rec) {
       agent: rec.agent,
       duration_ms: now - rec.start,
     }) + "\n";
-  try {
-    appendFileSync(timingsPath, line);
-  } catch {
-    // best-effort
-  }
+  writeWithoutFollowingSymlinks(timingsPath, line, true);
 }
 process.exit(0);
