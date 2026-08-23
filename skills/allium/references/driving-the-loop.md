@@ -70,7 +70,14 @@ Rule: a question is *blocking* iff the next unit of work depends on its answer. 
 
 If the goal spans more than one independent behavioural slice, decompose along the spec's seams — one sub-goal per **entity lifecycle**, **surface**, or **independent rule / data-flow chain**. Order sub-goals topologically by the data-flow / trigger graph (producers before consumers). Run each sub-goal as its own loop, and witness each slice at its own convergence gate (§11) before you count it converged, so a falsified slice cannot be assembled into the whole.
 
-After the slices converge, run a **whole-spec integration pass** — cross-entity / data-flow / reachability tests plus a full `weed`, and a final `witness` over the assembled spec — so the seams *between* slices converge too. Run this autonomously without blocking to confirm the plan, and produce one consolidated summary at the end.
+After the slices converge, run the **reduce step** — assemble them into one spec and drive the seams *between* slices to convergence. Fan-out is the map; this is the reduce, and it is a real procedure, not a hand-wave:
+
+1. **Assemble and wire** — pick a canonical owner for any shared entity (compare declarations with `allium model`, cheap JSON), add the `use` imports and qualified names so the slices form one connected graph. Un-wired, the checker sees them as separate islands.
+2. **Cross-check with the CLI** — run `allium analyse` over **all the assembled slices at once**. It resolves references and traces data flow, reachability and witnessing *across* the `use` seams, returning a small JSON list of the seams that don't line up. The CLI does the seeing; you hold only the findings.
+3. **Route each seam problem** — read both the `findings` and the `diagnostics` arrays (a broken seam often shows as a dangling `reference.unknownName` on the consumer plus a `deadlock` on the producer). Translate each via [actioning findings](./actioning-findings.md) — a cross-seam `missing_producer` / dangling reference → `tend` the slice that should provide it (or fix the wiring); a cross-slice `conflict` → escalate (§5). Delegate every edit to `tend` / `weed`; re-run `analyse` until the seams are clean, under the normal caps (§4).
+4. **Cross-service tests, then witness** — `propagate` over the assembled set for the cross-slice tests the per-slice loops could not exercise, then a final `witness` (§11) over the whole so the integrated spec carries the same convergence guarantee each slice did.
+
+Run the reduce autonomously without blocking to confirm the plan, and produce one consolidated summary at the end. The seam detail — canonical entity ownership, `use` wiring, contract matching, which findings signal a broken seam — is in [integrating slices](./integrating-slices.md). Throughout, the orchestrator holds slice paths and CLI JSON, never slice bodies — the same isolation the map uses, applied to the reduce.
 
 ## 7. Delegate each phase to an isolated sub-agent (default)
 

@@ -52,6 +52,17 @@ A rule's `ensures` clause could produce a state that violates a declared invaria
 
 The finding's evidence shows the mechanism — how the ensures clause is inconsistent with the invariant. Use this to suggest a specific fix rather than asking an open-ended question.
 
+## Findings across a seam (the reduce step)
+
+When `analyse` runs over several assembled slices at once (the reduce step — see [integrating slices](./integrating-slices.md)), the same finding types apply, but a finding on one slice often points at a *seam* with another: the consumer depends on behaviour the producer doesn't supply, or the two slices disagree about a shared entity. Read the finding as a cross-slice question rather than a single-spec gap.
+
+- A **`missing_producer`** or **`unreachable_trigger`** on a consuming slice usually means the *producing* slice should emit the trigger or expose the surface — decide which slice owns the source and `tend` that one, rather than adding the producer to the consumer.
+- A **`dead_transition`** / **`deadlock`** whose exit is witnessed in another slice is a *wiring* problem first: check the `use` import and qualified names line up before treating it as a genuine gap.
+
+### `allium.reference.unknownName` (diagnostic, seam signal)
+
+Not a finding — a diagnostic — but the clearest sign of a broken seam in the reduce step: a slice references a qualified name (`orders/OrderPaid`) that the owning slice doesn't declare or emit. It typically appears alongside a `deadlock` on the owning slice whose exit that reference was meant to witness. **Ask which slice owns the name.** Either the producer should provide it (`tend` the producer to emit the trigger / declare the entity), or the reference is mis-wired (fix the `use` alias or qualified name). Always read the `diagnostics` array, not just `findings`, when integrating slices — a seam often breaks here first.
+
 ## Choosing which finding to present
 
 When `analyse` returns multiple findings, pick the most relevant one. Apply these criteria in order:
