@@ -10,7 +10,7 @@
  *   node scripts/test-skills.mjs structure         # run one group
  *   node scripts/test-skills.mjs portability links # run multiple groups
  *
- * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, trace, discovery, parking, witnessing, timinghook, crosstalk
+ * Groups: structure, codex, consistency, portability, links, routing, generation, loopdocs, hooks, modes, handoffs, trace, reduce, discovery, parking, witnessing, timinghook, crosstalk
  *
  * All groups except discovery, parking, witnessing and crosstalk are offline (free, fast);
  * those four require --live and make Claude API calls.
@@ -732,6 +732,52 @@ if (shouldRun("hooks")) {
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Reduce — the fan-out reduce step (driving-the-loop §6 + integrating-slices).
+// Pins the constructs that make the reduce a real procedure, so a reword can't
+// silently drop them: the reference doc exists and is linked from §6, the
+// cross-check runs `allium analyse` over all slices, and the seam-signal
+// diagnostic is documented in actioning-findings. Offline and deterministic.
+// ---------------------------------------------------------------------------
+
+if (shouldRun("reduce")) {
+  console.log("\n── reduce: the fan-out integration (reduce) step ──\n");
+
+  const integ = path.join(ROOT, "skills", "allium", "references", "integrating-slices.md");
+  const loop = path.join(ROOT, "skills", "allium", "references", "driving-the-loop.md");
+  const findings = path.join(ROOT, "skills", "allium", "references", "actioning-findings.md");
+
+  if (existsSync(integ)) pass("integrating-slices.md exists");
+  else fail("integrating-slices.md", "reduce-step reference doc missing");
+
+  const integSrc = existsSync(integ) ? readFileSync(integ, "utf-8") : "";
+  // The reduce leans on the CLI cross-checking all slices at once.
+  /allium analyse/.test(integSrc)
+    ? pass("integrating-slices: cross-checks with allium analyse")
+    : fail("integrating-slices: analyse", "must run `allium analyse` over the slices");
+  // Canonical owner for shared entities is the assembly rule.
+  /canonical owner/i.test(integSrc)
+    ? pass("integrating-slices: canonical owner rule")
+    : fail("integrating-slices: canonical owner", "must state the canonical-owner rule for shared entities");
+  // No new agent: edits are delegated to existing phase agents.
+  /\btend\b/.test(integSrc) && /\bwitness\b/.test(integSrc)
+    ? pass("integrating-slices: delegates to existing phase agents")
+    : fail("integrating-slices: delegation", "must route edits through tend and witness the whole");
+
+  const loopSrc = readFileSync(loop, "utf-8");
+  loopSrc.includes("integrating-slices.md")
+    ? pass("driving-the-loop §6 links the reduce reference")
+    : fail("driving-the-loop §6 link", "§6 must link integrating-slices.md");
+  /reduce step/i.test(loopSrc)
+    ? pass("driving-the-loop §6 names the reduce step")
+    : fail("driving-the-loop §6", 'must name the "reduce step"');
+
+  const findingsSrc = readFileSync(findings, "utf-8");
+  findingsSrc.includes("allium.reference.unknownName")
+    ? pass("actioning-findings documents the seam signal (reference.unknownName)")
+    : fail("actioning-findings seam signal", "must document allium.reference.unknownName as a seam signal");
 }
 
 // ---------------------------------------------------------------------------
