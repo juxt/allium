@@ -353,9 +353,9 @@ Like its namesake, working with Allium may produce tears during the peeling, but
 
 <a href="https://www.star-history.com/?repos=juxt%2Fallium&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=juxt/allium&type=date&theme=dark&legend=top-left&sealed_token=vt0GNhF_frBP9ZqhIlkjvtV23Gc_DWcj6qsQ_8KGNyUZ3DhLS12B2A_pjCYzDMdOzG7jkZaXrySjpqd8F56yde5soJlN5qM30I07Nw0xbTg78E6OABguNwYRHLk9ayL9ts7TP0Rst9Ysk7c1oD6VasbdJzyVgFUtrydXzXKqej6YxB-nbfcc42BGeWmY" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=juxt/allium&type=date&legend=top-left&sealed_token=vt0GNhF_frBP9ZqhIlkjvtV23Gc_DWcj6qsQ_8KGNyUZ3DhLS12B2A_pjCYzDMdOzG7jkZaXrySjpqd8F56yde5soJlN5qM30I07Nw0xbTg78E6OABguNwYRHLk9ayL9ts7TP0Rst9Ysk7c1oD6VasbdJzyVgFUtrydXzXKqej6YxB-nbfcc42BGeWmY" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=juxt/allium&type=date&legend=top-left&sealed_token=vt0GNhF_frBP9ZqhIlkjvtV23Gc_DWcj6qsQ_8KGNyUZ3DhLS12B2A_pjCYzDMdOzG7jkZaXrySjpqd8F56yde5soJlN5qM30I07Nw0xbTg78E6OABguNwYRHLk9ayL9ts7TP0Rst9Ysk7c1oD6VasbdJzyVgFUtrydXzXKqej6YxB-nbfcc42BGeWmY" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=juxt/allium&type=date&theme=dark&legend=top-left&sealed_token=ATV6CpoJ8Tmy9jznSB4ugWLaUwHO8PbXbIcjgpFCAlQ0_vX1gyGmi2UX8qQe-LCeT2AEGuu09J8k9sgqzjuXMCSDIco3iJPnuaQAi_Y06rBbUVyu7ZScow" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=juxt/allium&type=date&legend=top-left&sealed_token=ATV6CpoJ8Tmy9jznSB4ugWLaUwHO8PbXbIcjgpFCAlQ0_vX1gyGmi2UX8qQe-LCeT2AEGuu09J8k9sgqzjuXMCSDIco3iJPnuaQAi_Y06rBbUVyu7ZScow" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=juxt/allium&type=date&legend=top-left&sealed_token=ATV6CpoJ8Tmy9jznSB4ugWLaUwHO8PbXbIcjgpFCAlQ0_vX1gyGmi2UX8qQe-LCeT2AEGuu09J8k9sgqzjuXMCSDIco3iJPnuaQAi_Y06rBbUVyu7ZScow" />
  </picture>
 </a>
 
