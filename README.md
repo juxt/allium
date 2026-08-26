@@ -105,7 +105,7 @@ Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
 
 ## Supported harnesses
 
-Allium is built to be portable. The skills are plain Markdown and the CLI is a standalone binary, so any tool that can follow instructions and run `allium check` can use it. Support comes in tiers, and each tier says what a harness gets.
+Allium is built to be portable. The skills are plain Markdown and the CLI is a standalone binary, so any tool that can follow instructions and run `allium check` can use it. Whether a harness is supported comes down to one thing: it needs to read Anthropic-style skills or an `AGENTS.md` file. If it does, `npx skills add juxt/allium` installs the skills and they run. The harnesses named below are the ones we provide install paths and per-editor setup for; anything else works through that same standard.
 
 Allium reaches a harness through up to four layers. Harnesses differ in how many of them they can use.
 
@@ -123,7 +123,7 @@ Allium reaches a harness through up to four layers. Harnesses differ in how many
 | Windsurf | ✓ | — | recipe | — | `npx skills` |
 | Aider | ✓ | — | recipe | — | `npx skills` |
 | JetBrains (Junie) | ✓ | — | recipe | manual | `npx skills` |
-| Continue, Cline, Zed, Gemini CLI, opencode, Amp, Kilo Code, Factory, and 30+ more | ✓ | — | git hook | manual | `npx skills` |
+| Any other skills or `AGENTS.md` reader (Continue, Cline, Zed, Gemini CLI, opencode, Amp, Kilo Code, Factory, …) | ✓ | — | git hook | manual | `npx skills` |
 
 **recipe** means we ship an editor-specific config you turn on once: Cursor and Windsurf edit hooks, Aider's `lint-cmd`, or a JetBrains File Watcher. **git hook** means verification runs through the harness-agnostic [pre-commit hook](.pre-commit-hooks.yaml) or a manual `allium check`, rather than live in the loop. **manual** LSP means the `allium-lsp` server works with the editor's language client, but you wire it up yourself. Only the Claude Code plugin does that for you.
 
