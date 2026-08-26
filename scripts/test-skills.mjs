@@ -661,13 +661,19 @@ if (shouldRun("loopdocs")) {
     else fail(`${rp} phase phrase`, `missing "${PHASE_PHRASE}"`);
   }
 
-  // README states the phases in verb form — check the four appear in order.
+  // README states the phases in verb form — check the four appear in order
+  // within the Allium loop section, not wherever the words happen to occur.
   const readmePath = path.join(ROOT, "README.md");
   if (existsSync(readmePath)) {
     const src = readFileSync(readmePath, "utf-8");
+    const heading = "## The Allium loop";
+    const start = src.indexOf(heading);
+    const rest = start >= 0 ? src.slice(start + heading.length) : "";
+    const end = rest.indexOf("\n## ");
+    const section = end >= 0 ? rest.slice(0, end) : rest;
     const stems = [/gather/i, /take[s]? action/i, /verif/i, /repeat/i];
-    const idx = stems.map((s) => src.search(s));
-    if (idx.every((i) => i >= 0) && idx.every((v, i) => i === 0 || v > idx[i - 1])) {
+    const idx = stems.map((s) => section.search(s));
+    if (start >= 0 && idx.every((i) => i >= 0) && idx.every((v, i) => i === 0 || v > idx[i - 1])) {
       pass("README.md phases in order");
     } else {
       fail("README.md phases", `not all present and in order: ${idx}`);
