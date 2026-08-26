@@ -58,7 +58,7 @@ See [recommended loops](skills/allium/references/recommended-loops.md) for the f
 
 ## Get started
 
-Allium works with Claude Code, Codex, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere.
+Allium works with Claude Code, Codex, Copilot, Cursor, Windsurf, Aider, Continue and 40+ other tools. How you install depends on your editor, but the skills are the same everywhere. See [supported harnesses](#supported-harnesses) for the full matrix and what each one gets.
 
 **Claude Code** via the [JUXT plugin marketplace](https://github.com/juxt/claude-plugins):
 
@@ -87,6 +87,47 @@ npx skills add juxt/allium
 Once installed, type `/allium` to get started. Allium examines your project and points you at the best next move — usually driving the whole loop end to end, or a single skill like distilling a spec from existing code or building one through conversation. Once you're familiar with the individual skills, you'll likely invoke them directly.
 
 Jump to what [Allium looks like in practice](#what-this-looks-like-in-practice).
+
+## Supported harnesses
+
+Allium is built to be portable. The skills are plain Markdown and the CLI is a standalone binary, so any tool that can follow instructions and run `allium check` can use it. Support comes in tiers, and each tier says what a harness gets.
+
+Allium reaches a harness through up to four layers. Harnesses differ in how many of them they can use.
+
+- **Skills.** The six workflows (`/allium`, `/elicit`, `/distill`, `/propagate`, `/tend`, `/weed`), and the core of Allium. Any agent that reads Anthropic-style skills or an `AGENTS.md` can run them.
+- **Autonomous agents.** `tend` and `weed` running in their own context. This needs a harness with a subagent concept.
+- **Automatic verification.** A post-edit hook runs `allium check` and feeds the results back in the same turn. This needs an edit hook.
+- **Live diagnostics.** The [`allium-lsp`](https://github.com/juxt/allium-tools) language server, for go-to-definition, hover and inline errors. This needs an LSP client.
+
+| Harness | Skills | Agents | Auto-verify | LSP | Install |
+|---|:---:|:---:|:---:|:---:|---|
+| Claude Code | ✓ | ✓ | ✓ | ✓ | Plugin |
+| Codex | ✓ | — | git hook | manual | Plugin |
+| GitHub Copilot (agent mode) | ✓ | ✓ | git hook | — | Reads repo |
+| Cursor | ✓ | — | recipe | — | `npx skills` |
+| Windsurf | ✓ | — | recipe | — | `npx skills` |
+| Aider | ✓ | — | recipe | — | `npx skills` |
+| JetBrains (Junie) | ✓ | — | recipe | manual | `npx skills` |
+| Continue, Cline, Zed, Gemini CLI, opencode, Amp, Kilo Code, Factory, and 30+ more | ✓ | — | git hook | manual | `npx skills` |
+
+**recipe** means we ship an editor-specific config you turn on once: Cursor and Windsurf edit hooks, Aider's `lint-cmd`, or a JetBrains File Watcher. **git hook** means verification runs through the harness-agnostic [pre-commit hook](.pre-commit-hooks.yaml) or a manual `allium check`, rather than live in the loop. **manual** LSP means the `allium-lsp` server works with the editor's language client, but you wire it up yourself. Only the Claude Code plugin does that for you.
+
+Claude Code is the reference harness. It uses every layer, and we test against it first. Everything else runs the same skills. The differences are in verification and live diagnostics, not in the language or the workflows.
+
+### Not supported
+
+Allium needs an agent that can read and maintain a spec. A couple of categories are out of scope by design.
+
+- **Autocomplete-only assistants.** These predict the next token. They don't follow a skill or drive a loop, so there is nothing for Allium to attach to. GitHub Copilot's agent mode is supported, but its plain ghost-text completions are not.
+- **Harnesses with no way to load instructions.** If a tool can't read a skill, an `AGENTS.md` or a rules file, you can't point it at Allium.
+
+If a tool in either group gains an instruction-following agent, we'll add it.
+
+### Reporting issues
+
+If a skill won't load or misbehaves on one of the harnesses above, tell us. [Raise an issue](https://github.com/juxt/allium/issues) and name the harness. If your harness runs the skills but has no automatic verification or live diagnostics, that's a capability gap rather than a fault: run `allium check` from the git pre-commit hook or by hand, and wire up `allium-lsp` if your editor has a language client. Autocomplete-only tools have no agent for the skills to attach to, so Allium won't run there.
+
+How editors discover skills and agents is still settling, and we ship the most portable formats we can. If your editor doesn't pick something up, tell us which one.
 
 ## Command-line tooling
 
