@@ -1,14 +1,30 @@
 # Allium
 
-*Velocity through clarity*
-
----
-
-Feed your AI something healthier than Markdown. [allium-lang.org](https://allium-lang.org/)
+The specification language that talks back: [allium-lang.org](https://allium-lang.org/).
 
 ## What this is
 
 Allium is a skill for clarifying intent during agentic engineering. The LLM builds and maintains a behavioural specification alongside your code, capturing what the system should do in a form that persists across sessions. Paired with a CLI that validates syntax and draws semantic inferences, it catches design gaps, surfaces implications you missed and generates tests from the formal behaviours of your system.
+
+It also works in reverse. Point Allium at code you already have and it distils a specification of how the system behaves, surfacing bugs and edge cases the code never made explicit.
+
+## Command-line tooling
+
+The [Allium CLI](https://github.com/juxt/allium-tools) checks specs for structural problems and generates tests. It catches things language models can't do reliably on their own: tracing data flow across rules, verifying that every entity lifecycle can reach a terminal state, spotting dead ends. The LLM uses these findings to ask better questions and produce more complete specs.
+
+The skills work without the CLI, falling back to the language reference, but installing it means every edit is formally checked and the results feed straight into the conversation.
+
+Install via [Homebrew](https://brew.sh/) or [crates.io](https://crates.io/crates/allium-cli):
+
+```
+brew tap juxt/allium && brew install allium
+```
+
+```
+cargo install allium-cli
+```
+
+See the [allium-tools repo](https://github.com/juxt/allium-tools) for details.
 
 ## How it works
 
@@ -31,7 +47,7 @@ Two forces feed the spec, and one loop keeps it honest against the code:
 
 ## The Allium loop
 
-Agentic coding is a loop: the agent **gathers context**, **takes action**, **verifies** the result, and **repeats** until the goal is met. The phase that decides quality is verification — a signal the loop can trust to tell *green* from *done*. Allium is built for that loop, and it owns the hard parts: a *behavioural* verification signal, and context that doesn't drift between sessions.
+Agentic coding runs as a loop. The agent gathers context, takes action, verifies the result and repeats until the goal is met. Verification is the phase that decides quality, because the loop needs a signal it can trust to tell *green* from *done*. Allium is built for that loop and takes on its hardest parts: a verification signal at the level of behaviour, and context that doesn't drift between sessions.
 
 ```
    gather context ───▶ take action ──────▶ verify ─────────▶ repeat
@@ -44,17 +60,16 @@ Agentic coding is a loop: the agent **gathers context**, **takes action**, **ver
               (not the code) was wrong
 ```
 
-- **Gather context** — `/elicit` (from intent) or `/distill` (from code) produces the spec. Unlike re-reading code each session, the spec *persists*, so meaning doesn't drift.
-- **Take action** — `/propagate` turns the spec into tests (the contract), then you implement against them. For new behaviour, confirm the tests *fail* first — a generated test that's already green is already covered or vacuous.
-- **Verify** — run the tests, then `/weed` for spec↔code alignment, then the CLI's structural checks. A behaviour-level pass/fail, not merely "unit tests are green."
-- **Repeat** — until spec, tests and code agree and no open questions remain. The loop can re-enter at *any* phase: when verification shows the **spec** was wrong, you revise intent (`/tend`), not just the code — the way real development discovers requirements by building, rather than assuming them fixed up front.
+Gathering context means producing the spec, working forward from intent with `/elicit` or backward from existing code with `/distill`. The spec persists, so meaning carries from one session to the next instead of being re-read from the code each time. Taking action starts with `/propagate`, which turns the spec into tests, the contract you then implement against. For new behaviour, confirm those tests fail first, since a generated test that is already green is either already covered or vacuous.
+
+Verification runs the tests, then `/weed` to check that spec and code still agree, then the CLI's structural checks. A pass at this level means the behaviour is right, not just that the unit tests are green. The loop repeats until spec, tests and code agree and no questions remain open. It can re-enter at any phase: when verification shows the spec itself was wrong, you revise intent with `/tend` instead of patching the code, the way real development turns up requirements by building rather than assuming them fixed from the start.
 
 Two entry points run the same loop:
 
 - **Spec-first** (new features): `/elicit → /propagate → implement → /weed`, looping `/tend → /propagate` as requirements change.
 - **Code-first** (existing code): `/distill → review → /propagate → run against the code → /weed`, repeated per area until a pass finds nothing new.
 
-See [recommended loops](skills/allium/references/recommended-loops.md) for the full walkthrough, both diagrams, exit conditions and the implementation prompt. *(This is the "agentic loop" framing now common in AI engineering; for background see [How Claude Code works](https://code.claude.com/docs/en/how-claude-code-works) and [Loop Engineering](https://thenewstack.io/loop-engineering/).)*
+See [recommended loops](skills/allium/references/recommended-loops.md) for the full walkthrough, both diagrams, exit conditions and the implementation prompt. This is the "agentic loop" framing now common in AI engineering; for background see [How Claude Code works](https://code.claude.com/docs/en/how-claude-code-works) and [Loop Engineering](https://thenewstack.io/loop-engineering/).
 
 ## Get started
 
@@ -128,24 +143,6 @@ If a tool in either group gains an instruction-following agent, we'll add it.
 If a skill won't load or misbehaves on one of the harnesses above, tell us. [Raise an issue](https://github.com/juxt/allium/issues) and name the harness. If your harness runs the skills but has no automatic verification or live diagnostics, that's a capability gap rather than a fault: run `allium check` from the git pre-commit hook or by hand, and wire up `allium-lsp` if your editor has a language client. Autocomplete-only tools have no agent for the skills to attach to, so Allium won't run there.
 
 How editors discover skills and agents is still settling, and we ship the most portable formats we can. If your editor doesn't pick something up, tell us which one.
-
-## Command-line tooling
-
-The [Allium CLI](https://github.com/juxt/allium-tools) checks specs for structural problems and generates tests. It catches things language models can't do reliably on their own: tracing data flow across rules, verifying that every entity lifecycle can reach a terminal state, spotting dead ends. The LLM uses these findings to ask better questions and produce more complete specs.
-
-The skills work without the CLI, falling back to the language reference, but installing it means every edit is formally checked and the results feed straight into the conversation.
-
-Install via [Homebrew](https://brew.sh/) or [crates.io](https://crates.io/crates/allium-cli):
-
-```
-brew tap juxt/allium && brew install allium
-```
-
-```
-cargo install allium-cli
-```
-
-See the [allium-tools repo](https://github.com/juxt/allium-tools) for details.
 
 ## Skills and agents
 
@@ -271,13 +268,13 @@ A customer's account was suspended for a terms of service violation. They've app
 
 ---
 
-> ***> A customer says they can't reset their password. Their account was suspended last month but they've appealed and we want to let them back in. Can you enable password reset for suspended users?***
->
-> ✻ Your Allium requires `user.status in {active, locked}` for password resets. This user's status is `suspended`, so the reset is blocked by design. Reactivating through password reset would bypass your `AccountReinstated` rule, which requires admin approval and logs an audit trail.
->
-> ✻ Should we reinstate the account through the existing admin flow first, then let them reset their password? Or create a new `AccountReinstatedViaAppeal` rule that combines both steps with the audit trail intact?
->
-> ***> Reinstate through the admin flow first. The audit trail matters.***
+***> A customer says they can't reset their password. Their account was suspended last month but they've appealed and we want to let them back in. Can you enable password reset for suspended users?***
+
+✻ Your Allium requires `user.status in {active, locked}` for password resets. This user's status is `suspended`, so the reset is blocked by design. Reactivating through password reset would bypass your `AccountReinstated` rule, which requires admin approval and logs an audit trail.
+
+✻ Should we reinstate the account through the existing admin flow first, then let them reset their password? Or create a new `AccountReinstatedViaAppeal` rule that combines both steps with the audit trail intact?
+
+***> Reinstate through the admin flow first. The audit trail matters.***
 
 ---
 
@@ -289,13 +286,13 @@ A developer starts a new session days later, working on a different feature.
 
 ---
 
-> ***> Add a free trial. New subscribers get their first month at no charge.***
->
-> ✻ Your Allium has a constraint here. `SubscriptionCreated` ensures a payment is processed and `InvoiceGenerated` requires `invoice.amount > 0`. A free first month would need to bypass both.
->
-> ✻ Should the trial skip invoice generation entirely, or create a zero-value invoice for the audit trail? And should the `PaymentMethod` still be captured upfront, or only when the trial converts?
->
-> ***> Create a zero-value invoice and capture the payment method upfront.***
+***> Add a free trial. New subscribers get their first month at no charge.***
+
+✻ Your Allium has a constraint here. `SubscriptionCreated` ensures a payment is processed and `InvoiceGenerated` requires `invoice.amount > 0`. A free first month would need to bypass both.
+
+✻ Should the trial skip invoice generation entirely, or create a zero-value invoice for the audit trail? And should the `PaymentMethod` still be captured upfront, or only when the trial converts?
+
+***> Create a zero-value invoice and capture the payment method upfront.***
 
 ---
 
@@ -307,17 +304,17 @@ A developer asks for a feature and lets the loop run to convergence.
 
 ---
 
-> ***> Add gift cards to checkout.***
->
-> ✻ I'll capture this as a spec first (`/elicit`). One thing to pin down before building: can a gift card be combined with a promo code, or are they mutually exclusive?
->
-> ***> Mutually exclusive.***
->
-> ✻ Spec updated. Generated tests with `/propagate` and ran them — 4 new tests, all failing as expected (red). Implementing against them now.
->
-> ✻ Tests green. `/weed` flagged a divergence: the code lets a gift card pay for shipping, but the spec scopes it to goods only. Fixing the code to match the spec.
->
-> ✻ Re-ran: tests pass, `/weed` clean, no open questions. Spec, tests and code agree — converged.
+***> Add gift cards to checkout.***
+
+✻ I'll capture this as a spec first (`/elicit`). One thing to pin down before building: can a gift card be combined with a promo code, or are they mutually exclusive?
+
+***> Mutually exclusive.***
+
+✻ Spec updated. Generated tests with `/propagate` and ran them — 4 new tests, all failing as expected (red). Implementing against them now.
+
+✻ Tests green. `/weed` flagged a divergence: the code lets a gift card pay for shipping, but the spec scopes it to goods only. Fixing the code to match the spec.
+
+✻ Re-ran: tests pass, `/weed` clean, no open questions. Spec, tests and code agree — converged.
 
 ---
 
