@@ -28,9 +28,9 @@ See the [allium-tools repo](https://github.com/juxt/allium-tools) for details.
 
 ## How it works
 
-You keep a `.allium` file alongside your code describing what the system should do — entities and their shapes, and rules in the form *when* an event happens, *requires* these preconditions hold, *ensures* these outcomes follow — while deliberately leaving out how it's done. The spec is the primary artefact; the code that implements it is secondary. Because the structure is explicit rather than prose, contradictions surface on their own: two rules with incompatible preconditions expose the conflict without anyone needing to be clever enough to spot it.
+You keep a `.allium` file alongside your code, setting out what the system should do rather than how it does it. It contains entities, which describe the things in the system and their shape, and rules. Each rule has three parts: a *when* that names the triggering event, a *requires* that lists the preconditions, and an *ensures* that states the outcomes. The spec and the code are two representations of the same system, one behavioural and one concrete, and much of the value comes from comparing them against each other, and against the tests that connect them. Because the behaviour is written as structure rather than prose, contradictions show up on their own: two rules with incompatible preconditions expose the conflict without a powerful model having to notice it.
 
-Two forces feed the spec, and one loop keeps it honest against the code:
+Two directions feed the spec, and a loop keeps it, the tests and the code in agreement:
 
 ```
         intent ──/elicit──►  ┌───────────────┐  ◄──/distill── existing code
@@ -43,7 +43,7 @@ Two forces feed the spec, and one loop keeps it honest against the code:
                              (generate tests)
 ```
 
-`/elicit` works forward from intent through conversation; `/distill` works backward from existing code, filtering out implementation detail. `/tend` makes targeted edits as requirements change; `/weed` finds where spec and code have diverged and reconciles them in either direction; `/propagate` generates tests from the spec so the implementation is checked against specified behaviour. `/allium` is the entry point — point it at your project and it routes you to the right one. The [skills table](#skills-and-agents) below covers each in detail.
+`/elicit` works forward from intent through conversation; `/distill` works backward from existing code, filtering out implementation detail. `/tend` makes targeted edits as requirements change; `/weed` finds where spec and code have diverged and reconciles them in either direction; `/propagate` generates tests from the spec so the implementation is checked against specified behaviour. `/allium` is the entry point: point it at your project and it routes you to the right one. The [skills table](#skills-and-agents) below covers each in detail.
 
 ## The Allium loop
 
