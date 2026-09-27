@@ -253,6 +253,33 @@ Questions to ask:
 
 When the same obligation pattern (e.g. a serialisation contract, a deterministic evaluation requirement) appears across multiple surfaces, suggest extracting it as a `contract` declaration for reuse.
 
+## Pin the output down as hard as the logic
+
+The result shape is the decision most often lost — dropped, half-captured, or even scoped out. Elicit it with the same depth you give the core method.
+
+- **Ask for the result shape directly, field by field.** "What must this return or report, exactly, every field?" Get the complete list, not a representative one.
+- **Any figure that is derived, disclosed, or reported on a different basis than it is computed gets the core-method treatment:** pin its exact definition, its basis, its precision, and its behaviour in degenerate cases, with follow-ups until nothing is ambiguous. A one-line answer here is where the subtle requirements hide — a rate disclosed on a different day-count than it accrues, a figure the customer sees that differs from the one you hold.
+- **The result shape is in scope by default.** Never push what the system must return or disclose out of scope; an excluded output is a decision to confirm with the operator, not a silent omission.
+
+## Before you finish: the completeness gate
+
+The interview feels done long before it is — the moment the main flow hangs together, which is far too early. Do not conclude on that feeling. Before you treat the conversation as complete, walk this checklist of decision classes against everything the operator has said. For each class relevant to this system, confirm they have actually answered it; where they have not, ask a concrete, answerable question now, and keep going until every relevant class has been put to them and answered (or explicitly ruled out of scope). A class you never asked about is not "assumed" — it is simply unasked, and silence in the brief is the signal to ask, not permission to guess.
+
+- **Core method or rule.** When a result is computed, derived, or decided and more than one accepted method or convention exists, which one does this organisation use? Do not assume the common default.
+- **Units and precision.** The unit a quantity is measured in, how precise it is, and how finer-grained values are handled.
+- **Rounding or truncation.** When a value is reduced to its unit, which way it goes and where any remainder lands.
+- **Ordering and priority.** When several things are applied or processed, in what order, and the tie-break when two rank equally.
+- **Thresholds and limits.** Minimums, maximums, caps, and tolerances below which something is waived, ignored, or treated as nothing.
+- **Timing and effective dates.** When something takes effect versus when it is recorded, back-dating, recomputation as of an earlier point, and cut-off times.
+- **Concurrency and sequencing.** When two things happen at once or in quick succession, how they are ordered and what breaks a tie.
+- **Edge inputs.** Zero, negative, empty, missing, duplicate, out-of-range — for each, rejected, ignored, or processed, and whether a record is still kept.
+- **Surplus and shortfall.** What happens to anything left over or anything missing — held, returned, carried, escalated — and against what it is applied next.
+- **Scope boundary.** What this system owns versus what an upstream or external system supplies. An exclusion is a decision to confirm, not a silent omission.
+- **Output and reporting shape.** Everything the result must contain, field by field, and any figure reported or disclosed on a different basis from how it is computed or stored.
+- **The whole life, not just creation.** Every event the thing undergoes over its entire life, beyond being created and running the normal course — early termination or cancellation, change or correction mid-life, pause or suspension, renewal or extension, reversal, transfer, expiry, and closure or wind-down — and for each, what recomputes and what becomes of whatever remains. This is the class most reliably skipped; for the entity at hand, name each of these and ask whether it applies.
+
+You are not done while any relevant class above is still an unasked assumption.
+
 ## Elicitation principles
 
 ### Ask one question at a time
