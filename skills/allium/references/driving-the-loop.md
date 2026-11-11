@@ -23,10 +23,10 @@ Announce like: *"No spec here, code present, goal reads as new behaviour → sta
 Announce each phase as it begins with a one-line marker (shown in parentheses below) so the run stays legible across ticks. Let the harness show the underlying commands — don't narrate every command, just the phase boundaries.
 
 1. **Gather context** *(`→ Gather: elicit/distill/tend the spec`)* — run the entry skill (or `tend`) only if the spec needs to change this tick. Treat elicitation as an *inner loop*: keep asking the user questions until the spec covers the edge cases, then continue. Distillation may take several passes. The spec is CLI-checked on every edit (the hook / LSP run `allium check`); **resolve any reported issues before propagating** — tests are generated from the spec, so it must be valid first.
-2. **Take action** *(`→ Act: propagate tests, then implement`)* — `propagate` to (re)generate tests when the spec changed, then implement.
+2. **Take action** *(`→ Act: propagate tests, then implement`)* — scope the tick to the change (§14), then `propagate` to (re)generate tests when the spec changed, then implement.
    - **Spec-first: confirm the new tests FAIL before implementing.** A generated test that is already green is already covered (reference it, don't duplicate) or vacuous (fix the spec or test).
    - Never edit a generated test to make it pass.
-3. **Verify** *(`→ Verify: run tests → weed → allium analyse`)* — actually run it: the project's test command, then `weed` for spec↔code alignment, then `allium analyse` for semantic gaps (dead ends, unreachable states). The spec's *structure* is already validated on every edit (§2.1), so verify adds the behavioural checks: tests, drift, and semantic analysis. Parse the results; never narrate a pass you didn't execute.
+3. **Verify** *(`→ Verify: run tests → weed → allium analyse`)* — actually run it: the project's test command (in a scoped tick, the tests that name the scope's obligation ids), then `weed` for spec↔code alignment, then `allium analyse` for semantic gaps (dead ends, unreachable states). The spec's *structure* is already validated on every edit (§2.1), so verify adds the behavioural checks: tests, drift, and semantic analysis. Parse the results; never narrate a pass you didn't execute.
 4. **Route the outcome:**
    - test fails → fix the code;
    - a test is wrong → `tend` the spec, then `propagate` again;
@@ -81,7 +81,7 @@ Run the reduce autonomously without blocking to confirm the plan, and produce on
 
 ## 7. Delegate each phase to an isolated sub-agent (default)
 
-By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend`, `propagate` and `witness` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path and the ledger, never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a **typed result record** — a JSON object conforming to that phase's schema (§12), not prose. That record is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
+By default, run each phase as an isolated sub-agent — `distill`, `weed`, `tend`, `propagate` and `witness` all ship as agents — and keep this orchestrator **thin**: it holds only the loop state (goal, ledger, current verdicts) and **reads no source files itself**. Hand each phase only what it needs to find its own inputs on disk — the spec's path, the ledger and the tick's scope (§14), never code you have read into your own context. Each phase reads the spec and the code it needs in *its own* fresh context and returns a **typed result record** — a JSON object conforming to that phase's schema (§12), not prose. That record is all you carry forward. The shared interface between phases is the on-disk artefacts (spec, tests, code) plus the ledger — never in-memory state.
 
 This is what keeps a long or large run within budget: the orchestrator's context stays flat (loop state only) while each phase's reading is bounded to that phase and then discarded. An inline run, by contrast, accumulates every phase's reads into one context that grows tick over tick until it is slow, expensive, or overflows the window.
 
@@ -140,7 +140,7 @@ The schemas: [`distill`](./schemas/distill-result.schema.json), [`weed`](./schem
 
 A long autonomous run can fail without failing. Nothing errors, but the loop stops converging — tests stick, `weed` stays dirty, obligations don't shrink — and it grinds tick after tick until a cap trips. The trace makes that visible while it is happening instead of after.
 
-**Append one entry per tick.** After recording state (§2 step 5), append a line to `.allium-loop/<goal-slug>.trace.jsonl` conforming to [trace-entry.schema.json](./schemas/trace-entry.schema.json): the tick number, the `phases` run **and why each was chosen** (the routing decision, so a wrong or repeatedly ineffective call is visible), the tick's `tests` (passed / failed), `weed` verdict, `uncovered_obligations`, and blocking / parked `open_questions`. These come straight from the phases' typed records (§12) — you already hold them, so this is bookkeeping, not new work. Carry a metric forward when its phase didn't run this tick.
+**Append one entry per tick.** After recording state (§2 step 5), append a line to `.allium-loop/<goal-slug>.trace.jsonl` conforming to [trace-entry.schema.json](./schemas/trace-entry.schema.json): the tick number, the `phases` run **and why each was chosen** (the routing decision, so a wrong or repeatedly ineffective call is visible), the tick's `tests` (passed / failed), `weed` verdict, `uncovered_obligations`, blocking / parked `open_questions`, and the tick's `scope` (§14). These come straight from the phases' typed records (§12) — you already hold them, so this is bookkeeping, not new work. Carry a metric forward when its phase didn't run this tick.
 
 **Which calls, and were they the right ones.** Recording the phase *and its reason* each tick, next to whether that tick made progress, makes the routing auditable: a phase that keeps running and never moves a metric is a wrong or wasted call, and now it shows in the trace rather than hiding in a long run. This is the routing half of the telemetry, and the orchestrator records it directly — it knows which subagent it chose and why.
 
@@ -159,3 +159,17 @@ This is the whole point: the silent slow-down becomes a line you cannot miss. Ke
 **The rule is simple on purpose.** Deciding "did any metric improve across the last N ticks" is counting over a short log, so the orchestrator applies it directly — no tool required, nothing to install. The same rule is pinned as a deterministic function in the test suite (`detectStall`) so it can't drift, and so it can later move into a script or the CLI as an accelerator, with the orchestrator as the always-present floor (§ the pattern `allium check` already uses: CLI when present, fall back otherwise).
 
 **Report the trajectory.** At the end (§10), summarise how the metrics moved across the run and call out any stall that was surfaced. A converged run reads as a clean descent to zero; a rescued one shows where it flattened and what unstuck it.
+
+## 14. Scope a tick to the change (blast radius)
+
+Compute the declarations and obligations a spec change touches, so that the phases work only on them:
+
+1. **Changed lines.** Working tree against a ref (default `HEAD`): `git diff -U0 <ref> -- '*.allium'`, and `git ls-files --others --exclude-standard -- '*.allium'` for untracked spec files, whose declarations all count as changed. Ref against ref: `git diff -U0 -M <ref-a> <ref-b> -- '*.allium'`. Extract each ref side to disk with `git archive <ref>`, because `use` imports resolve relative to the spec file.
+2. **Declarations.** `allium parse` on the new side gives each declaration's span. A changed range inside a span, comment lines included, hits that declaration. A range between two declarations hits the next one.
+3. **References.** Add the declarations that reference a hit declaration: language server `findReferences` on each.
+4. **Plan diff.** Run `allium plan` on both sides and compare the obligation ids yourself: added, changed, removed.
+5. **Scope.** The obligations of the hit declarations, plus the added and changed ids. Report the removed ids, so that `propagate` updates the tests that still name them.
+
+Use the full spec instead if the parse fails, a `use` import changed, a changed range maps to no declaration, or no spec file changed. Hand `weed` the declarations and `propagate` the obligation and removed ids. The convergence gate (§11) still runs the full suite. The trace entry's `scope` names the old ref, the new ref or each changed file's `git hash-object` hash, the declarations, and the obligation ids.
+
+Outside a loop, run steps 1–5 on two refs, for example two release tags, to report what changed between them.
