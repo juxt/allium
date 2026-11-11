@@ -215,7 +215,7 @@ When generator specs are available, use them to produce valid test data:
 
 ### Obligation reconciliation
 
-After generating tests, walk the full obligation list — from `allium plan` output or the manual derivation — and map each obligation to the test that covers it, whether generated this run or pre-existing. Reconciliation is silent: obligations are internal working data, so do not narrate the mapping, print the obligation list or present a coverage report while everything is on track.
+After generating tests, walk the full obligation list — from `allium plan` output or the manual derivation — and map each obligation to the test that covers it, whether generated this run or pre-existing. If the caller passes a scope of obligation ids, walk only those, and update the tests that name a removed id. Reconciliation is silent: obligations are internal working data, so do not narrate the mapping, print the obligation list or present a coverage report while everything is on track.
 
 For each obligation with no covering test, attempt to cover it:
 

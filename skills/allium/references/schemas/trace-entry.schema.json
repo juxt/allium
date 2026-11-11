@@ -48,6 +48,28 @@
         "parked": { "type": "integer" }
       }
     },
+    "scope": {
+      "type": "object",
+      "description": "the change this tick was limited to (driving-the-loop §14); absent when the tick used the full spec",
+      "required": ["old", "new", "declarations", "obligations"],
+      "additionalProperties": false,
+      "properties": {
+        "old": { "type": "string", "description": "the old ref" },
+        "new": { "type": "string", "description": "the new ref, or working-tree" },
+        "files": {
+          "type": "array",
+          "description": "working-tree mode: each changed spec file with its git hash-object hash",
+          "items": {
+            "type": "object",
+            "required": ["path", "hash"],
+            "additionalProperties": false,
+            "properties": { "path": { "type": "string" }, "hash": { "type": "string" } }
+          }
+        },
+        "declarations": { "type": "array", "items": { "type": "string" } },
+        "obligations": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "durations_s": {
       "type": "object",
       "description": "best-effort wall-clock seconds per phase this tick, from Bash timestamps; optional"

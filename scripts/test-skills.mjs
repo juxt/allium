@@ -992,6 +992,9 @@ if (shouldRun("trace")) {
     const good = entry(1, 5, "dirty", 3);
     validateAgainstSchema(traceSchema, good).length === 0
       ? pass("trace-entry valid fixture") : fail("trace-entry valid fixture", "should validate");
+    const scoped = { ...good, scope: { old: "HEAD", new: "working-tree", files: [{ path: "a.allium", hash: "abc" }], declarations: ["Order"], obligations: ["rule-success.Ship"] } };
+    validateAgainstSchema(traceSchema, scoped).length === 0
+      ? pass("trace-entry valid scoped fixture") : fail("trace-entry valid scoped fixture", "should validate");
     const bad = [
       ["bad weed enum", { ...good, weed: "greenish" }],
       ["tests missing failed", { ...good, tests: { passed: 5 } }],
@@ -1000,6 +1003,7 @@ if (shouldRun("trace")) {
       ["tick not integer", { ...good, tick: "1" }],
       ["phases item missing name", { ...good, phases: [{ reason: "x" }] }],
       ["phases item as bare string", { ...good, phases: ["weed"] }],
+      ["scope missing obligations", { ...good, scope: { old: "HEAD", new: "working-tree", declarations: [] } }],
     ];
     for (const [label, rec] of bad) {
       validateAgainstSchema(traceSchema, rec).length > 0
