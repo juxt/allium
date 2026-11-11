@@ -1,8 +1,9 @@
 // Records real per-subagent-call timing into the Allium loop's trace.
 //
-// Registered twice in hooks.json, matched to the subagent tool:
-//   PreToolUse  → node loop-trace.mjs pre    (stamp the call's start)
-//   PostToolUse → node loop-trace.mjs post   (write duration on return)
+// Registered twice in hooks.json, on the subagent lifecycle events:
+//   SubagentStart → node loop-trace.mjs pre    (stamp the subagent's start)
+//   SubagentStop  → node loop-trace.mjs post   (write duration when it finishes)
+// PostToolUse on the Agent tool would fire at launch for a background agent.
 //
 // Timing has to be captured outside the model — a subagent call isn't a Bash
 // call the model can wrap in `date`, and the model can't read its own latency.
@@ -46,6 +47,7 @@ try {
 // varies by harness, so look in the likely spots; fall back to the tool name.
 const toolInput = input.tool_input ?? input.tool_info ?? {};
 const agent =
+  input.agent_type ??
   toolInput.subagent_type ??
   toolInput.subagentType ??
   toolInput.agent ??
@@ -57,7 +59,7 @@ const agent =
 // one, fall back to FIFO, which is correct for the sequential phase calls the
 // loop makes (a documented limitation under parallel calls).
 const corrId =
-  input.tool_use_id ?? input.toolUseId ?? toolInput.id ?? null;
+  input.agent_id ?? input.tool_use_id ?? input.toolUseId ?? toolInput.id ?? null;
 
 // Resolve the project root the same way the allium-check hook does.
 const payloadRoots = Array.isArray(input.workspace_roots) ? input.workspace_roots : [];

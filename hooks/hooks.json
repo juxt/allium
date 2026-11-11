@@ -1,8 +1,8 @@
 {
   "hooks": {
-    "PreToolUse": [
+    "SubagentStart": [
       {
-        "matcher": "Task|Agent",
+        "matcher": ".+",
         "hooks": [
           {
             "type": "command",
@@ -20,9 +20,11 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/allium-check.mjs\""
           }
         ]
-      },
+      }
+    ],
+    "SubagentStop": [
       {
-        "matcher": "Task|Agent",
+        "matcher": ".+",
         "hooks": [
           {
             "type": "command",

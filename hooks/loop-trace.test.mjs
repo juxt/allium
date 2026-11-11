@@ -74,6 +74,19 @@ console.log("\n── loop-trace hook ──\n");
   rmSync(dir, { recursive: true, force: true });
 }
 
+// 3b. SubagentStart/SubagentStop pair by agent_id, so overlapping background agents keep their own run times.
+{
+  const dir = newProject({ withLoopDir: true });
+  runHook("pre", { hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "allium:tend" }, dir);
+  runHook("pre", { hook_event_name: "SubagentStart", agent_id: "a2", agent_type: "allium:weed" }, dir);
+  runHook("post", { hook_event_name: "SubagentStop", agent_id: "a2", agent_type: "allium:weed" }, dir);
+  runHook("post", { hook_event_name: "SubagentStop", agent_id: "a1", agent_type: "allium:tend" }, dir);
+  const t = timings(dir);
+  assert("pairs subagent start and stop by agent_id", t.length === 2 && t[0].agent === "allium:weed" && t[1].agent === "allium:tend");
+  assert("times the first agent's whole run", t[1]?.duration_ms >= t[0]?.duration_ms);
+  rmSync(dir, { recursive: true, force: true });
+}
+
 // 4. A post with no matching pre writes nothing and does not crash.
 {
   const dir = newProject({ withLoopDir: true });

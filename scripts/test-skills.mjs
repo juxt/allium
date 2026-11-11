@@ -709,7 +709,7 @@ if (shouldRun("hooks")) {
       let matchersOk = true;
       let scriptsOk = true;
       const commands = [];
-      for (const event of ["PreToolUse", "PostToolUse"]) {
+      for (const event of ["PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop"]) {
         for (const entry of cfg.hooks?.[event] ?? []) {
           if (!entry || !entry.matcher) matchersOk = false;
           for (const h of Array.isArray(entry?.hooks) ? entry.hooks : []) {
