@@ -26,7 +26,7 @@ Before propagating tests, you need:
 
 1. **An Allium spec** — the `.allium` file describing the system's behaviour
 2. **A target codebase** — the implementation to test
-3. **Test obligations** — from `allium plan <spec>` (JSON listing every required test)
+3. **Test obligations** — from `allium plan <spec>` (JSON listing every required test, or one obligation per line with `--format tsv`; see [obligation plans](../../skills/allium/references/obligation-plans.md))
 4. **Domain model** — from `allium model <spec>` (JSON describing entity shapes, constraints, state machines)
 
 If the CLI tools are not available, derive test obligations manually from the spec using the test-generation taxonomy in [`references/test-generation.md`](../../skills/allium/references/test-generation.md).
@@ -180,7 +180,7 @@ Deferred specifications are fully specified in separate files. When the target c
 ## Process
 
 1. **Read the spec** — understand entities, rules, surfaces, invariants, transition graphs, state-dependent fields, contracts, config, defaults. In a large spec, locate each rule, entity or surface with the language server (`documentSymbol`, `workspaceSymbol`) when one is available, and read only those lines. Read [assessing specs](../../skills/allium/references/assessing-specs.md) to gauge the spec's maturity. A coarse spec (entities and transition graphs but no rules) will produce limited test obligations — mostly structural tests. If the spec is too coarse for meaningful test generation, suggest using the `elicit` or `distill` skill to develop it further before propagating tests. A spec with rules and surfaces enables the full test taxonomy including data flow chain tests and reachability tests.
-2. **Read test obligations** — from `allium plan` output or manual derivation
+2. **Read test obligations** — from `allium plan` output or manual derivation. If the spec changed since the tests were written, start from `allium diff` instead (see [When the spec has changed](#when-the-spec-has-changed))
 3. **Read domain model** — from `allium model` output or manual derivation
 4. **Explore the codebase** — find existing tests, test framework, entity implementations, rule implementations
 5. **Map constructs to code** — correlate spec entities/rules/surfaces with implementation classes/functions/endpoints
@@ -215,7 +215,9 @@ When generator specs are available, use them to produce valid test data:
 
 ### Obligation reconciliation
 
-After generating tests, walk the full obligation list — from `allium plan` output or the manual derivation — and map each obligation to the test that covers it, whether generated this run or pre-existing. Reconciliation is silent: obligations are internal working data, so do not narrate the mapping, print the obligation list or present a coverage report while everything is on track.
+After generating tests, walk the full obligation list — from `allium plan` output or the manual derivation — and map each obligation to the test that covers it, whether generated this run or pre-existing. If the caller passes a scope of obligation ids, walk only those, and delete or rename the tests that name a removed or renamed id. Reconciliation is silent: obligations are internal working data, so do not narrate the mapping, print the obligation list or present a coverage report while everything is on track.
+
+Every test names the obligations it covers in a comment, one per line, in the form `obligation: <id>`, using the comment syntax of the test's language. The markers are how coverage is checked: the [obligation plans](../../skills/allium/references/obligation-plans.md) recipes list the obligations no test names, and the ids tests name that the spec no longer has. Add the marker to every test you generate, and to an existing test when you map an obligation to it.
 
 For each obligation with no covering test, attempt to cover it:
 
@@ -236,6 +238,10 @@ Obligations still uncovered when a guard trips are the only part of reconciliati
 Missing implementation is not a residue category. In a spec-first flow no code exists yet by design: write the test against the intended interface and let it fail — a failing test covers its obligation, and the loop's implement phase turns it green. An obligation is uncovered only when no test for it could be written at all.
 
 Close with a single summary line: `N obligations, M covered, K uncovered`. When everything is covered that one line is the entire user-facing output of reconciliation. Silence about an individual obligation means it is covered; anything itemised needs a human decision. When propagate runs inside the Allium loop, this line feeds the loop's consolidated summary, and the loop must not treat the spec as converged while obligations remain uncovered without a reported reason.
+
+### When the spec has changed
+
+When tests already exist for an earlier version of the spec, compare the two versions with `allium diff` rather than reconciling from scratch, for example `allium diff <(git show HEAD:spec.allium) spec.allium`. Write a test for each `A`, delete or retarget the test for each `D`, review the test for each `M` against the new clause, and for each `R` change the test's marker from the old id to the new one. Apply the renames in one pass, because they chain. The [obligation plans](../../skills/allium/references/obligation-plans.md) reference explains each status. Then reconcile as above.
 
 ### Recording the tamper baseline (in the loop)
 

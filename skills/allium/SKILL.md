@@ -335,6 +335,7 @@ When the `allium` CLI is installed, a hook validates `.allium` files automatical
 
 - [Language reference](./references/language-reference.md) — full syntax for entities, rules, expressions, surfaces, contracts, invariants and validation
 - [Test generation](./references/test-generation.md) — generating tests from specifications
+- [Obligation plans](./references/obligation-plans.md) — querying `allium plan` output, naming obligations in tests, and reading `allium diff`
 - [Recommended loops](./references/recommended-loops.md) — the gather-context → take-action → verify → repeat loop, with spec-first and code-first walkthroughs
 - [Driving the loop](./references/driving-the-loop.md) — the procedure `/allium` follows to drive a goal to convergence (entry detection, the tick, stop conditions, the ledger)
 - [Integrating slices](./references/integrating-slices.md) — the reduce step for fanned-out goals: assemble the slices, cross-check the seams with `allium analyse`, reconcile and witness the whole
