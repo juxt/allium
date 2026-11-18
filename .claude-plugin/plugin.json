@@ -19,13 +19,6 @@
     "./skills/weed",
     "./skills/witness"
   ],
-  "agents": [
-    "./agents/distill.md",
-    "./agents/propagate.md",
-    "./agents/tend.md",
-    "./agents/weed.md",
-    "./agents/witness.md"
-  ],
   "lspServers": {
     "allium": {
       "command": "allium-lsp",

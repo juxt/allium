@@ -502,6 +502,14 @@ if (shouldRun("consistency")) {
     fail("version parity", `claude=${claude?.version} codex=${codex?.version}`);
   }
 
+  // Claude Code discovers agents/ by convention. An explicit "agents" key makes
+  // `claude plugin details` report no agents, though they still load (#74).
+  if (claude && "agents" in claude) {
+    fail(".claude-plugin/plugin.json", 'declares "agents"; leave agents/ to convention');
+  } else {
+    pass("claude manifest leaves agents to convention");
+  }
+
   // Registration: skills/ dirs == test skillNames == .claude-plugin skills[].
   const skillsRoot = path.join(ROOT, "skills");
   const actualDirs = existsSync(skillsRoot)
