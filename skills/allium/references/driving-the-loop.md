@@ -167,8 +167,8 @@ Compute the declarations and obligations a spec change touches, so that the phas
 1. **Changed lines.** Working tree against a ref (default `HEAD`): `git diff -U0 <ref> -- '*.allium'`, and `git ls-files --others --exclude-standard -- '*.allium'` for untracked spec files, whose declarations all count as changed. Ref against ref: `git diff -U0 -M <ref-a> <ref-b> -- '*.allium'`. Extract each ref side to disk with `git archive <ref>`, because `use` imports resolve relative to the spec file.
 2. **Declarations.** `allium parse` on the new side gives each declaration's span. A changed range inside a span, comment lines included, hits that declaration. A range between two declarations hits the next one.
 3. **References.** Add the declarations that reference a hit declaration: language server `findReferences` on each.
-4. **Plan diff.** Run `allium plan` on both sides and compare the obligation ids yourself: added, changed, removed.
-5. **Scope.** The obligations of the hit declarations, plus the added and changed ids. Report the removed ids, so that `propagate` updates the tests that still name them.
+4. **Plan diff.** Run `allium diff <old> <new>` on each changed spec, with the old side from step 1 or `<(git show <ref>:<path>)`. See [obligation plans](./obligation-plans.md) for the output.
+5. **Scope.** The obligations of the hit declarations, plus the `A` and `M` ids and the new id of each `R`. Report the `D` ids and the `R` pairs, so that `propagate` deletes or renames the tests that still name them.
 
 Use the full spec instead if the parse fails, a `use` import changed, a changed range maps to no declaration, or no spec file changed. Hand `weed` the declarations and `propagate` the obligation and removed ids. The convergence gate (§11) still runs the full suite. The trace entry's `scope` names the old ref, the new ref or each changed file's `git hash-object` hash, the declarations, and the obligation ids.
 
