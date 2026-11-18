@@ -6,6 +6,7 @@ tools:
   - Read
   - Glob
   - Grep
+  - LSP
   - Edit
   - Write
   - Bash

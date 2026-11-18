@@ -17,7 +17,7 @@ This skill runs in two modes. Every instruction below that asks, prompts or chec
 ## Startup
 
 1. If the `allium` CLI is not available, read [language reference](../allium/references/language-reference.md) for the Allium syntax and validation rules. Otherwise, read only the section that covers each `allium check` diagnostic.
-2. Read the relevant `.allium` files (search the project to find them if not specified).
+2. Read the relevant `.allium` files (search the project to find them if not specified). In a large spec, locate each rule, entity or surface with the language server (`documentSymbol`, `workspaceSymbol`) when one is available, and read only those lines.
 3. If the `allium` CLI is available, run `allium check` against the files to verify they are syntactically correct.
 4. Read the corresponding implementation code.
 
