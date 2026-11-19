@@ -757,6 +757,13 @@ when: CandidateSelectsSlot(invitation, slot)
 when: InterviewerReportsNoInterview(interviewer, interview, reason, details?)
 ```
 
+**Typed parameters** declare a parameter's type with `name: Type`, and can be mixed with bare names:
+```
+when: Decided(clerk, outcome: Outcome)
+```
+
+The type counts as a reference to its declaration. When it is an enum, the values that emitting rules pass for that parameter are checked against it (see trigger emissions under postconditions).
+
 **State transition** — entity changed state:
 ```
 when: interview: Interview.status transitions_to scheduled
@@ -943,7 +950,7 @@ ensures: UserMentioned(user: mention.user, comment: comment, mentioned_by: autho
 ensures: FeatureUsed(workspace: workspace, feature: feature, by: user)
 ```
 
-Trigger emissions are observable outcomes, not entity creation. They have no `.created()` call and are referenced by other rules' `when` clauses. Parameter values follow normal expression resolution: bound names are resolved first, then enum literals if the parameter has a declared type on the receiving rule. Bare identifiers that resolve to neither a binding nor an enum literal are a checker warning.
+Trigger emissions are observable outcomes, not entity creation. They have no `.created()` call and are referenced by other rules' `when` clauses. Parameter values follow normal expression resolution: bound names are resolved first, then enum literals if the parameter has a declared type on the receiving rule (`when: Decided(clerk, outcome: Outcome)`). A literal that is not a value of the declared enum is a checker error. Bare identifiers that resolve to neither a binding nor an enum literal are a checker warning.
 
 **Entity removal:**
 ```
@@ -1911,7 +1918,7 @@ A valid Allium specification must satisfy:
 3. All relationships reference valid entities (singular names) and include a backreference to `this` in their `with` predicate. `with` is used for relationship declarations and must reference `this`; `where` is used for filtering (projections, iteration, surface context, actor identification, surface `let`) and must not reference `this`
 4. All rules have at least one trigger and at least one ensures clause
 5. All triggers are valid (external stimulus, state transition, state becomes, entity creation, temporal, derived or chained)
-6. All rules sharing a trigger name must use the same parameter count and positional types. Parameter binding names may differ between rules. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
+6. All rules sharing a trigger name must use the same parameter count and positional types. Parameter binding names may differ between rules. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`. Where a receiving rule declares a parameter's type as an enum, an enum literal emitted for that parameter must be a value of that enum
 
 **State machine validity (without transition graph):**
 7. All status values are reachable via some rule
