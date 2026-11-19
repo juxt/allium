@@ -1456,7 +1456,7 @@ open question "Admin ownership - should admins be assigned to specific roles?"
 open question "Multiple interview types - how is type assigned to candidacy?"
 ```
 
-Open questions are surfaced by the specification checker as warnings, indicating the spec is incomplete.
+Open questions are surfaced by the specification checker as info findings, indicating the spec is incomplete.
 
 ---
 
