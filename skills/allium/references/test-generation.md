@@ -131,4 +131,4 @@ How "present" and "absent" are tested depends on how the implementation represen
 
 **Concurrency note:** The language reference does not formally define rule atomicity or evaluation order. Treat rules as atomic (completing entirely or not at all) as a reasonable default.
 
-**Constructs without dedicated test categories:** `given` block bindings are exercised through rule tests that reference them. `deferred` specifications are tested in their own modules. `open question` declarations are checker warnings, not test obligations. `exists` as an `if`-condition is covered by rule conditional ensures tests. Discard bindings (`_`) have no observable effect to test.
+**Constructs without dedicated test categories:** `given` block bindings are exercised through rule tests that reference them. `deferred` specifications are tested in their own modules. `open question` declarations are checker info findings, not test obligations. `exists` as an `if`-condition is covered by rule conditional ensures tests. Discard bindings (`_`) have no observable effect to test.
